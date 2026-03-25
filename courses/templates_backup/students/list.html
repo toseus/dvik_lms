@@ -1,0 +1,60 @@
+<!-- list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Слушатели — ДВИК СЭО{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <div class="page-header">
+    <h1>Слушатели</h1>
+    <form method="get" class="search-form">
+      <input type="text" name="q" value="{{ q }}"
+             placeholder="Поиск по фамилии или СНИЛС">
+      <button type="submit">Найти</button>
+    </form>
+  </div>
+
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Фамилия</th>
+        <th>Имя</th>
+        <th>Отчество</th>
+        <th>СНИЛС</th>
+        <th>Должность</th>
+        <th>Место работы</th>
+        <th>Аккаунт</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in persons %}
+      <tr onclick="location.href='{% url 'student_card' p.pk %}'">
+        <td style="color:var(--text-muted)">{{ p.pk }}</td>
+        <td><strong>{{ p.last_name }}</strong></td>
+        <td>{{ p.first_name }}</td>
+        <td>{{ p.middle_name }}</td>
+        <td style="font-family:monospace;font-size:13px">{{ p.snils }}</td>
+        <td>{{ p.position }}</td>
+        <td>{{ p.workplace }}</td>
+        <td>
+          {% if p.has_account %}
+            <span style="color:var(--status-green);font-weight:700">✓</span>
+          {% else %}
+            <span style="color:var(--border)">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">
+          Слушатели не найдены
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+{% endblock %}

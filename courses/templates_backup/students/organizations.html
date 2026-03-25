@@ -1,0 +1,515 @@
+<!-- organizations.html -->
+{% extends 'base.html' %}
+{% block title %}Организации — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:400px; } /* Еще шире */
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg, #fff);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:2px solid var(--border);white-space:nowrap; }
+.persons-table td { padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:middle; }
+.persons-table tbody tr { transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--row-hover, #edf4fc); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.td-inn   { font-family:monospace;color:var(--text-muted);white-space:nowrap; }
+.td-short { font-weight:600; }
+.persons-empty { text-align:center;padding:60px 24px;color:var(--text-muted);font-size:15px; }
+.persons-empty-ico { font-size:48px;margin-bottom:12px;opacity:.3; }
+
+.org-type-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.type-educational { background: #d0e4f7; color: #0f62ae; }
+.type-customer    { background: #dff6dd; color: #107c10; }
+.type-partner     { background: #fff4ce; color: #9a6300; }
+
+/* Модальное окно */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,30,60,.55); z-index: 1000;
+  align-items: center; justify-content: center;
+  padding: 20px; backdrop-filter: blur(3px);
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: var(--card-bg); border-radius: var(--radius);
+  box-shadow: 0 12px 48px rgba(0,0,0,.2);
+  padding: 32px; width: 100%; max-width: 500px;
+}
+.modal-title { font-size: 18px; font-weight: 900; color: var(--text-primary); margin-bottom: 4px; }
+.modal-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.form-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; color: var(--text-primary); background: var(--page-bg); outline: none; transition: border-color .15s; }
+.form-input:focus { border-color: var(--accent); background: var(--white); }
+.form-input:disabled { background: #f0f4f9; color: var(--text-muted); }
+
+.modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+.btn-primary { flex: 1; padding: 11px; border-radius: var(--radius-sm); background: var(--accent); color: #fff; border: none; font-family: var(--font); font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { padding: 11px 18px; border-radius: var(--radius-sm); background: var(--sidebar-bg); color: var(--text-secondary); border: 1.5px solid var(--border); font-family: var(--font); font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-secondary:hover { background: var(--border); }
+.btn-delete { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 4px 8px; }
+.btn-delete:hover { color: var(--status-red); }
+
+.search-result {
+  margin-top: 10px; padding: 12px; border-radius: var(--radius-sm);
+  display: none;
+}
+.search-result.success { background: #dff6dd; border: 1px solid #8fcb8f; display: block; }
+.search-result.error { background: #fde7e9; border: 1px solid #e8a0a3; display: block; }
+
+.assigned-for { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Компактные кнопки */
+.btn-compact {
+    padding: 9px 12px !important; /* Уменьшил padding по бокам */
+    font-size: 13px !important;
+    border-radius: 5px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px; /* Уменьшил gap */
+    height: 38px;
+    min-width: 70px; /* Минимальная ширина */
+    justify-content: center;
+}
+
+.btn-primary.btn-compact {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+}
+
+.btn-outline.btn-compact {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+    text-decoration: none;
+}
+
+/* Синяя кнопка назначить */
+.btn-assign {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 9px 12px;
+    border-radius: 5px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(15,98,174,0.3);
+    white-space: nowrap;
+    height: 38px;
+    min-width: 90px;
+    justify-content: center;
+}
+.btn-assign:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15,98,174,0.4);
+}
+.btn-assign svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Стили для фильтра */
+.filter-select {
+    width: 160px; /* Немного уменьшил */
+    height: 38px;
+    padding: 0 10px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    cursor: pointer;
+    outline: none;
+}
+
+.filter-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(15,98,174,0.09);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header" style="margin-bottom: 15px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Организации</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Образовательные организации, заказчики и партнеры</div>
+    </div>
+  </div>
+
+  <!-- Панель с фильтром по типу, поиском и кнопкой назначить -->
+  <div class="persons-toolbar" style="margin-bottom:15px; display: flex; align-items: center; gap: 8px;">
+    <!-- Фильтр по типу -->
+    <select class="filter-select" id="typeFilter" onchange="filterByType()">
+      <option value="">Все типы</option>
+      <option value="educational">🎓 Образовательные</option>
+      <option value="customer">🏢 Заказчики</option>
+      <option value="partner">🤝 Партнеры</option>
+    </select>
+
+    <!-- Форма поиска - поле ввода очень широкое, кнопка компактная -->
+    <form method="get" style="display: flex; flex: 1; gap: 6px; align-items: center;">
+      <div class="stu-search-wrap" style="flex: 1; min-width: 500px;"> <!-- Очень широкое поле -->
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+        </svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}"
+               placeholder="Поиск по названию, ИНН или городу…" style="height: 38px;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-compact">Найти</button>
+      {% if q or current_type %}
+      <a href="{% url 'organization_list' %}" class="btn btn-outline btn-compact">Сбросить</a>
+      {% endif %}
+    </form>
+
+    <!-- Кнопка назначить - синяя, справа -->
+    <button class="btn-assign" onclick="openAssignModal()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 1v14M1 8h14" stroke-linecap="round"/>
+      </svg>
+      Назначить
+    </button>
+  </div>
+
+  <div class="persons-count">
+    Показано {{ assignments.count }} назначений{% if q %} по запросу «{{ q }}»{% endif %}
+  </div>
+</div>
+
+{% if assignments %}
+<div class="persons-table-wrap">
+  <table class="persons-table" id="orgsTable">
+    <thead>
+      <tr>
+        <th>Тип</th>
+        <th>ИНН</th>
+        <th>Организация</th>
+        <th>Назначена для</th>
+        <th>Кто назначил</th>
+        <th>Дата</th>
+        <th>Примечания</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in assignments %}
+      <tr data-type="{{ a.org_type }}">
+        <td>
+          {% if a.org_type == 'educational' %}
+            <span class="org-type-badge type-educational">🎓 Образовательная</span>
+          {% elif a.org_type == 'customer' %}
+            <span class="org-type-badge type-customer">🏢 Заказчик</span>
+          {% elif a.org_type == 'partner' %}
+            <span class="org-type-badge type-partner">🤝 Партнер</span>
+          {% endif %}
+        </td>
+        <td class="td-inn">{{ a.company.inn }}</td>
+        <td>
+          <div class="td-short">{{ a.company.short_name }}</div>
+          <div class="assigned-for">{{ a.company.full_name|truncatechars:50 }}</div>
+        </td>
+        <td>{{ a.assigned_for }}</td>
+        <td>{{ a.assigned_by.get_full_name|default:a.assigned_by.username }}</td>
+        <td>{{ a.created_at|date:"d.m.Y" }}</td>
+        <td style="font-size:12px;color:var(--text-muted)">{{ a.notes|default:'—' }}</td>
+        <td>
+          <button class="btn-delete" onclick="deleteAssignment({{ a.id }})" title="Удалить">✕</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="persons-empty">
+  <div class="persons-empty-ico">🏢</div>
+  <div>{% if q %}Ничего не найдено{% else %}Нет назначенных организаций{% endif %}</div>
+  {% if not q %}
+  <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">
+    Нажмите «Назначить» чтобы добавить
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Модальное окно назначения организации -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal">
+    <div class="modal-title">Назначить организацию</div>
+    <div class="modal-sub">Введите ИНН для поиска в справочнике юрлиц</div>
+
+    <div class="form-group">
+      <label class="form-label">ИНН</label>
+      <input type="text" class="form-input" id="innInput" placeholder="7707083893" maxlength="12"
+             onkeypress="if(event.key==='Enter') searchCompany()">
+    </div>
+
+    <div class="form-group" style="display: flex; gap: 8px;">
+      <button class="btn-primary" style="flex: 1; padding: 10px;" onclick="searchCompany()">Найти организацию</button>
+      <button class="btn-secondary" onclick="closeAssignModal()">Отмена</button>
+    </div>
+
+    <div class="search-result" id="searchResult"></div>
+
+    <div id="companyDetails" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Найдена организация</label>
+        <input type="text" class="form-input" id="companyName" disabled style="background: var(--sidebar-bg);">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Тип организации <span class="required">*</span></label>
+        <select class="form-input" id="orgTypeSelect">
+          <option value="">-- Выберите тип --</option>
+          <option value="educational">🎓 Образовательная организация</option>
+          <option value="customer">🏢 Заказчик</option>
+          <option value="partner">🤝 Партнер</option>
+        </select>
+      </div>
+
+      <!-- Информация о текущей организации пользователя -->
+      <div class="form-group">
+        <label class="form-label">Назначается от</label>
+        <div class="form-input" style="background: var(--sidebar-bg);" id="currentOrgDisplay">
+          {% if user.current_organization %}
+            {{ user.current_organization.short_name }}
+          {% else %}
+            <span style="color: var(--status-red);">Не выбрана</span>
+          {% endif %}
+        </div>
+        {% if not user.current_organization %}
+        <div class="form-hint" style="color: var(--status-red);">
+          ⚠ Сначала выберите текущую организацию в профиле
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Примечания (необязательно)</label>
+        <textarea class="form-input" id="notesInput" rows="2" placeholder="Дополнительная информация..."></textarea>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn-primary" onclick="assignOrganization()"
+                {% if not user.current_organization %}disabled style="opacity:0.5;"{% endif %}>
+          Назначить
+        </button>
+        <button class="btn-secondary" onclick="closeAssignModal()">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let foundCompany = null;
+
+function openAssignModal() {
+  document.getElementById('assignModal').classList.add('visible');
+  document.getElementById('innInput').value = '';
+  document.getElementById('searchResult').style.display = 'none';
+  document.getElementById('searchResult').innerHTML = '';
+  document.getElementById('companyDetails').style.display = 'none';
+  document.getElementById('orgTypeSelect').value = '';
+  document.getElementById('notesInput').value = '';
+  foundCompany = null;
+
+  // Фокус на поле ввода ИНН
+  setTimeout(() => document.getElementById('innInput').focus(), 100);
+}
+
+function closeAssignModal() {
+  document.getElementById('assignModal').classList.remove('visible');
+}
+
+function searchCompany() {
+  const inn = document.getElementById('innInput').value.trim();
+  if (!inn) {
+    showResult('Введите ИНН', 'error');
+    return;
+  }
+
+  // Показываем индикатор загрузки
+  const resultDiv = document.getElementById('searchResult');
+  resultDiv.textContent = 'Поиск...';
+  resultDiv.style.display = 'block';
+  resultDiv.style.background = 'none';
+  resultDiv.style.border = 'none';
+  resultDiv.style.color = 'var(--text-muted)';
+
+  fetch('/organizations/search/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({ inn: inn })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.found) {
+      foundCompany = data;
+      document.getElementById('companyName').value = `${data.short_name} (${data.full_name})`;
+      document.getElementById('companyDetails').style.display = 'block';
+      document.getElementById('searchResult').style.display = 'none';
+      document.getElementById('orgTypeSelect').focus();
+    } else {
+      foundCompany = null;
+      document.getElementById('companyDetails').style.display = 'none';
+      showResult('❌ ' + (data.message || 'Организация не найдена'), 'error');
+    }
+  })
+  .catch(error => {
+    showResult('❌ Ошибка при поиске', 'error');
+    console.error('Error:', error);
+  });
+}
+
+function showResult(message, type) {
+  const resultDiv = document.getElementById('searchResult');
+  resultDiv.textContent = message;
+  resultDiv.style.display = 'block';
+  resultDiv.style.background = type === 'error' ? '#fde7e9' : 'none';
+  resultDiv.style.border = type === 'error' ? '1px solid #e8a0a3' : 'none';
+  resultDiv.style.color = type === 'error' ? '#a4262c' : 'var(--text-muted)';
+}
+
+function assignOrganization() {
+  if (!foundCompany) {
+    alert('Сначала найдите организацию');
+    return;
+  }
+
+  const orgType = document.getElementById('orgTypeSelect').value;
+  if (!orgType) {
+    alert('Выберите тип организации');
+    document.getElementById('orgTypeSelect').focus();
+    return;
+  }
+
+  const notes = document.getElementById('notesInput').value.trim();
+
+  {% if not user.current_organization %}
+    alert('У вас не выбрана текущая организация. Сначала выберите её в профиле.');
+    return;
+  {% endif %}
+
+  const assignBtn = document.querySelector('#companyDetails .btn-primary');
+  assignBtn.disabled = true;
+  assignBtn.textContent = 'Назначение...';
+
+  fetch('/organizations/assign/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({
+      inn: foundCompany.inn,
+      org_type: orgType,
+      notes: notes
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      closeAssignModal();
+      location.reload();
+    } else {
+      alert(data.error || 'Ошибка при назначении');
+      assignBtn.disabled = false;
+      assignBtn.textContent = 'Назначить';
+    }
+  })
+  .catch(error => {
+    alert('Ошибка при отправке запроса');
+    assignBtn.disabled = false;
+    assignBtn.textContent = 'Назначить';
+  });
+}
+
+function deleteAssignment(id) {
+  if (!confirm('Удалить назначение?')) return;
+
+  fetch(`/organizations/${id}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.error || 'Ошибка при удалении');
+    }
+  });
+}
+
+function filterByType() {
+  const filter = document.getElementById('typeFilter').value;
+  const rows = document.querySelectorAll('#orgsTable tbody tr');
+  let visibleCount = 0;
+
+  rows.forEach(row => {
+    if (!filter || row.dataset.type === filter) {
+      row.style.display = '';
+      visibleCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  const countEl = document.querySelector('.persons-count');
+  if (countEl) {
+    const total = rows.length;
+    countEl.textContent = `Показано ${visibleCount} из ${total} назначений`;
+  }
+}
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('assignModal');
+    if (modal.classList.contains('visible')) {
+      closeAssignModal();
+    }
+  }
+});
+
+// Обработчик для поля ИНН
+document.getElementById('innInput').addEventListener('input', function() {
+  document.getElementById('searchResult').style.display = 'none';
+  document.getElementById('companyDetails').style.display = 'none';
+  foundCompany = null;
+});
+</script>
+{% endblock %}

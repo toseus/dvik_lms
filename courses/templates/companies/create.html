@@ -1,0 +1,360 @@
+<!-- organization_create.html -->
+{% extends 'base/base.html' %}
+{% block title %}{{ title }} — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 28px 32px;
+    box-shadow: var(--shadow-card);
+}
+
+.form-header {
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 16px;
+}
+
+.form-header h1 {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.form-header p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-label .required {
+    color: var(--status-red);
+    margin-left: 3px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--white);
+    transition: all 0.15s;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(15, 98, 174, 0.1);
+    outline: none;
+}
+
+.form-input:hover,
+.form-textarea:hover,
+.form-select:hover {
+    border-color: var(--accent-mid);
+}
+
+.form-textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.form-actions {
+    grid-column: span 2;
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.btn {
+    padding: 11px 24px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    font-family: var(--font);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(15, 98, 174, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 98, 174, 0.4);
+}
+
+.btn-secondary {
+    background: var(--sidebar-bg);
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+.btn-danger {
+    background: var(--status-red-bg);
+    color: var(--status-red);
+    border: 1.5px solid #e8a0a3;
+}
+
+.btn-danger:hover {
+    background: #fcd0d3;
+}
+
+.messages {
+    margin-bottom: 24px;
+}
+
+.message {
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.message.success {
+    background: var(--status-green-bg);
+    color: var(--status-green);
+    border: 1px solid #8fcb8f;
+}
+
+.message.error {
+    background: var(--status-red-bg);
+    color: var(--status-red);
+    border: 1px solid #e8a0a3;
+}
+
+@media (max-width: 768px) {
+    .form-container {
+        padding: 20px;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group.full-width {
+        grid-column: span 1;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+    <div class="form-container">
+        <div class="form-header">
+            <h1>{{ title }}</h1>
+            <p>Заполните информацию об организации. Поля, отмеченные <span class="required">*</span>, обязательны для заполнения.</p>
+        </div>
+
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="">
+            {% csrf_token %}
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">
+                        Короткое название <span class="required">*</span>
+                    </label>
+                    <input type="text" name="short_name" class="form-input" 
+                           value="{{ company.short_name|default:'' }}" required
+                           placeholder="например: ООО Ромашка">
+                    <div class="form-hint">Краткое наименование организации</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        ИНН <span class="required">*</span>
+                    </label>
+                    <input type="text" name="inn" class="form-input" 
+                           value="{{ company.inn|default:'' }}" required
+                           placeholder="7707083893" maxlength="12">
+                    <div class="form-hint">ИНН организации, 10 или 12 цифр</div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Полное название</label>
+                    <input type="text" name="full_name" class="form-input" 
+                           value="{{ company.full_name|default:'' }}"
+                           placeholder="Полное наименование организации">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">КПП</label>
+                    <input type="text" name="kpp" class="form-input" 
+                           value="{{ company.kpp|default:'' }}" maxlength="9"
+                           placeholder="770101001">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">ОГРН</label>
+                    <input type="text" name="ogrn" class="form-input" 
+                           value="{{ company.ogrn|default:'' }}" maxlength="15"
+                           placeholder="1027700132195">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Юридический адрес</label>
+                    <textarea name="legal_address" class="form-textarea">{{ company.legal_address|default:'' }}</textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Почтовый адрес</label>
+                    <textarea name="postal_address" class="form-textarea">{{ company.postal_address|default:'' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Телефон</label>
+                    <input type="text" name="phone" class="form-input" 
+                           value="{{ company.phone|default:'' }}"
+                           placeholder="+7 (495) 123-45-67">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" 
+                           value="{{ company.email|default:'' }}"
+                           placeholder="info@company.ru">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Сайт</label>
+                    <input type="url" name="website" class="form-input" 
+                           value="{{ company.website|default:'' }}"
+                           placeholder="https://company.ru">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Руководитель</label>
+                    <input type="text" name="director" class="form-input" 
+                           value="{{ company.director|default:'' }}"
+                           placeholder="Иванов Иван Иванович">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Банковские реквизиты</label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <input type="text" name="bank_name" class="form-input" 
+                               value="{{ company.bank_name|default:'' }}" placeholder="Название банка">
+                        <input type="text" name="bik" class="form-input" 
+                               value="{{ company.bik|default:'' }}" placeholder="БИК" maxlength="9">
+                        <input type="text" name="corr_account" class="form-input" 
+                               value="{{ company.corr_account|default:'' }}" placeholder="Корр. счёт">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <input type="text" name="settlement_account" class="form-input" 
+                               value="{{ company.settlement_account|default:'' }}" placeholder="Расчётный счёт">
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Примечания</label>
+                    <textarea name="notes" class="form-textarea">{{ company.notes|default:'' }}</textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        {% if company %}Сохранить изменения{% else %}Создать организацию{% endif %}
+                    </button>
+                    <a href="{% url 'organization_list' %}" class="btn btn-secondary">Отмена</a>
+                    {% if company and request.user.role in 'admin,superadmin' %}
+                    <button type="button" class="btn btn-danger" onclick="deleteOrganization()" style="margin-left: auto;">Удалить</button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if company %}
+<script>
+function deleteOrganization() {
+    if (confirm('Вы уверены, что хотите удалить организацию "{{ company.short_name }}"? Это действие нельзя отменить.')) {
+        fetch('{% url "organization_delete" company.pk %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '{% url "organization_list" %}';
+            } else {
+                alert(data.error || 'Ошибка при удалении');
+            }
+        });
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

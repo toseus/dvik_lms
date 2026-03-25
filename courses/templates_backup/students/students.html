@@ -1,0 +1,360 @@
+<!-- students.html -->
+{% extends 'base.html' %}
+{% block title %}Слушатели — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:200px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+.btn-new-student { display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(15,98,174,.3);transition:all .14s;white-space:nowrap; }
+.btn-new-student:hover { background:var(--accent-hover);transform:translateY(-1px); }
+.btn-new-student svg { width:15px;height:15px; }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:2px solid var(--border);white-space:nowrap; }
+.persons-table td { padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:middle; }
+.persons-table tbody tr { cursor:pointer;transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--answer-hover); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.td-snils { font-family:monospace;color:var(--text-muted);white-space:nowrap; }
+.td-fio   { font-weight:600; }
+.persons-empty { text-align:center;padding:60px 24px;color:var(--text-muted);font-size:15px; }
+.persons-empty-ico { font-size:48px;margin-bottom:12px;opacity:.3; }
+
+/* Модал */
+.snils-modal-overlay { display:none;position:fixed;inset:0;background:rgba(15,30,60,.55);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px); }
+.snils-modal-overlay.visible { display:flex;animation:fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.snils-modal { background:var(--card-bg);border-radius:var(--radius);box-shadow:0 12px 48px rgba(0,0,0,.2);padding:32px;width:100%;max-width:440px; }
+.snils-modal-title { font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:4px; }
+.snils-modal-sub   { font-size:13px;color:var(--text-muted);margin-bottom:22px; }
+.snils-input { width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:monospace;font-size:18px;font-weight:600;color:var(--text-primary);background:var(--page-bg);outline:none;letter-spacing:.08em;transition:border-color .15s; }
+.snils-input:focus { border-color:var(--accent);background:#fff; }
+.snils-input.error { border-color:var(--status-red); }
+.snils-input.ok    { border-color:var(--status-green); }
+.snils-hint { font-size:12px;color:var(--text-muted);margin:6px 0 18px;min-height:16px; }
+.snils-hint.err { color:var(--status-red);font-weight:600; }
+.snils-hint.ok  { color:var(--status-green);font-weight:600; }
+.snils-modal-btns { display:flex;gap:10px; }
+.btn-snils-search { flex:1;padding:11px;border-radius:var(--radius-sm);background:var(--accent);color:#fff;border:none;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;transition:background .14s; }
+.btn-snils-search:hover { background:var(--accent-hover); }
+.btn-snils-search:disabled { opacity:.4;cursor:not-allowed; }
+.btn-snils-cancel { padding:11px 18px;border-radius:var(--radius-sm);background:var(--sidebar-bg);color:var(--text-secondary);border:1.5px solid var(--border);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer; }
+.btn-snils-cancel:hover { background:var(--border); }
+.snils-result { display:none;margin-top:18px;padding:14px 16px;border-radius:var(--radius-sm);border:1.5px solid var(--border); }
+.snils-result.found    { background:#f0fdf0;border-color:#8fcb8f; }
+.snils-result.notfound { background:#fff4ce;border-color:#e6c96d; }
+.snils-result.exists   { background:var(--status-red-bg);border-color:#e8a0a3; }
+.snils-result-title { font-size:13px;font-weight:700;margin-bottom:6px; }
+.snils-result.found .snils-result-title    { color:var(--status-green); }
+.snils-result.notfound .snils-result-title { color:#7a5000; }
+.snils-result.exists .snils-result-title   { color:var(--status-red); }
+.snils-result-body { font-size:13px;color:var(--text-secondary);line-height:1.6; }
+.btn-snils-add { margin-top:12px;width:100%;padding:10px;border-radius:var(--radius-sm);background:var(--status-green);color:#fff;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;transition:background .14s; }
+.btn-snils-add:hover { background:#0d660d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Слушатели</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Список клиентов, зачисленных на обучение</div>
+    </div>
+  </div>
+
+  <div class="persons-toolbar">
+    <form method="get" style="display:contents">
+      <div class="stu-search-wrap">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/>
+        </svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}"
+               placeholder="Поиск по ФИО или СНИЛС…">
+      </div>
+      <button type="submit" class="btn btn-primary">Найти</button>
+      {% if q %}<a href="{% url 'student_list' %}" class="btn btn-outline">Сбросить</a>{% endif %}
+    </form>
+    <button class="btn-new-student" onclick="openSnilsModal()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 1v14M1 8h14" stroke-linecap="round"/>
+      </svg>
+      Новый слушатель
+    </button>
+  </div>
+
+  <div class="persons-count">
+    Показано {{ persons.count }} слушателей{% if q %} по запросу «{{ q }}»{% endif %}
+  </div>
+</div>
+
+{% if persons %}
+<div class="persons-table-wrap">
+  <table class="persons-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>СНИЛС</th><th>ФИО</th>
+        <th>Должность</th><th>Место работы</th><th>Логин</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in persons %}
+      <tr onclick="location.href='{% url 'student_card' p.pk %}'">
+        <td style="color:var(--text-muted)">{{ p.pk }}</td>
+        <td class="td-snils">{{ p.snils|default:'—' }}</td>
+        <td class="td-fio">{{ p.last_name }} {{ p.first_name }} {{ p.middle_name }}</td>
+        <td>{{ p.position|default:'—' }}</td>
+        <td>{{ p.workplace|default:'—' }}</td>
+        <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">
+          {{ p.user.username|default:'—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="persons-empty">
+  <div class="persons-empty-ico">🎓</div>
+  <div>{% if q %}Ничего не найдено{% else %}Слушателей пока нет{% endif %}</div>
+  {% if not q %}
+  <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">
+    Нажмите «Новый слушатель» чтобы добавить
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- МОДАЛ ПОИСКА ПО СНИЛС -->
+<div class="snils-modal-overlay" id="snilsModal">
+  <div class="snils-modal">
+    <div class="snils-modal-title">Новый слушатель</div>
+    <div class="snils-modal-sub">Введите СНИЛС для поиска в базе физических лиц</div>
+    <input class="snils-input" id="snilsInput" type="text"
+           placeholder="000-000-000 00" maxlength="14"
+           oninput="snilsMask(this)" onkeydown="if(event.key==='Enter')doSnilsSearch()">
+    <div class="snils-hint" id="snilsHint">Формат: XXX-XXX-XXX XX</div>
+    <div class="snils-modal-btns">
+      <button class="btn-snils-search" id="snilsSearchBtn" onclick="doSnilsSearch()" disabled>Найти</button>
+      <button class="btn-snils-cancel" onclick="closeSnilsModal()">Отмена</button>
+    </div>
+    <div class="snils-result" id="snilsResult">
+      <div class="snils-result-title" id="snilsResultTitle"></div>
+      <div class="snils-result-body"  id="snilsResultBody"></div>
+      <button class="btn-snils-add"   id="snilsAddBtn" style="display:none">Добавить</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function openSnilsModal() {
+  document.getElementById('snilsInput').value = '';
+  document.getElementById('snilsInput').className = 'snils-input';
+  document.getElementById('snilsHint').textContent = 'Формат: XXX-XXX-XXX XX';
+  document.getElementById('snilsHint').className   = 'snils-hint';
+  document.getElementById('snilsResult').style.display = 'none';
+  document.getElementById('snilsSearchBtn').disabled   = true;
+  document.getElementById('snilsModal').classList.add('visible');
+  setTimeout(() => document.getElementById('snilsInput').focus(), 80);
+}
+
+function closeSnilsModal() {
+  document.getElementById('snilsModal').classList.remove('visible');
+}
+
+document.getElementById('snilsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSnilsModal();
+});
+
+function snilsMask(inp) {
+  let v = inp.value.replace(/\D/g,'');
+  if (v.length > 11) v = v.slice(0,11);
+  let out = '';
+  if (v.length > 0) out += v.slice(0,3);
+  if (v.length > 3) out += '-' + v.slice(3,6);
+  if (v.length > 6) out += '-' + v.slice(6,9);
+  if (v.length > 9) out += ' '  + v.slice(9,11);
+  inp.value = out;
+
+  const btn  = document.getElementById('snilsSearchBtn');
+  const hint = document.getElementById('snilsHint');
+  document.getElementById('snilsResult').style.display = 'none';
+  inp.classList.remove('error','ok');
+
+  if (v.length < 11) {
+    hint.textContent = 'Формат: XXX-XXX-XXX XX';
+    hint.className   = 'snils-hint';
+    btn.disabled = true;
+    return;
+  }
+  if (validateSnils(v)) {
+    hint.textContent = '✓ Контрольное число верно';
+    hint.className   = 'snils-hint ok';
+    inp.classList.add('ok');
+    btn.disabled = false;
+  } else {
+    hint.textContent = '✗ Неверное контрольное число СНИЛС';
+    hint.className   = 'snils-hint err';
+    inp.classList.add('error');
+    btn.disabled = true;
+  }
+}
+
+function validateSnils(d) {
+  const arr = d.split('').map(Number);
+  const ctrl = arr[9]*10 + arr[10];
+  const num  = parseInt(d.slice(0,9));
+  if (num <= 1001001) return true;
+  let sum = 0;
+  for (let i=0;i<9;i++) sum += arr[i]*(9-i);
+  let check = sum % 101;
+  if (check >= 100) check = 0;
+  return check === ctrl;
+}
+
+let _foundPersonId = null;
+let _currentSnils = '';
+
+async function doSnilsSearch() {
+  const snils = document.getElementById('snilsInput').value;
+  _currentSnils = snils;
+
+  const res   = document.getElementById('snilsResult');
+  const title = document.getElementById('snilsResultTitle');
+  const body  = document.getElementById('snilsResultBody');
+  const btn   = document.getElementById('snilsAddBtn');
+
+  res.style.display = 'block';
+  title.textContent = 'Поиск…';
+  body.textContent  = '';
+  btn.style.display = 'none';
+  _foundPersonId    = null;
+
+  try {
+    const resp = await fetch('{% url "student_add" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF
+      },
+      body: JSON.stringify({snils: snils})
+    });
+
+    const data = await resp.json();
+    console.log('Search response:', data); // Для отладки
+
+    if (data.found) {
+      if (data.has_account) {
+        // Проверяем, относится ли этот слушатель к текущей организации
+        const checkOrg = await fetch('{% url "check_student_organization" %}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF
+          },
+          body: JSON.stringify({person_id: data.id})
+        });
+        const orgData = await checkOrg.json();
+        console.log('Organization check:', orgData); // Для отладки
+
+        if (orgData.belongs_to_current_org) {
+          res.className = 'snils-result exists';
+          title.textContent = '⚠ Слушатель уже добавлен в вашу организацию';
+          body.innerHTML = `<b>${data.fio}</b> уже есть в списке слушателей вашей организации.`;
+          btn.style.display = 'none';
+        } else {
+          res.className = 'snils-result found';
+          title.textContent = '✓ Найдено в справочнике физических лиц';
+          body.innerHTML = `
+            <b>${data.fio}</b><br>
+            Дата рождения: ${data.dob || '—'}<br>
+            Должность: ${data.position || '—'}<br>
+            Место работы: ${data.workplace || '—'}`;
+          btn.style.display = 'block';
+          btn.textContent = 'Добавить в слушатели';
+          _foundPersonId = data.id;
+        }
+      } else {
+        res.className = 'snils-result found';
+        title.textContent = '✓ Найдено в справочнике физических лиц';
+        body.innerHTML = `
+          <b>${data.fio}</b><br>
+          Дата рождения: ${data.dob || '—'}<br>
+          Должность: ${data.position || '—'}<br>
+          Место работы: ${data.workplace || '—'}`;
+        btn.style.display = 'block';
+        btn.textContent = 'Создать аккаунт слушателя';
+        _foundPersonId = data.id;
+      }
+    } else {
+      res.className = 'snils-result notfound';
+      title.textContent = '⚠ В справочнике не найдено';
+      body.innerHTML = `Физическое лицо со СНИЛС <b>${snils}</b> не найдено в базе.<br>Будет добавлена пустая запись — заполните данные вручную позже.`;
+      btn.style.display = 'block';
+      btn.textContent = 'Добавить пустую запись';
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    res.className = 'snils-result notfound';
+    title.textContent = '⚠ Ошибка';
+    body.innerHTML = 'Произошла ошибка при поиске. Пожалуйста, попробуйте снова.';
+  }
+}
+
+// Добавляем обработчик для кнопки
+document.getElementById('snilsAddBtn').addEventListener('click', async function() {
+  if (!_foundPersonId && this.textContent === 'Добавить пустую запись') {
+    // Переход на страницу создания нового физического лица
+    window.location.href = '{% url "person_create" %}?snils=' + encodeURIComponent(_currentSnils);
+    return;
+  }
+
+  if (!_foundPersonId) {
+    alert('Сначала найдите физическое лицо');
+    return;
+  }
+
+  const createAccount = this.textContent.includes('Создать аккаунт');
+  console.log('Adding student:', {personId: _foundPersonId, createAccount}); // Для отладки
+
+  try {
+    const resp = await fetch('{% url "student_add" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF
+      },
+      body: JSON.stringify({
+        snils: _currentSnils,
+        create_account: createAccount,
+        person_id: _foundPersonId
+      })
+    });
+
+    const data = await resp.json();
+    console.log('Add response:', data); // Для отладки
+
+    if (data.error) {
+      alert('Ошибка: ' + data.error);
+    } else {
+      closeSnilsModal();
+      location.reload();
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Произошла ошибка при добавлении слушателя');
+  }
+});
+</script>
+{% endblock %}

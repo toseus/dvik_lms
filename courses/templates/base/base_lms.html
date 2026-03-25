@@ -1,0 +1,58 @@
+<!-- base_lms.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}ДВИК СЭО{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% block header %}
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">{% block header_title %}ДВИК — Система электронного обучения{% endblock %}</span>
+  {% block header_right %}
+  {% if user.is_authenticated %}
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-user-avatar">
+        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+      </div>
+      <div class="header-user-info">
+        <span class="header-user-name">{{ user.get_full_name|default:user.username }}</span>
+        <span class="header-user-role">{{ user.get_role_display }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endblock %}
+</header>
+{% endblock %}
+
+{% block body %}
+<div id="pageContent">
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span>{% block footer_text %}ДВИК СЭО — Система работает в штатном режиме{% endblock %}</span>
+  <span style="margin-left:auto">{% block footer_right %}v2.1{% endblock %}</span>
+</footer>
+{% endblock %}
+
+<form id="djLogoutForm" method="post" action="{% url 'logout' %}" style="display:none">
+  {% csrf_token %}
+</form>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

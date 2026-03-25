@@ -1,0 +1,88 @@
+<!-- course_list.html -->
+{% extends 'base.html' %}
+{% block title %}Курсы — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 0;
+}
+.course-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  cursor: pointer;
+}
+.course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(15,98,174,0.15);
+  border-color: var(--accent-mid);
+}
+.cc-cover {
+  height: 120px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cc-emoji { font-size: 44px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+.cc-short {
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(0,0,0,0.3); backdrop-filter: blur(4px);
+  color: rgba(255,255,255,0.92); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; padding: 3px 8px; border-radius: 4px;
+  text-transform: uppercase;
+}
+.cc-body { padding: 14px 16px 16px; }
+.cc-title { font-size: 15px; font-weight: 700; line-height: 1.4; margin-bottom: 6px; }
+.cc-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cc-footer { display: flex; justify-content: space-between; align-items: center;
+  padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.cc-steps { font-weight: 700; color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Курсы</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Каталог учебных программ</div>
+    </div>
+  </div>
+
+  {% if courses %}
+  <div class="courses-grid">
+    {% for c in courses %}
+    <a href="{% url 'course_detail' c.pk %}" class="course-card" style="color:inherit">
+      <div class="cc-cover" style="background:{{ c.cover_bg|default:'linear-gradient(135deg,#0f62ae,#08305a)' }}">
+        <div class="cc-emoji">{{ c.cover_emoji }}</div>
+        <div class="cc-short">{{ c.short_name }}</div>
+      </div>
+      <div class="cc-body">
+        <div class="cc-title">{{ c.title }}</div>
+        <div class="cc-desc">{{ c.description }}</div>
+        <div class="cc-footer">
+          <span>{{ c.author }}</span>
+          <span class="cc-steps">{{ c.steps_count }} шагов</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+    <div style="font-size:48px;margin-bottom:12px;opacity:.3">📘</div>
+    <div style="font-size:16px">Курсов пока нет</div>
+    <div style="font-size:13px;margin-top:6px">Добавьте курсы через панель администрирования</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

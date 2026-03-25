@@ -1,0 +1,231 @@
+<!-- base.html -->
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ДВИК СЭО{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">ДВИК — {% block header_subtitle %}Система электронного обучения{% endblock %}</span>
+  {% if user.is_authenticated %}
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-user-avatar">
+        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+      </div>
+      <div class="header-user-info">
+        <span class="header-user-name">{{ user.get_full_name|default:user.username }}</span>
+        <span class="header-user-role">{{ user.get_role_display }}</span>
+      </div>
+    </div>
+    <form method="post" action="{% url 'logout' %}" style="display:inline" id="djLogoutForm">
+      {% csrf_token %}
+      <button type="submit" class="btn-logout">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Выйти</span>
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</header>
+
+{% if user.is_authenticated %}
+<div class="page-layout">
+
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-toggle">
+      <button class="toggle-btn" onclick="toggleSidebar()" title="Свернуть/развернуть">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.854 3.646a.5.5 0 0 1 0 .708L8.207 8l3.647 3.646a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 0 1 .708 0zM4.5 1a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 1 0v-13a.5.5 0 0 0-.5-.5z"/>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% block sidebar %}
+
+      <!-- ══════ ОБУЧЕНИЕ ══════ -->
+      <div class="accordion-group" id="grp-learn">
+        <div class="accordion-header" onclick="toggleGroup('grp-learn')">
+          Обучение
+          <svg class="accordion-arrow" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+        </div>
+        <div class="accordion-body">
+
+          <a href="{% url 'home' %}#learning" data-label="Обучение"
+             class="sidebar-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2zm1 0v8h10V2H3z"/><path d="M0 12h5v1H0v-1zm6.5-1.5l3.5 3.5-1 1-3.5-3.5 1-1z"/><path d="M0 13.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/><path d="M11 12h5v1h-5v-1z"/></svg>
+            <span class="sidebar-label">Обучение</span>
+          </a>
+
+          <a href="{% url 'home' %}#schedule" data-label="График" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+            <span class="sidebar-label">График</span>
+          </a>
+
+          <a href="{% url 'home' %}#results" data-label="Результаты" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 11H2v3h2v-3zm5-4H7v7h2V7zm5-5h-2v12h2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-2zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3z"/></svg>
+            <span class="sidebar-label">Результаты</span>
+          </a>
+
+          <a href="{% url 'home' %}#library" data-label="Библиотека" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/></svg>
+            <span class="sidebar-label">Библиотека</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ══════ УПРАВЛЕНИЕ ══════ -->
+      <div class="accordion-group" id="grp-manage">
+        <div class="accordion-header" onclick="toggleGroup('grp-manage')">
+          Управление
+          <svg class="accordion-arrow" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+        </div>
+        <div class="accordion-body">
+
+          <a href="{% url 'home' %}#disciplines" data-label="Мои дисциплины" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0h13A1.5 1.5 0 0 1 16 1.5v10a1.5 1.5 0 0 1-1.5 1.5H1.5A1.5 1.5 0 0 1 0 11.5v-10zM1.5 1a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5h-13z"/><path d="M5 14h6v.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V14zm3-1.5v1.5H7v-1.5h2z"/></svg>
+            <span class="sidebar-label">Мои дисциплины</span>
+          </a>
+
+
+          <a href="{% url 'student_list' %}" data-label="Слушатели"
+             class="sidebar-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/><path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
+            <span class="sidebar-label">Слушатели</span>
+          </a>
+
+          <a href="{% url 'home' %}#programs" data-label="Программы" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z"/></svg>
+            <span class="sidebar-label">Программы</span>
+          </a>
+
+          <a href="#" data-label="Документы СМК" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>
+            <span class="sidebar-label">Документы СМК</span>
+          </a>
+
+          <a href="{% url 'organization_list' %}" data-label="Организации"
+             class="sidebar-item {% if request.resolver_match.url_name == 'organization_list' %}active{% endif %}">
+            <svg viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/>
+            </svg>
+            <span class="sidebar-label">Организации</span>
+          </a>
+
+
+        </div>
+      </div>
+
+      <!-- ══════ НАСТРОЙКИ ══════ -->
+      <div class="accordion-group" id="grp-settings">
+        <div class="accordion-header" onclick="toggleGroup('grp-settings')">
+          Настройки
+          <svg class="accordion-arrow" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+        </div>
+        <div class="accordion-body">
+
+          <a href="{% url 'person_list' %}" data-label="Физические лица"
+             class="sidebar-item {% if request.resolver_match.url_name == 'person_list' or request.resolver_match.url_name == 'student_card' %}active{% endif %}">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>
+            <span class="sidebar-label">Физические лица</span>
+          </a>
+
+          <a href="{% url 'company_list' %}" data-label="Юридические лица"
+             class="sidebar-item {% if request.resolver_match.url_name == 'company_list' %}active{% endif %}">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 16s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H4zm0 0"/><path d="M2 15.5a1 1 0 0 1 .067-.17c.182-.36.611-.93 1.39-1.466C4.355 13.18 5.725 12.5 8 12.5v.002z"/><rect x="1" y="1" width="7" height="10" rx="1"/><path d="M2.5 3h4M2.5 5h4M2.5 7h2.5"/><rect x="10" y="4" width="5" height="7" rx="1"/><path d="M11 6h3M11 8h2"/></svg>
+            <span class="sidebar-label">Юридические лица</span>
+          </a>
+
+          <a href="{% url 'home' %}#roles" data-label="Роли" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/></svg>
+            <span class="sidebar-label">Роли</span>
+          </a>
+
+          <a href="{% url 'home' %}#settings" data-label="Настройки" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.421 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.421-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
+            <span class="sidebar-label">Настройки</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ══════ ФИЛЬТРЫ ══════ -->
+      <div class="accordion-group" id="grp-filters">
+        <div class="accordion-header" onclick="toggleGroup('grp-filters')">
+          Фильтры
+          <svg class="accordion-arrow" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+        </div>
+        <div class="accordion-body">
+
+          <a href="#" data-label="Все курсы" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/></svg>
+            <span class="sidebar-label">Все курсы</span>
+          </a>
+
+          <a href="#" data-label="Все статусы" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.933.87a2.89 2.89 0 0 1 4.134 0l.622.638.89-.011a2.89 2.89 0 0 1 2.924 2.924l-.01.89.636.622a2.89 2.89 0 0 1 0 4.134l-.637.622.011.89a2.89 2.89 0 0 1-2.924 2.924l-.89-.01-.622.636a2.89 2.89 0 0 1-4.134 0l-.622-.637-.89.011a2.89 2.89 0 0 1-2.924-2.924l.01-.89-.636-.622a2.89 2.89 0 0 1 0-4.134l.637-.622-.011-.89a2.89 2.89 0 0 1 2.924-2.924l.89.01.622-.636zm.287 5.984-3 3a.5.5 0 0 0 .708.708l2.646-2.647 5.646 5.647a.5.5 0 0 0 .708-.708l-6-6a.5.5 0 0 0-.708 0z"/></svg>
+            <span class="sidebar-label">Все статусы</span>
+          </a>
+
+          <a href="#" data-label="Все подразделения" class="sidebar-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 14.5v-3.505c0-.245.25-.495.5-.495h2c.25 0 .5.25.5.5v3.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5z"/></svg>
+            <span class="sidebar-label">Все подразделения</span>
+          </a>
+
+        </div>
+      </div>
+
+      {% endblock sidebar %}
+    </nav>
+
+    {% block sidebar_extra %}{% endblock %}
+  </aside>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% block after_layout %}{% endblock %}
+
+{% else %}
+  {% block content_unauth %}{% endblock %}
+{% endif %}
+
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span>{% block footer_text %}ДВИК СЭО — Система работает в штатном режиме{% endblock %}</span>
+  <span style="margin-left:auto">{% block footer_right %}v2.1{% endblock %}</span>
+</footer>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  localStorage.setItem('sidebar_collapsed', document.getElementById('sidebar').classList.contains('collapsed'));
+}
+if (localStorage.getItem('sidebar_collapsed') === 'true') {
+  document.getElementById('sidebar')?.classList.add('collapsed');
+}
+function toggleGroup(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

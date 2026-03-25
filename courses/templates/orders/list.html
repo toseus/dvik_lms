@@ -1,0 +1,49 @@
+<!-- order_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Заявки — ДВИК СЭО{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Заявки</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Реестр заявок слушателей</div>
+    </div>
+    <form method="get" class="search-form">
+      <input type="text" name="q" value="{{ q }}" placeholder="Поиск по ФИО или номеру">
+      <button type="submit">Найти</button>
+    </form>
+  </div>
+
+  {% if orders %}
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>№</th><th>Слушатель</th><th>Дата</th>
+        <th>Сумма</th><th>Плательщик</th><th>Партнёр</th><th>Программ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr>
+        <td style="color:var(--text-muted)">{{ o.pk }}</td>
+        <td><strong>{{ o.person }}</strong></td>
+        <td>{{ o.date }}</td>
+        <td style="font-weight:700">{{ o.amount }} ₽</td>
+        <td>{{ o.payer|default:'—' }}</td>
+        <td>{{ o.partner|default:'—' }}</td>
+        <td>
+          <span class="badge badge-blue">{{ o.programs.count }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+    <div style="font-size:48px;margin-bottom:12px;opacity:.3">📋</div>
+    <div>{% if q %}Ничего не найдено{% else %}Заявок пока нет{% endif %}</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

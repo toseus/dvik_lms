@@ -1,0 +1,173 @@
+<!-- persons.html -->
+{% extends 'base.html' %}
+{% block title %}Физические лица — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:300px; } /* Увеличил ширину */
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:800px; } /* Увеличил min-width */
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap; }
+.persons-table td { padding:10px 14px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:middle; }
+.persons-table tbody tr { cursor:pointer; transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--answer-hover); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.td-snils { font-family:monospace; color:var(--text-muted); white-space:nowrap; }
+.td-fio   { font-weight:600; }
+.td-dob   { white-space:nowrap; color:var(--text-secondary); }
+.persons-empty { text-align:center; padding:60px 24px; color:var(--text-muted); font-size:15px; }
+.persons-empty-ico { font-size:48px; margin-bottom:12px; opacity:.3; }
+.has-account-yes { color:var(--status-green); font-weight:700; }
+.has-account-no  { color:var(--border); }
+
+/* Компактные кнопки */
+.btn-compact {
+    padding: 9px 16px !important;
+    font-size: 13px !important;
+    border-radius: 5px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+}
+
+.btn-primary.btn-compact {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+}
+
+.btn-outline.btn-compact {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+    text-decoration: none;
+}
+
+/* Синяя кнопка добавления */
+.btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: 5px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(15,98,174,0.3);
+    white-space: nowrap;
+    height: 38px;
+}
+.btn-add:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15,98,174,0.4);
+}
+.btn-add svg {
+    width: 14px;
+    height: 14px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header" style="margin-bottom: 15px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Физические лица</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Справочник — все физические лица в системе</div>
+    </div>
+  </div>
+
+  <div class="persons-toolbar" style="display: flex; align-items: center; gap: 8px;">
+    <form method="get" style="display: flex; flex: 1; gap: 8px; align-items: center;">
+      <div class="stu-search-wrap" style="flex: 1;">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/>
+        </svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}"
+               placeholder="Поиск по ФИО, СНИЛС, месту работы…" style="height: 38px;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-compact">Найти</button>
+      {% if q %}<a href="{% url 'person_list' %}" class="btn btn-outline btn-compact">Сбросить</a>{% endif %}
+    </form>
+
+    <!-- Кнопка добавления физического лица -->
+    <a href="{% url 'person_create' %}" class="btn-add">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 1v14M1 8h14" stroke-linecap="round"/>
+      </svg>
+      Добавить
+    </a>
+  </div>
+
+  <div class="persons-count">
+    Показано {{ persons.count }} записей{% if q %} по запросу «{{ q }}»{% endif %}
+  </div>
+</div>
+
+{% if persons %}
+<div class="persons-table-wrap">
+  <table class="persons-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>СНИЛС</th>
+        <th>ФИО</th>
+        <th>Дата рожд.</th>
+        <th>Должность</th>
+        <th>Место работы</th>
+        <th>Аккаунт</th>
+        <th>Примечания</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in persons %}
+      <tr onclick="location.href='{% url 'student_card' p.pk %}'">
+        <td style="color:var(--text-muted)">{{ p.pk }}</td>
+        <td class="td-snils">{{ p.snils|default:'—' }}</td>
+        <td class="td-fio">{{ p.last_name }} {{ p.first_name }} {{ p.middle_name }}</td>
+        <td class="td-dob">{{ p.dob|default:'—' }}</td>
+        <td>{{ p.position|default:'—' }}</td>
+        <td>{{ p.workplace|default:'—' }}</td>
+        <td>
+          {% if p.user %}
+            <span class="has-account-yes" title="Логин: {{ p.user.username }}">✓</span>
+          {% else %}
+            <span class="has-account-no">—</span>
+          {% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--text-muted)">{{ p.notes|default:'—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="persons-empty">
+  <div class="persons-empty-ico">🧑‍💼</div>
+  <div>{% if q %}Ничего не найдено по запросу «{{ q }}»{% else %}Физических лиц пока нет{% endif %}</div>
+  {% if not q %}
+  <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">
+    <a href="{% url 'person_create' %}" style="color: var(--accent); text-decoration: none; font-weight: 600;">
+      Добавить первое физическое лицо →
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

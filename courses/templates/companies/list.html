@@ -1,0 +1,149 @@
+<!-- companies/list.html (исправленный) -->
+{% extends 'base/base.html' %}
+{% block title %}Юридические лица — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:200px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg, #fff);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:600px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:2px solid var(--border);white-space:nowrap; }
+.persons-table td { padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:middle; }
+.persons-table tbody tr { cursor:pointer;transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--row-hover, #edf4fc); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.td-inn   { font-family:monospace;color:var(--text-muted);white-space:nowrap; }
+.td-short { font-weight:600; }
+.persons-empty { text-align:center;padding:60px 24px;color:var(--text-muted);font-size:15px; }
+.persons-empty-ico { font-size:48px;margin-bottom:12px;opacity:.3; }
+
+/* Стили для кнопок - единообразие */
+.btn-primary, .btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 20px;
+    border-radius: 5px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(15,98,174,0.3);
+    white-space: nowrap;
+}
+.btn-primary:hover, .btn-add:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15,98,174,0.4);
+}
+.btn-primary svg, .btn-add svg {
+    width: 14px;
+    height: 14px;
+}
+
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+.btn-outline:hover {
+    background: var(--answer-hover);
+    border-color: var(--accent-mid);
+    color: var(--accent);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Юридические лица</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Реестр организаций и контрагентов</div>
+    </div>
+  </div>
+
+  <div class="persons-toolbar">
+    <form method="get" style="display:contents; flex:1;">
+      <div class="stu-search-wrap">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+        </svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}"
+               placeholder="Поиск по названию или ИНН…" autofocus>
+      </div>
+      <button type="submit" class="btn-primary">Найти</button>
+      {% if q %}<a href="{% url 'company_list' %}" class="btn-outline">Сбросить</a>{% endif %}
+    </form>
+
+    <!-- Кнопка добавления нового юридического лица - теперь синяя -->
+    <a href="{% url 'organization_create' %}" class="btn-add">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 1v14M1 8h14" stroke-linecap="round"/>
+      </svg>
+      Добавить юрлицо
+    </a>
+  </div>
+
+  <div class="persons-count">
+    Показано {{ companies.count }} организаций{% if q %} по запросу «{{ q }}»{% endif %}
+  </div>
+</div>
+
+{% if companies %}
+<div class="persons-table-wrap">
+  <table class="persons-table">
+    <thead>
+      <tr>
+        <th>ИНН</th>
+        <th>Короткое название</th>
+        <th>Полное название</th>
+        <th>Примечания</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in companies %}
+      <tr onclick="location.href='{% url 'organization_detail' c.pk %}'">
+        <td class="td-inn">{{ c.inn }}</td>
+        <td class="td-short">{{ c.short_name }}</td>
+        <td>{{ c.full_name }}</td>
+        <td style="font-size:12px;color:var(--text-muted)">{{ c.notes|default:'—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="persons-empty">
+  <div class="persons-empty-ico">🏢</div>
+  <div>{% if q %}Ничего не найдено по запросу «{{ q }}»{% else %}Юридических лиц пока нет{% endif %}</div>
+  {% if not q %}
+  <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">
+    <a href="{% url 'organization_create' %}" style="color: var(--accent); text-decoration: none; font-weight: 600;">
+      Добавить первое юридическое лицо →
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
