@@ -26,8 +26,41 @@ urlpatterns = [
     path('persons/create/', views.person_create, name='person_create'),
     path('persons/check-organization/', views.check_student_organization, name='check_student_organization'),
 
+    # Программы обучения
+    path('programs/', views.program_catalog, name='program_catalog'),
+
+    # Модули обучения
+    path('modules/', views.module_list, name='module_list'),
+    path('modules/create/', views.module_create, name='module_create'),
+    path('modules/<int:pk>/edit/', views.module_edit, name='module_edit'),
+    path('modules/<int:pk>/delete/', views.module_delete, name='module_delete'),
+    path('modules/<int:pk>/preview/', views.module_preview, name='module_preview'),
+    path('modules/step/<int:pk>/slides/', views.module_slides, name='module_slides'),
+    path('modules/step/<int:step_pk>/quiz/preview/', views.module_quiz_preview, name='module_quiz_preview'),
+
+    # API конструктора модулей
+    path('api/modules/<int:pk>/steps/', views.api_module_steps, name='api_module_steps'),
+    path('api/modules/<int:pk>/steps/save/', views.api_module_steps_save, name='api_module_steps_save'),
+    path('api/steps/<int:pk>/questions/', views.api_step_questions, name='api_step_questions'),
+    path('api/steps/<int:pk>/questions/save/', views.api_step_questions_save, name='api_step_questions_save'),
+    path('api/steps/<int:pk>/questions/import/', views.api_import_questions, name='api_import_questions'),
+
     # Заказы
     path('orders/api/person/<int:person_pk>/', views.api_person_orders, name='api_person_orders'),
+
+    # Договоры
+    path('contracts/', views.contract_list, name='contract_list'),
+    path('contracts/create/', views.contract_create, name='contract_create'),
+
+    # API для заявок
+    path('api/signers/', views.api_signers, name='api_signers'),
+    path('api/payers/<int:person_pk>/', views.api_payers, name='api_payers'),
+    path('api/contracts/by-payer/<int:company_pk>/', views.api_contracts_by_payer, name='api_contracts_by_payer'),
+    path('api/orders/create/', views.api_order_create, name='api_order_create'),
+
+    # Сообщения
+    path('api/messages/<int:person_pk>/', views.api_messages, name='api_messages'),
+    path('api/messages/<int:person_pk>/send/', views.api_message_send, name='api_message_send'),
 
     # Организации (новые)
     path('organizations/', views.organization_list, name='organization_list'),
@@ -46,4 +79,10 @@ urlpatterns = [
     path('courses/api/practice-items/', views.api_practice_items, name='api_practice_items'),
     path('courses/api/course/<int:course_id>/students/', views.api_course_students, name='api_course_students'),
     path('courses/api/students/', views.api_all_students, name='api_all_students'),
+
+    # API прогресса модулей
+    path('api/progress/module/<int:module_pk>/', views.api_module_progress, name='api_module_progress'),
+    path('api/progress/step/<int:step_pk>/complete/', views.api_step_complete, name='api_step_progress_complete'),
+    path('api/progress/quiz/<int:step_pk>/save/', views.api_quiz_save_progress, name='api_quiz_save_progress'),
+    path('api/progress/quiz/<int:step_pk>/complete/', views.api_quiz_complete, name='api_quiz_complete'),
 ]

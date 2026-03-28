@@ -1,8 +1,7 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
-from django import forms
 
 
 class CourseStepInline(admin.TabularInline):
@@ -83,9 +82,10 @@ class ProgramInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['pk', 'person', 'date', 'amount', 'partner', 'author']
+    list_display = ['pk', 'person', 'date', 'amount', 'signer', 'payer_company', 'payer_is_person', 'contract', 'space']
     search_fields = ['person__last_name', 'person__snils']
-    inlines      = [ProgramInline]
+    list_filter = ['space', 'payer_is_person']
+    inlines = [ProgramInline]
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
@@ -116,7 +116,7 @@ class CompanyAdmin(admin.ModelAdmin):
     )
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
-    list_display  = ['pk', 'last_name', 'first_name', 'middle_name',
+    list_display  = ['pk', 'last_name', 'first_name', 'middle_name', 'gender',
                      'snils', 'code', 'position', 'workplace', 'account_status']
     search_fields = ['last_name', 'snils', 'pk']
     list_filter   = ['city']
@@ -124,14 +124,18 @@ class PersonAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Учётная запись', {
             'fields': ('pk', 'user', 'code'),
-            'description': 'Логин = ID слушателя, Пароль = код доступа'
+            'description': 'Логин = ID слушателя, Пароль = код доступа (6 цифр). '
+                           'При создании код генерируется автоматически если не задан.'
         }),
         ('ФИО', {
             'fields': ('last_name', 'first_name', 'middle_name',
                        'last_name_en', 'first_name_en')
         }),
         ('Личные данные', {
-            'fields': ('snils', 'dob', 'city', 'phone', 'email')
+            'fields': ('snils', 'dob', 'city', 'phone', 'email', 'gender', 'address', 'passport')
+        }),
+        ('Образование', {
+            'fields': ('edu_level',)
         }),
         ('Работа', {
             'fields': ('position', 'workplace')
@@ -180,57 +184,125 @@ class PersonAdmin(admin.ModelAdmin):
         self.message_user(request, f'Обновлено паролей: {updated}')
 
 
-class UserAdminForm(forms.ModelForm):
-    """Форма для админки с удобным выбором организаций"""
+@admin.register(Space)
+class SpaceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
 
-    class Meta:
-        model = User
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Все доступные организации (для выбора в organizations)
-        all_companies = Company.objects.all()
-        self.fields['organizations'].queryset = all_companies
-
-        # Для current_organization показываем все организации
-        # (не ограничиваем только выбранными)
-        self.fields['current_organization'].queryset = all_companies
-        self.fields['current_organization'].required = False
-
-        # Добавляем подсказку
-        self.fields['current_organization'].help_text = 'Можно выбрать любую организацию из списка всех организаций'
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    form = UserAdminForm
-    list_display = ['username', 'get_full_name', 'role', 'get_organizations', 'get_current_org', 'is_active']
-    list_filter = ['role']
-    filter_horizontal = ['organizations']
+    list_display = ['username', 'get_full_name', 'role', 'get_space', 'is_active']
+    list_filter = ['role', 'space']
 
     fieldsets = UserAdmin.fieldsets + (
-        ('Роль', {'fields': ('role',)}),
-        ('Организации', {
-            'fields': ('organizations', 'current_organization'),
-            'description': '''
-                <strong>Организации</strong> - все организации, к которым имеет доступ пользователь<br>
-                <strong>Текущая организация</strong> - организация, выбранная для текущей работы (должна быть из списка выше)
-            '''
+        ('Роль и пространство', {
+            'fields': ('role', 'space'),
         }),
     )
 
-    def get_organizations(self, obj):
-        """Отображение организаций в списке пользователей"""
-        return ", ".join([org.short_name for org in obj.organizations.all()[:3]]) + \
-            ("..." if obj.organizations.count() > 3 else "")
+    def get_space(self, obj):
+        return obj.space.name if obj.space else '—'
+    get_space.short_description = 'Пространство'
 
-    get_organizations.short_description = 'Организации'
 
-    def get_current_org(self, obj):
-        """Отображение текущей организации"""
-        if obj.current_organization:
-            return f"✓ {obj.current_organization.short_name}"
-        return "—"
+@admin.register(TrainingProgram)
+class TrainingProgramAdmin(admin.ModelAdmin):
+    list_display = ['pk', 'code', 'title_short', 'category', 'direction', 'status', 'new_price', 'period_hours']
+    list_filter = ['status', 'category', 'direction']
+    search_fields = ['code', 'title', 'category']
 
-    get_current_org.short_description = 'Текущая'
+    def title_short(self, obj):
+        return obj.title[:100] + ('...' if len(obj.title) > 100 else '')
+    title_short.short_description = 'Программа'
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ['person', 'author', 'text_short', 'created_at', 'is_read']
+    list_filter = ['is_read', 'created_at']
+    search_fields = ['text', 'person__last_name']
+
+    def text_short(self, obj):
+        return obj.text[:80]
+    text_short.short_description = 'Текст'
+
+
+class ModuleStepInline(admin.TabularInline):
+    model = ModuleStep
+    extra = 0
+    fields = ['order', 'type', 'title', 'url', 'is_active']
+    ordering = ['order']
+
+
+class QuizQuestionInline(admin.StackedInline):
+    model = QuizQuestion
+    extra = 0
+    fields = ['order', 'type', 'text', 'points', 'answers', 'correct', 'terms', 'explanation']
+    ordering = ['order']
+
+
+@admin.register(LearningModule)
+class LearningModuleAdmin(admin.ModelAdmin):
+    list_display = ['program', 'title', 'order', 'steps_count', 'is_active']
+    list_filter = ['is_active', 'program']
+    search_fields = ['title', 'program__title', 'program__code']
+    inlines = [ModuleStepInline]
+
+    def steps_count(self, obj):
+        return obj.steps.count()
+    steps_count.short_description = 'Этапов'
+
+
+@admin.register(ModuleStep)
+class ModuleStepAdmin(admin.ModelAdmin):
+    list_display = ['module', 'order', 'type', 'title', 'is_active']
+    list_filter = ['type', 'is_active']
+    search_fields = ['title']
+    inlines = [QuizQuestionInline]
+
+
+@admin.register(QuizQuestion)
+class QuizQuestionAdmin(admin.ModelAdmin):
+    list_display = ['step', 'order', 'type', 'text_short', 'points']
+    list_filter = ['type']
+    search_fields = ['text']
+
+    def text_short(self, obj):
+        return obj.text[:80]
+    text_short.short_description = 'Текст'
+
+
+@admin.register(Signer)
+class SignerAdmin(admin.ModelAdmin):
+    list_display = ['full_name', 'position', 'space', 'is_active']
+    list_filter = ['space', 'is_active']
+    search_fields = ['full_name', 'position']
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ['number', 'date', 'payer', 'our_organization', 'amount', 'is_active']
+    list_filter = ['our_organization', 'is_active']
+    search_fields = ['number', 'payer__short_name']
+
+
+@admin.register(ModuleProgress)
+class ModuleProgressAdmin(admin.ModelAdmin):
+    list_display = ['person', 'module', 'is_completed', 'started_at', 'completed_at']
+    list_filter = ['is_completed']
+    search_fields = ['person__last_name', 'module__title']
+
+
+@admin.register(StepProgress)
+class StepProgressAdmin(admin.ModelAdmin):
+    list_display = ['module_progress', 'step', 'status', 'score', 'completed_at']
+    list_filter = ['status']
+
+
+@admin.register(QuizAttempt)
+class QuizAttemptAdmin(admin.ModelAdmin):
+    list_display = ['step_progress', 'is_completed', 'score', 'current_question_index']
+    list_filter = ['is_completed']

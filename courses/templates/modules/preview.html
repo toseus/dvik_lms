@@ -1,0 +1,48 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ module.title }} — ДВИК СЭО</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/els.css' %}">
+<link rel="stylesheet" href="{% static 'css/els-learn.css' %}">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">ДВИК — Система электронного обучения</span>
+  <div class="header-right"></div>
+</header>
+
+<main id="pageContent"></main>
+
+<!-- Modal -->
+<div class="modal-overlay" id="finishModal">
+  <div class="modal-card">
+    <div class="modal-icon">🎓</div>
+    <div class="modal-title">Обучение завершено!</div>
+    <div class="modal-text" id="modalText"></div>
+    <button class="modal-btn" onclick="document.getElementById('finishModal').classList.remove('visible'); window.location.href=BACK_URL;">Закрыть</button>
+  </div>
+</div>
+
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span id="footerCourseName">{{ module.title }}</span>
+  <span style="margin-left:auto" id="footerProgress">0 / 0 шагов</span>
+</footer>
+
+<script>
+const MODULE_PK = {{ module.pk }};
+const MODULE_TITLE = '{{ module.title|escapejs }}';
+const MODULE_DESC = '{{ module.description|escapejs }}';
+const PROGRAM_CODE = '{{ module.program.code|escapejs }}';
+const PROGRAM_TITLE = '{{ module.program.title|truncatechars:80|escapejs }}';
+const BACK_URL = '{% url "module_edit" module.pk %}';
+</script>
+<script src="{% static 'js/els-learn.js' %}"></script>
+</body>
+</html>

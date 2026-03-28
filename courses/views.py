@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -252,7 +252,21 @@ def api_my_courses(request):
 @login_required
 def person_list(request):
     q = request.GET.get('q', '').strip()
-    persons = Person.objects.select_related('user').order_by('last_name', 'first_name')
+    sort = request.GET.get('sort', 'id')
+    direction = request.GET.get('dir', 'desc')
+
+    allowed_sorts = {
+        'id': 'pk',
+        'last_name': 'last_name',
+        'snils': 'snils',
+        'position': 'position',
+        'workplace': 'workplace',
+    }
+    order_field = allowed_sorts.get(sort, 'last_name')
+    if direction == 'desc':
+        order_field = '-' + order_field
+
+    persons = Person.objects.select_related('user').order_by(order_field)
     if q:
         from django.db.models import Q
         persons = persons.filter(
@@ -262,9 +276,17 @@ def person_list(request):
             Q(snils__icontains=q)       |
             Q(workplace__icontains=q)
         )
+    from django.core.paginator import Paginator
+    paginator = Paginator(persons, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'persons/list.html', {
-        'persons': persons,
+        'persons': page_obj,
         'q': q,
+        'total_count': paginator.count,
+        'sort': sort,
+        'sort_dir': direction,
     })
 
 
@@ -273,28 +295,29 @@ def person_list(request):
 # ─────────────────────────────────────────────
 @login_required
 def student_list(request):
-    """Список слушателей, видимых для текущей организации пользователя"""
+    """Список слушателей (у кого есть аккаунт)"""
     q = request.GET.get('q', '').strip()
+    sort = request.GET.get('sort', 'id')
+    direction = request.GET.get('dir', 'desc')
 
-    # Получаем текущую организацию пользователя
-    current_org = request.user.current_organization
-    if not current_org:
-        persons = Person.objects.none()
-    else:
-        assignment = OrganizationAssignment.objects.filter(
-            company=current_org,
-            assigned_for=current_org.short_name
-        ).first()
+    allowed_sorts = {
+        'id': 'pk',
+        'last_name': 'last_name',
+        'snils': 'snils',
+        'position': 'position',
+        'workplace': 'workplace',
+    }
+    order_field = allowed_sorts.get(sort, 'last_name')
+    if direction == 'desc':
+        order_field = '-' + order_field
 
-        if assignment:
-            persons = Person.objects.filter(
-                org_assignments__assignment=assignment,
-                user__isnull=False
-            ).select_related('user').distinct()
-        else:
-            persons = Person.objects.none()
+    persons = Person.objects.filter(user__isnull=False).select_related('user').order_by(order_field)
 
-    if q and persons.exists():
+    pos = request.GET.get('pos', '').strip()
+    if pos:
+        persons = persons.filter(position=pos)
+
+    if q:
         from django.db.models import Q
         persons = persons.filter(
             Q(last_name__icontains=q) |
@@ -303,10 +326,14 @@ def student_list(request):
             Q(snils__icontains=q)
         )
 
-    # Если запрос AJAX или есть параметр json, возвращаем JSON
+    # AJAX-ответ для обновления таблицы
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('json') == '1':
+        from django.core.paginator import Paginator
+        paginator = Paginator(persons, 50)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
         persons_data = []
-        for p in persons:
+        for p in page_obj:
             persons_data.append({
                 'id': p.id,
                 'snils': p.snils,
@@ -320,9 +347,18 @@ def student_list(request):
             })
         return JsonResponse({'persons': persons_data})
 
+    from django.core.paginator import Paginator
+    paginator = Paginator(persons, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'persons/students.html', {
-        'persons': persons,
+        'persons': page_obj,
         'q': q,
+        'total_count': paginator.count,
+        'sort': sort,
+        'sort_dir': direction,
+        'current_pos': pos,
     })
 
 # ─────────────────────────────────────────────
@@ -338,8 +374,47 @@ def student_card(request, pk):
         ),
         pk=pk
     )
+
+    # JSON для заявок
+    orders_data = []
+    for o in person.orders.all():
+        orders_data.append({
+            'id': o.pk,
+            'date': o.date.isoformat() if o.date else '',
+            'amount': str(o.amount),
+            'payer': o.payer,
+            'partner': o.partner,
+            'author': o.author,
+        })
+
+    # JSON для программ (подготовок)
+    progs_data = []
+    for o in person.orders.all():
+        for p in o.programs.all():
+            progs_data.append({
+                'order_id': o.pk,
+                'cat': p.category,
+                'tp': p.prog_type,
+                'code': p.code,
+                'fr': p.date_start.isoformat() if p.date_start else '',
+                'to': p.date_end.isoformat() if p.date_end else '',
+                'disc': p.discount,
+                'amt': str(p.amount),
+                'cert': p.cert_number,
+                'reg': p.reg_number,
+                'grade': p.grade,
+                'iss': p.issue_status,
+                'notes': p.notes,
+            })
+
+    import json
+    current_user_name = request.user.get_full_name() or request.user.username
+
     return render(request, 'persons/detail.html', {
         'person': person,
+        'orders_json': json.dumps(orders_data, ensure_ascii=False),
+        'progs_json': json.dumps(progs_data, ensure_ascii=False),
+        'current_user_name': current_user_name,
     })
 
 
@@ -390,13 +465,8 @@ def student_add(request):
     if not snils and not person_id:
         return JsonResponse({'error': 'СНИЛС или ID обязателен'}, status=400)
 
-    # Проверяем, есть ли у пользователя текущая организация
-    if not request.user.current_organization:
-        return JsonResponse({
-            'error': 'У вас не выбрана текущая организация. Сначала выберите её в профиле.'
-        }, status=400)
-
-    current_org = request.user.current_organization
+    # TODO: фильтрация по Space будет добавлена позже
+    current_org = None  # заглушка — пока не используем
 
     # Если передан person_id, используем его
     if person_id:
@@ -705,11 +775,7 @@ def organization_assign(request):
     org_type = data.get('org_type', '').strip()
     notes = data.get('notes', '').strip()
 
-    # Проверяем, есть ли у пользователя текущая организация
-    if not request.user.current_organization:
-        return JsonResponse({
-            'error': 'У вас не выбрана текущая организация. Сначала выберите её в профиле.'
-        }, status=400)
+    # TODO: фильтрация по Space будет добавлена позже
 
     if not inn:
         return JsonResponse({'error': 'Введите ИНН'}, status=400)
@@ -731,7 +797,7 @@ def organization_assign(request):
             company=company,
             org_type=org_type,
             assigned_by=request.user,
-            assigned_for=request.user.current_organization.short_name,
+            assigned_for=request.user.get_full_name() or request.user.username,  # TODO: заменить на Space
             notes=notes
         )
 
@@ -917,30 +983,7 @@ def person_create(request):
                 created_by=request.user,
             )
 
-            # ─── АВТОМАТИЧЕСКОЕ НАЗНАЧЕНИЕ ОРГАНИЗАЦИИ ───
-            current_org = request.user.current_organization
-            if current_org:
-                # Находим или создаем назначение организации для текущего пользователя
-                assignment = OrganizationAssignment.objects.filter(
-                    company=current_org,
-                    assigned_for=current_org.short_name
-                ).first()
-
-                if not assignment:
-                    assignment = OrganizationAssignment.objects.create(
-                        company=current_org,
-                        org_type='educational',
-                        assigned_by=request.user,
-                        assigned_for=current_org.short_name,
-                        notes='Автоматически создано при создании физического лица'
-                    )
-
-                # Создаем связь физического лица с организацией
-                PersonOrganization.objects.get_or_create(
-                    person=person,
-                    assignment=assignment
-                )
-            # ─────────────────────────────────────────────
+            # TODO: автоматическое назначение Space будет добавлено позже
 
             # Если отмечен чекбокс "создать аккаунт"
             if request.POST.get('create_account') == 'on':
@@ -987,19 +1030,64 @@ def check_student_organization(request):
     except Person.DoesNotExist:
         return JsonResponse({'error': 'Person not found'}, status=404)
 
-    # Получаем текущую организацию пользователя
-    current_org = request.user.current_organization
-    if not current_org:
-        return JsonResponse({'belongs_to_current_org': False})
+    # TODO: проверка принадлежности к Space будет добавлена позже
+    return JsonResponse({'belongs_to_current_org': True})
 
-    # Проверяем, есть ли связь с организацией
-    belongs = PersonOrganization.objects.filter(
-        person=person,
-        assignment__company=current_org
-    ).exists()
 
-    return JsonResponse({'belongs_to_current_org': belongs})
 
+# ─────────────────────────────────────────────
+# Справочник программ обучения
+# ─────────────────────────────────────────────
+
+@login_required
+def program_catalog(request):
+    """Справочник программ обучения."""
+    q = request.GET.get('q', '').strip()
+    cat = request.GET.get('cat', '').strip()
+    dept = request.GET.get('dept', '').strip()
+    programs = TrainingProgram.objects.filter(status='В работе')
+
+    if cat:
+        programs = programs.filter(category=cat)
+    if dept:
+        programs = programs.filter(department=dept)
+
+    if q:
+        from django.db.models import Q
+        programs = programs.filter(
+            Q(code__icontains=q) |
+            Q(title__icontains=q) |
+            Q(category__icontains=q) |
+            Q(direction__icontains=q)
+        )
+
+    sort = request.GET.get('sort', 'code')
+    direction = request.GET.get('dir', 'asc')
+    allowed_sorts = {
+        'id': 'pk', 'code': 'code', 'title': 'title',
+        'category': 'category', 'direction': 'direction',
+        'department': 'department', 'price': 'new_price',
+        'hours': 'period_hours', 'prog_group': 'prog_group',
+    }
+    order_field = allowed_sorts.get(sort, 'code')
+    if direction == 'desc':
+        order_field = '-' + order_field
+    programs = programs.order_by(order_field)
+
+    from django.core.paginator import Paginator
+    paginator = Paginator(programs, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'programs/catalog.html', {
+        'programs': page_obj,
+        'q': q,
+        'total_count': paginator.count,
+        'current_cat': cat,
+        'current_dept': dept,
+        'sort': sort,
+        'dir': direction,
+    })
 
 
 # ─────────────────────────────────────────────
@@ -1136,3 +1224,636 @@ def api_all_students(request):
     return JsonResponse(data)
 
 
+# ─────────────────────────────────────────────
+# Сообщения (чат по слушателю)
+# ─────────────────────────────────────────────
+
+@login_required
+def api_messages(request, person_pk):
+    """GET — список сообщений по слушателю."""
+    messages_qs = Message.objects.filter(person_id=person_pk).select_related('author').order_by('created_at')
+
+    # Помечаем как прочитанные (если читает не автор)
+    messages_qs.filter(is_read=False).exclude(author=request.user).update(is_read=True)
+
+    data = []
+    for msg in messages_qs:
+        data.append({
+            'id': msg.pk,
+            'text': msg.text,
+            'author_id': msg.author_id,
+            'author_name': msg.author.get_full_name() or msg.author.username if msg.author else 'Система',
+            'is_mine': msg.author_id == request.user.pk,
+            'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M'),
+            'date': msg.created_at.strftime('%d.%m.%Y'),
+            'time': msg.created_at.strftime('%H:%M'),
+            'is_read': msg.is_read,
+        })
+    return JsonResponse({'messages': data})
+
+
+@login_required
+@require_POST
+def api_message_send(request, person_pk):
+    """POST — отправить сообщение."""
+    try:
+        data = json.loads(request.body)
+    except (ValueError, KeyError):
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    text = data.get('text', '').strip()
+    if not text:
+        return JsonResponse({'error': 'Пустое сообщение'}, status=400)
+
+    person = get_object_or_404(Person, pk=person_pk)
+    msg = Message.objects.create(
+        person=person,
+        author=request.user,
+        text=text,
+    )
+    return JsonResponse({
+        'ok': True,
+        'message': {
+            'id': msg.pk,
+            'text': msg.text,
+            'author_name': request.user.get_full_name() or request.user.username,
+            'is_mine': True,
+            'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M'),
+            'date': msg.created_at.strftime('%d.%m.%Y'),
+            'time': msg.created_at.strftime('%H:%M'),
+        }
+    })
+
+
+# ─────────────────────────────────────────────
+# Модули обучения (ELS)
+# ─────────────────────────────────────────────
+
+@login_required
+def module_list(request):
+    from django.db.models import Count, Q as DQ
+    q = request.GET.get('q', '').strip()
+    modules = LearningModule.objects.select_related('program').annotate(
+        total_steps=Count('steps', filter=DQ(steps__is_active=True)),
+        material_count=Count('steps', filter=DQ(steps__type='material', steps__is_active=True)),
+        slide_count=Count('steps', filter=DQ(steps__type='slide', steps__is_active=True)),
+        quiz_count=Count('steps', filter=DQ(steps__type='quiz', steps__is_active=True)),
+        practice_count=Count('steps', filter=DQ(steps__type='practice', steps__is_active=True)),
+        upload_count=Count('steps', filter=DQ(steps__type='upload', steps__is_active=True)),
+        final_exam_count=Count('steps', filter=DQ(steps__type='final_exam', steps__is_active=True)),
+    ).order_by('program__code', 'order')
+
+    if q:
+        modules = modules.filter(
+            DQ(title__icontains=q) |
+            DQ(program__code__icontains=q) |
+            DQ(program__title__icontains=q)
+        )
+
+    from django.core.paginator import Paginator
+    paginator = Paginator(modules, 50)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    programs = TrainingProgram.objects.filter(status='В работе').order_by('code')
+
+    return render(request, 'modules/list.html', {
+        'modules': page_obj,
+        'q': q,
+        'total_count': paginator.count,
+        'programs': programs,
+    })
+
+
+@login_required
+@require_POST
+def module_create(request):
+    program_id = request.POST.get('program_id')
+    title = request.POST.get('title', '').strip()
+    if not program_id or not title:
+        return redirect('module_list')
+
+    program = get_object_or_404(TrainingProgram, pk=program_id)
+    from django.db.models import Max
+    max_order = program.modules.aggregate(Max('order'))['order__max'] or 0
+    module = LearningModule.objects.create(
+        program=program,
+        title=title,
+        order=max_order + 1,
+    )
+    return redirect('module_edit', pk=module.pk)
+
+
+@login_required
+def module_edit(request, pk):
+    module = get_object_or_404(
+        LearningModule.objects.select_related('program').prefetch_related('steps__questions'),
+        pk=pk
+    )
+    return render(request, 'modules/edit.html', {'module': module})
+
+
+@login_required
+@require_POST
+def module_delete(request, pk):
+    module = get_object_or_404(LearningModule, pk=pk)
+    module.delete()
+    return redirect('module_list')
+
+
+@login_required
+def api_module_steps(request, pk):
+    module = get_object_or_404(LearningModule, pk=pk)
+    steps = module.steps.order_by('order')
+    data = []
+    for s in steps:
+        data.append({
+            'id': s.pk,
+            'order': s.order,
+            'type': s.type,
+            'type_display': s.get_type_display(),
+            'title': s.title,
+            'description': s.description,
+            'url': s.url,
+            'time_limit_minutes': s.time_limit_minutes,
+            'pass_score': s.pass_score,
+            'exam_config': s.exam_config,
+            'questions_count': s.questions.count() if s.type in ('quiz', 'slide') else 0,
+            'slide_content': s.slide_content,
+            'is_active': s.is_active,
+        })
+    return JsonResponse({'steps': data}, json_dumps_params={'ensure_ascii': False})
+
+
+@login_required
+@require_POST
+def api_module_steps_save(request, pk):
+    module = get_object_or_404(LearningModule, pk=pk)
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    steps_data = data.get('steps', [])
+    existing_ids = set(module.steps.values_list('pk', flat=True))
+    incoming_ids = set()
+
+    for i, step_data in enumerate(steps_data):
+        step_id = step_data.get('id')
+        defaults = {
+            'order': i,
+            'type': step_data.get('type', 'material'),
+            'title': step_data.get('title', ''),
+            'description': step_data.get('description', ''),
+            'url': step_data.get('url', ''),
+            'time_limit_minutes': step_data.get('time_limit_minutes') or None,
+            'pass_score': step_data.get('pass_score') or None,
+            'exam_config': step_data.get('exam_config'),
+            'slide_content': step_data.get('slide_content', ''),
+            'is_active': step_data.get('is_active', True),
+        }
+
+        if step_id and step_id in existing_ids:
+            ModuleStep.objects.filter(pk=step_id, module=module).update(**defaults)
+            incoming_ids.add(step_id)
+        else:
+            new_step = ModuleStep.objects.create(module=module, **defaults)
+            incoming_ids.add(new_step.pk)
+
+    to_delete = existing_ids - incoming_ids
+    if to_delete:
+        ModuleStep.objects.filter(pk__in=to_delete).delete()
+
+    update_fields = []
+    if 'module_title' in data:
+        module.title = data['module_title']
+        update_fields.append('title')
+    if 'module_description' in data:
+        module.description = data['module_description']
+        update_fields.append('description')
+    if update_fields:
+        module.save(update_fields=update_fields)
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def api_step_questions(request, pk):
+    step = get_object_or_404(ModuleStep, pk=pk)
+    questions = step.questions.order_by('order')
+    data = []
+    for q in questions:
+        data.append({
+            'id': q.pk,
+            'order': q.order,
+            'type': q.type,
+            'text': q.text,
+            'points': q.points,
+            'image_url': q.image_url,
+            'explanation': q.explanation,
+            'answers': q.answers,
+            'correct': q.correct,
+            'terms': q.terms,
+        })
+    return JsonResponse({'questions': data, 'step_title': step.title}, json_dumps_params={'ensure_ascii': False})
+
+
+@login_required
+@require_POST
+def api_step_questions_save(request, pk):
+    step = get_object_or_404(ModuleStep, pk=pk)
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    questions_data = data.get('questions', [])
+    existing_ids = set(step.questions.values_list('pk', flat=True))
+    incoming_ids = set()
+
+    for i, q_data in enumerate(questions_data):
+        q_id = q_data.get('id')
+        defaults = {
+            'order': i,
+            'type': q_data.get('type', 'single'),
+            'text': q_data.get('text', ''),
+            'points': q_data.get('points', 1),
+            'image_url': q_data.get('image_url', ''),
+            'explanation': q_data.get('explanation', ''),
+            'answers': q_data.get('answers', []),
+            'correct': q_data.get('correct', []),
+            'terms': q_data.get('terms'),
+        }
+
+        if q_id and q_id in existing_ids:
+            QuizQuestion.objects.filter(pk=q_id, step=step).update(**defaults)
+            incoming_ids.add(q_id)
+        else:
+            new_q = QuizQuestion.objects.create(step=step, **defaults)
+            incoming_ids.add(new_q.pk)
+
+    to_delete = existing_ids - incoming_ids
+    if to_delete:
+        QuizQuestion.objects.filter(pk__in=to_delete).delete()
+
+    return JsonResponse({'ok': True, 'count': len(questions_data)})
+
+
+# ─────────────────────────────────────────────
+# Превью модуля
+# ─────────────────────────────────────────────
+
+@login_required
+def module_preview(request, pk):
+    module = get_object_or_404(LearningModule.objects.select_related('program'), pk=pk)
+    return render(request, 'modules/preview.html', {'module': module})
+
+
+@login_required
+def module_slides(request, pk):
+    """Прохождение слайд-презентации внутри одного этапа (pk = ModuleStep.pk)."""
+    step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=pk)
+
+    # Парсим слайды из slide_content (JSON массив)
+    try:
+        slides_data = json.loads(step.slide_content) if step.slide_content else []
+    except (json.JSONDecodeError, TypeError):
+        slides_data = []
+
+    slides_json = json.dumps(slides_data, ensure_ascii=False).replace('</script>', '<\\/script>')
+    return render(request, 'modules/slides.html', {
+        'step': step,
+        'module': step.module,
+        'slides_json': slides_json,
+        'total_slides': len(slides_data),
+    })
+
+
+@login_required
+def module_quiz_preview(request, step_pk):
+    step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=step_pk)
+    return render(request, 'modules/quiz.html', {'step': step, 'preview': True})
+
+
+@login_required
+@require_POST
+def api_import_questions(request, pk):
+    """Импорт вопросов из Excel."""
+    step = get_object_or_404(ModuleStep, pk=pk)
+
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'Файл не выбран'}, status=400)
+
+    import openpyxl
+    from django.db.models import Max
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES['file'], read_only=True)
+        ws = wb.active
+
+        imported = 0
+        max_order = step.questions.aggregate(Max('order'))['order__max'] or -1
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row or not row[0]:
+                continue
+
+            q_type = str(row[0]).strip().lower()
+            if q_type not in ('single', 'multi', 'order', 'match'):
+                continue
+
+            text = str(row[1] or '').strip()
+            if not text:
+                continue
+
+            points = int(row[2] or 1)
+
+            answers = []
+            for i in range(3, 9):
+                val = row[i] if i < len(row) else None
+                if val and str(val).strip():
+                    answers.append(str(val).strip())
+
+            correct_str = str(row[9] or '').strip() if len(row) > 9 else ''
+            correct = []
+            if correct_str:
+                for x in correct_str.split(','):
+                    x = x.strip()
+                    if x.isdigit():
+                        correct.append(int(x) - 1)
+
+            terms = None
+            if q_type == 'match' and len(row) > 10 and row[10]:
+                terms = [t.strip() for t in str(row[10]).split('|') if t.strip()]
+
+            image_url = str(row[11] or '').strip() if len(row) > 11 else ''
+            explanation = str(row[12] or '').strip() if len(row) > 12 else ''
+
+            max_order += 1
+            QuizQuestion.objects.create(
+                step=step, order=max_order, type=q_type, text=text,
+                points=points, answers=answers, correct=correct,
+                terms=terms, image_url=image_url, explanation=explanation,
+            )
+            imported += 1
+
+        return JsonResponse({'ok': True, 'imported': imported})
+
+    except Exception as e:
+        return JsonResponse({'error': f'Ошибка: {str(e)}'}, status=400)
+
+
+# ─────────────────────────────────────────────
+# Договоры
+# ─────────────────────────────────────────────
+
+@login_required
+def contract_list(request):
+    q = request.GET.get('q', '').strip()
+    contracts = Contract.objects.select_related('payer', 'our_organization').all()
+    if q:
+        from django.db.models import Q
+        contracts = contracts.filter(
+            Q(number__icontains=q) |
+            Q(payer__short_name__icontains=q)
+        )
+    from django.core.paginator import Paginator
+    paginator = Paginator(contracts, 50)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    companies = Company.objects.order_by('short_name')
+    spaces = Space.objects.filter(is_active=True)
+
+    return render(request, 'contracts/list.html', {
+        'contracts': page_obj,
+        'q': q,
+        'total_count': paginator.count,
+        'companies': companies,
+        'spaces': spaces,
+    })
+
+
+@login_required
+@require_POST
+def contract_create(request):
+    try:
+        Contract.objects.create(
+            number=request.POST.get('number', '').strip(),
+            date=request.POST.get('date'),
+            payer_id=request.POST.get('payer_id'),
+            our_organization_id=request.POST.get('our_org_id'),
+            amount=request.POST.get('amount') or None,
+            notes=request.POST.get('notes', '').strip(),
+        )
+    except Exception:
+        pass
+    return redirect('contract_list')
+
+
+@login_required
+def api_signers(request):
+    space = request.user.space
+    if not space:
+        return JsonResponse({'signers': []})
+    signers = Signer.objects.filter(space=space, is_active=True).order_by('full_name')
+    data = [{'id': s.pk, 'full_name': s.full_name, 'position': s.position} for s in signers]
+    return JsonResponse({'signers': data})
+
+
+@login_required
+def api_payers(request, person_pk):
+    person = get_object_or_404(Person, pk=person_pk)
+    companies = Company.objects.order_by('short_name').values('id', 'short_name', 'inn')
+    payers = [{'id': 'self', 'name': f'{person.fio} (сам слушатель)', 'type': 'person'}]
+    for c in companies:
+        payers.append({'id': c['id'], 'name': f"{c['short_name']} (ИНН: {c['inn']})", 'type': 'company'})
+    return JsonResponse({'payers': payers})
+
+
+@login_required
+def api_contracts_by_payer(request, company_pk):
+    contracts = Contract.objects.filter(payer_id=company_pk, is_active=True).order_by('-date')
+    data = [{'id': c.pk, 'number': c.number, 'date': c.date.strftime('%d.%m.%Y'), 'display': f'№{c.number} от {c.date.strftime("%d.%m.%Y")}'} for c in contracts]
+    return JsonResponse({'contracts': data})
+
+
+@login_required
+@require_POST
+def api_order_create(request):
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    person = get_object_or_404(Person, pk=data.get('person_id'))
+    payer_type = data.get('payer_type')
+
+    from datetime import date
+    order = Order.objects.create(
+        person=person,
+        date=date.today(),
+        signer_id=data.get('signer_id'),
+        payer_is_person=(payer_type == 'person'),
+        payer_company_id=data.get('payer_company_id') if payer_type == 'company' else None,
+        contract_id=data.get('contract_id') or None,
+        space=request.user.space,
+        created_by=request.user,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'order_id': order.pk,
+        'message': f'Заявка №{order.pk} создана',
+    })
+
+
+# ══════════════════════════════════════════════════
+#   API ПРОГРЕССА МОДУЛЕЙ
+# ══════════════════════════════════════════════════
+
+@login_required
+def api_module_progress(request, module_pk):
+    """GET — получить прогресс по модулю для текущего пользователя."""
+    if not hasattr(request.user, 'person'):
+        return JsonResponse({'error': 'no person'}, status=400)
+
+    progress, created = ModuleProgress.objects.get_or_create(
+        person=request.user.person, module_id=module_pk
+    )
+
+    steps_data = {}
+    for sp in progress.step_progress.select_related('step').all():
+        quiz_attempt = sp.quiz_attempts.filter(is_completed=False).first()
+        steps_data[sp.step_id] = {
+            'status': sp.status,
+            'score': sp.score,
+            'current_question': quiz_attempt.current_question_index if quiz_attempt else 0,
+        }
+
+    return JsonResponse({
+        'module_id': module_pk,
+        'current_step_id': progress.current_step_id,
+        'is_completed': progress.is_completed,
+        'steps': steps_data,
+    })
+
+
+@login_required
+@require_POST
+def api_step_complete(request, step_pk):
+    """POST — отметить этап как пройденный."""
+    if not hasattr(request.user, 'person'):
+        return JsonResponse({'error': 'no person'}, status=400)
+
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    progress, _ = ModuleProgress.objects.get_or_create(
+        person=request.user.person, module=step.module
+    )
+
+    sp, _ = StepProgress.objects.get_or_create(
+        module_progress=progress, step=step
+    )
+
+    from django.utils import timezone
+    sp.status = 'completed'
+    sp.completed_at = timezone.now()
+    sp.save()
+
+    # Обновить current_step на следующий незавершённый
+    all_steps = list(step.module.steps.filter(is_active=True).order_by('order'))
+    completed_ids = set(progress.step_progress.filter(
+        status__in=['completed', 'graded']
+    ).values_list('step_id', flat=True))
+
+    next_step = None
+    for s in all_steps:
+        if s.pk not in completed_ids:
+            next_step = s
+            break
+    progress.current_step = next_step
+
+    # Проверить завершение модуля
+    if not next_step or all(s.pk in completed_ids for s in all_steps):
+        progress.is_completed = True
+        progress.completed_at = timezone.now()
+
+    progress.save()
+
+    return JsonResponse({'ok': True, 'is_module_completed': progress.is_completed})
+
+
+@login_required
+@require_POST
+def api_quiz_save_progress(request, step_pk):
+    """POST — сохранить промежуточный прогресс теста."""
+    if not hasattr(request.user, 'person'):
+        return JsonResponse({'error': 'no person'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    progress, _ = ModuleProgress.objects.get_or_create(
+        person=request.user.person, module=step.module
+    )
+    sp, _ = StepProgress.objects.get_or_create(
+        module_progress=progress, step=step
+    )
+    if sp.status == 'not_started':
+        sp.status = 'in_progress'
+        sp.save()
+
+    attempt, _ = QuizAttempt.objects.get_or_create(
+        step_progress=sp, is_completed=False
+    )
+    attempt.answers = data.get('answers', {})
+    attempt.current_question_index = data.get('current_question', 0)
+    attempt.save()
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def api_quiz_complete(request, step_pk):
+    """POST — завершить тест, сохранить результат."""
+    if not hasattr(request.user, 'person'):
+        return JsonResponse({'error': 'no person'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    progress, _ = ModuleProgress.objects.get_or_create(
+        person=request.user.person, module=step.module
+    )
+    sp, _ = StepProgress.objects.get_or_create(
+        module_progress=progress, step=step
+    )
+
+    from django.utils import timezone
+    score = data.get('score', 0)
+    max_score = data.get('max_score', 0)
+
+    sp.status = 'completed'
+    sp.score = score
+    sp.completed_at = timezone.now()
+    sp.save()
+
+    # Удалить незавершённые попытки
+    QuizAttempt.objects.filter(step_progress=sp, is_completed=False).delete()
+
+    # Создать завершённую запись
+    QuizAttempt.objects.create(
+        step_progress=sp,
+        answers=data.get('answers', {}),
+        score=score,
+        max_score=max_score,
+        is_completed=True,
+        completed_at=timezone.now(),
+    )
+
+    return JsonResponse({'ok': True, 'score': score})

@@ -1,0 +1,136 @@
+{% extends 'base/base.html' %}
+{% block title %}Договоры — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:300px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap; }
+.persons-table td { padding:10px 14px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:middle; }
+.persons-table tbody tr { transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--answer-hover); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.persons-empty { text-align:center; padding:60px 24px; color:var(--text-muted); font-size:15px; }
+.persons-empty-ico { font-size:48px; margin-bottom:12px; opacity:.3; }
+.btn-compact { padding:9px 16px!important; font-size:13px!important; border-radius:5px; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; height:38px; }
+.btn-primary.btn-compact { background:var(--accent); color:#fff; border:none; }
+.btn-outline.btn-compact { background:transparent; color:var(--text-secondary); border:1.5px solid var(--border); text-decoration:none; }
+.btn-add { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:5px; background:var(--accent); color:#fff; border:none; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s; box-shadow:0 2px 8px rgba(15,98,174,0.3); white-space:nowrap; height:38px; }
+.btn-add:hover { background:var(--accent-hover); }
+.btn-add svg { width:14px; height:14px; }
+.td-bool { text-align:center; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal-box { background:#fff; border-radius:8px; padding:24px; width:520px; max-width:90vw; box-shadow:0 8px 30px rgba(0,0,0,.2); }
+.modal-box h3 { margin-bottom:16px; font-size:17px; }
+.modal-box label { display:block; font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:4px; margin-top:12px; }
+.modal-box select, .modal-box input, .modal-box textarea { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:5px; font-size:13px; outline:none; font-family:inherit; }
+.modal-box select:focus, .modal-box input:focus, .modal-box textarea:focus { border-color:var(--accent); }
+.modal-box textarea { resize:vertical; min-height:50px; }
+.modal-btns { display:flex; gap:8px; margin-top:20px; justify-content:flex-end; }
+.modal-btns button { padding:8px 18px; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+.modal-btns .btn-save { background:var(--accent); color:#fff; }
+.modal-btns .btn-cancel { background:#f0f0f0; color:var(--text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header" style="margin-bottom:15px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Договоры</h1>
+      <div style="font-size:13px;color:var(--text-muted)">{{ total_count }} договоров</div>
+    </div>
+  </div>
+
+  <div class="persons-toolbar" style="display:flex;align-items:center;gap:8px;">
+    <form method="get" style="display:flex;flex:1;gap:8px;align-items:center;">
+      <div class="stu-search-wrap" style="flex:1;">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}" placeholder="Поиск по номеру или плательщику…" style="height:38px;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-compact">Найти</button>
+      {% if q %}<a href="{% url 'contract_list' %}" class="btn btn-outline btn-compact">Сбросить</a>{% endif %}
+    </form>
+    <button class="btn-add" onclick="document.getElementById('createModal').classList.add('show')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+      Новый договор
+    </button>
+  </div>
+
+  <div class="persons-count">Показано {{ contracts|length }} из {{ total_count }}{% if q %} по запросу «{{ q }}»{% endif %}</div>
+</div>
+
+{% if contracts %}
+<div class="persons-table-wrap">
+  <table class="persons-table">
+    <thead><tr><th>№ договора</th><th>Дата</th><th>Плательщик</th><th>Наша организация</th><th style="text-align:right">Сумма</th><th class="td-bool">Действ.</th></tr></thead>
+    <tbody>
+      {% for c in contracts %}
+      <tr>
+        <td style="font-weight:600">{{ c.number }}</td>
+        <td style="white-space:nowrap">{{ c.date }}</td>
+        <td>{{ c.payer.short_name }}</td>
+        <td>{{ c.our_organization.name }}</td>
+        <td style="text-align:right;white-space:nowrap">{% if c.amount %}{{ c.amount|floatformat:0 }} &#8381;{% else %}—{% endif %}</td>
+        <td class="td-bool">{% if c.is_active %}<span style="color:var(--status-green);font-weight:700">&#10003;</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if contracts.has_other_pages %}
+<div style="display:flex;justify-content:center;gap:6px;padding:16px 0;flex-wrap:wrap;">
+  {% for num in contracts.paginator.page_range %}
+    {% if contracts.number == num %}
+      <span style="padding:6px 12px;background:var(--accent);color:#fff;border-radius:5px;font-size:13px;font-weight:700;">{{ num }}</span>
+    {% elif num > contracts.number|add:"-3" and num < contracts.number|add:"4" %}
+      <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">{{ num }}</a>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="persons-empty"><div class="persons-empty-ico">📄</div><div>{% if q %}Ничего не найдено{% else %}Договоров пока нет{% endif %}</div></div>
+{% endif %}
+
+<div class="modal-overlay" id="createModal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal-box">
+    <h3>Новый договор</h3>
+    <form method="post" action="{% url 'contract_create' %}">
+      {% csrf_token %}
+      <label>Номер договора</label>
+      <input type="text" name="number" required placeholder="Например: 123/2026">
+      <label>Дата договора</label>
+      <input type="date" name="date" required>
+      <label>Плательщик</label>
+      <select name="payer_id" required>
+        <option value="">— Выберите —</option>
+        {% for c in companies %}<option value="{{ c.pk }}">{{ c.short_name }} (ИНН: {{ c.inn }})</option>{% endfor %}
+      </select>
+      <label>Наша организация</label>
+      <select name="our_org_id" required>
+        <option value="">— Выберите —</option>
+        {% for s in spaces %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
+      </select>
+      <label>Сумма (необязательно)</label>
+      <input type="number" name="amount" step="0.01" placeholder="0.00">
+      <label>Примечания</label>
+      <textarea name="notes" placeholder="Дополнительная информация..."></textarea>
+      <div class="modal-btns">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('createModal').classList.remove('show')">Отмена</button>
+        <button type="submit" class="btn-save">Создать</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

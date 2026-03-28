@@ -116,7 +116,7 @@
   </div>
 
   <div class="persons-count">
-    Показано {{ persons.count }} записей{% if q %} по запросу «{{ q }}»{% endif %}
+    Показано {{ persons|length }} из {{ total_count }} записей{% if q %} по запросу «{{ q }}»{% endif %}
   </div>
 </div>
 
@@ -125,12 +125,12 @@
   <table class="persons-table">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>СНИЛС</th>
-        <th>ФИО</th>
+        <th><a href="?sort=id&dir={% if sort == 'id' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}" style="color:inherit;text-decoration:none;">ID {% if sort == 'id' %}{% if sort_dir == 'desc' %}▼{% else %}▲{% endif %}{% endif %}</a></th>
+        <th><a href="?sort=snils&dir={% if sort == 'snils' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}" style="color:inherit;text-decoration:none;">СНИЛС {% if sort == 'snils' %}{% if sort_dir == 'desc' %}▼{% else %}▲{% endif %}{% endif %}</a></th>
+        <th><a href="?sort=last_name&dir={% if sort == 'last_name' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}" style="color:inherit;text-decoration:none;">ФИО {% if sort == 'last_name' %}{% if sort_dir == 'desc' %}▼{% else %}▲{% endif %}{% endif %}</a></th>
         <th>Дата рожд.</th>
-        <th>Должность</th>
-        <th>Место работы</th>
+        <th><a href="?sort=position&dir={% if sort == 'position' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}" style="color:inherit;text-decoration:none;">Должность {% if sort == 'position' %}{% if sort_dir == 'desc' %}▼{% else %}▲{% endif %}{% endif %}</a></th>
+        <th><a href="?sort=workplace&dir={% if sort == 'workplace' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}" style="color:inherit;text-decoration:none;">Место работы {% if sort == 'workplace' %}{% if sort_dir == 'desc' %}▼{% else %}▲{% endif %}{% endif %}</a></th>
         <th>Аккаунт</th>
         <th>Примечания</th>
       </tr>
@@ -157,6 +157,33 @@
     </tbody>
   </table>
 </div>
+
+{% if persons.has_other_pages %}
+<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0;flex-wrap:wrap;">
+  {% if persons.has_previous %}
+    <a href="?page=1{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">«</a>
+    <a href="?page={{ persons.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">‹</a>
+  {% endif %}
+
+  {% for num in persons.paginator.page_range %}
+    {% if persons.number == num %}
+      <span style="padding:6px 12px;background:var(--accent);color:#fff;border-radius:5px;font-size:13px;font-weight:700;">{{ num }}</span>
+    {% elif num > persons.number|add:"-3" and num < persons.number|add:"4" %}
+      <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">{{ num }}</a>
+    {% elif num == 1 or num == persons.paginator.num_pages %}
+      <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">{{ num }}</a>
+    {% elif num == 2 or num == persons.paginator.num_pages|add:"-1" %}
+      <span style="padding:6px;color:var(--text-muted);font-size:13px;">…</span>
+    {% endif %}
+  {% endfor %}
+
+  {% if persons.has_next %}
+    <a href="?page={{ persons.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">›</a>
+    <a href="?page={{ persons.paginator.num_pages }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ sort_dir }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">»</a>
+  {% endif %}
+</div>
+{% endif %}
+
 {% else %}
 <div class="persons-empty">
   <div class="persons-empty-ico">🧑‍💼</div>

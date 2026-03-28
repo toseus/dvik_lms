@@ -166,16 +166,14 @@ body, button, input, select, textarea {
 /* ── Свёрнутый сайдбар ── */
 .sidebar.collapsed .sidebar-item {
   padding: 10px 0;
-  border-left: none;
+  border-left: 3px solid transparent;
   justify-content: center;
   width: 44px;
   box-sizing: border-box;
   gap: 0;
 }
 .sidebar.collapsed .sidebar-item.active {
-  border-left: 3px solid var(--accent);
-  padding-left: 0;
-  width: 44px;
+  border-left-color: var(--accent);
 }
 .sidebar.collapsed .sidebar-label { opacity: 0; width: 0; }
 .sidebar.collapsed .sidebar-badge {

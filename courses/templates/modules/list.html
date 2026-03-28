@@ -1,0 +1,165 @@
+{% extends 'base/base.html' %}
+{% block title %}Модули обучения — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+.persons-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.persons-count   { font-size:13px; color:var(--text-muted); margin-bottom:8px; }
+.stu-search-wrap { position:relative; flex:1; min-width:300px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th { padding:9px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap; }
+.persons-table td { padding:10px 14px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:middle; }
+.persons-table tbody tr { cursor:pointer; transition:background .12s; }
+.persons-table tbody tr:hover { background:var(--answer-hover); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.persons-empty { text-align:center; padding:60px 24px; color:var(--text-muted); font-size:15px; }
+.persons-empty-ico { font-size:48px; margin-bottom:12px; opacity:.3; }
+
+.btn-compact { padding:9px 16px!important; font-size:13px!important; border-radius:5px; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; height:38px; }
+.btn-primary.btn-compact { background:var(--accent); color:#fff; border:none; }
+.btn-outline.btn-compact { background:transparent; color:var(--text-secondary); border:1.5px solid var(--border); text-decoration:none; }
+
+.btn-add { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:5px; background:var(--accent); color:#fff; border:none; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s; box-shadow:0 2px 8px rgba(15,98,174,0.3); white-space:nowrap; height:38px; }
+.btn-add:hover { background:var(--accent-hover); transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,98,174,0.4); }
+.btn-add svg { width:14px; height:14px; }
+
+.td-code { font-family:monospace; font-weight:600; white-space:nowrap; }
+.td-bool { text-align:center; }
+.td-actions { white-space:nowrap; }
+.td-actions a, .td-actions button { font-size:12px; padding:3px 8px; border-radius:4px; text-decoration:none; border:none; cursor:pointer; }
+.td-actions .btn-edit { color:var(--accent); background:var(--accent-light, #e8f0fe); }
+.td-actions .btn-del { color:#c4262c; background:#fde8e8; margin-left:4px; }
+
+/* Модальное окно */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal-box { background:#fff; border-radius:8px; padding:24px; width:500px; max-width:90vw; box-shadow:0 8px 30px rgba(0,0,0,.2); }
+.modal-box h3 { margin-bottom:16px; font-size:17px; }
+.modal-box label { display:block; font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:4px; margin-top:12px; }
+.modal-box select, .modal-box input[type=text] { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:5px; font-size:13px; outline:none; }
+.modal-box select:focus, .modal-box input:focus { border-color:var(--accent); }
+.modal-btns { display:flex; gap:8px; margin-top:20px; justify-content:flex-end; }
+.modal-btns button { padding:8px 18px; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+.modal-btns .btn-save { background:var(--accent); color:#fff; }
+.modal-btns .btn-cancel { background:#f0f0f0; color:var(--text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header" style="margin-bottom:15px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;margin-bottom:3px">Модули обучения</h1>
+      <div style="font-size:13px;color:var(--text-muted)">Конструктор учебных модулей — {{ total_count }} модулей</div>
+    </div>
+  </div>
+
+  <div class="persons-toolbar" style="display:flex;align-items:center;gap:8px;">
+    <form method="get" style="display:flex;flex:1;gap:8px;align-items:center;">
+      <div class="stu-search-wrap" style="flex:1;">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/>
+        </svg>
+        <input class="stu-search-input" type="text" name="q" value="{{ q }}" placeholder="Поиск по названию или программе…" style="height:38px;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-compact">Найти</button>
+      {% if q %}<a href="{% url 'module_list' %}" class="btn btn-outline btn-compact">Сбросить</a>{% endif %}
+    </form>
+    <button class="btn-add" onclick="document.getElementById('createModal').classList.add('show')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+      Создать модуль
+    </button>
+  </div>
+
+  <div class="persons-count">Показано {{ modules|length }} из {{ total_count }} модулей{% if q %} по запросу «{{ q }}»{% endif %}</div>
+</div>
+
+{% if modules %}
+<div class="persons-table-wrap">
+  <table class="persons-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Программа</th>
+        <th>Название модуля</th>
+        <th style="text-align:center">Этапов</th>
+        <th>Состав</th>
+        <th class="td-bool">Активен</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in modules %}
+      <tr onclick="location.href='{% url 'module_edit' m.pk %}'">
+        <td style="color:var(--text-muted)">{{ m.pk }}</td>
+        <td class="td-code">{{ m.program.code|default:'—' }}</td>
+        <td style="font-weight:600">{{ m.title }}</td>
+        <td style="text-align:center">{{ m.total_steps }}</td>
+        <td style="font-size:12px;">{% if m.material_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:var(--accent-light,#e8f0fe);color:var(--accent,#0f62ae);font-size:11px;font-weight:600;margin:1px 2px;">{{ m.material_count }} онлайн</span>{% endif %}{% if m.slide_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#112240;color:#e8a838;font-size:11px;font-weight:600;margin:1px 2px;">{{ m.slide_count }} слайд</span>{% endif %}{% if m.quiz_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:var(--status-yellow-bg,#fff8e0);color:var(--status-yellow,#9a6300);font-size:11px;font-weight:600;margin:1px 2px;">{{ m.quiz_count }} тест</span>{% endif %}{% if m.practice_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#fff4ce;color:#7a5000;font-size:11px;font-weight:600;margin:1px 2px;">{{ m.practice_count }} практ</span>{% endif %}{% if m.upload_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#ede8f8;color:#5c3fb0;font-size:11px;font-weight:600;margin:1px 2px;">{{ m.upload_count }} загр</span>{% endif %}{% if m.final_exam_count %}<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:var(--status-red-bg,#fde8e8);color:var(--status-red,#c4262c);font-size:11px;font-weight:600;margin:1px 2px;">{{ m.final_exam_count }} аттест</span>{% endif %}{% if not m.total_steps %}<span style="color:var(--text-muted);font-size:11px;">пусто</span>{% endif %}</td>
+        <td class="td-bool">{% if m.is_active %}<span style="color:var(--status-green);font-weight:700">&#10003;</span>{% else %}—{% endif %}</td>
+        <td class="td-actions" onclick="event.stopPropagation()">
+          <a href="{% url 'module_edit' m.pk %}" class="btn-edit">Редактировать</a>
+          <form method="post" action="{% url 'module_delete' m.pk %}" style="display:inline" onsubmit="return confirm('Удалить модуль «{{ m.title|escapejs }}»?')">
+            {% csrf_token %}
+            <button type="submit" class="btn-del">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if modules.has_other_pages %}
+<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0;flex-wrap:wrap;">
+  {% if modules.has_previous %}
+    <a href="?page={{ modules.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">&lsaquo;</a>
+  {% endif %}
+  {% for num in modules.paginator.page_range %}
+    {% if modules.number == num %}
+      <span style="padding:6px 12px;background:var(--accent);color:#fff;border-radius:5px;font-size:13px;font-weight:700;">{{ num }}</span>
+    {% elif num > modules.number|add:"-3" and num < modules.number|add:"4" %}
+      <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">{{ num }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if modules.has_next %}
+    <a href="?page={{ modules.next_page_number }}{% if q %}&q={{ q }}{% endif %}" style="padding:6px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-secondary);font-size:13px;">&rsaquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="persons-empty">
+  <div class="persons-empty-ico">📦</div>
+  <div>{% if q %}Ничего не найдено по запросу «{{ q }}»{% else %}Модулей пока нет{% endif %}</div>
+</div>
+{% endif %}
+
+<!-- Модальное окно создания -->
+<div class="modal-overlay" id="createModal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal-box">
+    <h3>Создать модуль обучения</h3>
+    <form method="post" action="{% url 'module_create' %}">
+      {% csrf_token %}
+      <label>Программа</label>
+      <select name="program_id" required>
+        <option value="">— Выберите программу —</option>
+        {% for p in programs %}
+        <option value="{{ p.pk }}">{{ p.code }} — {{ p.title|truncatechars:80 }}</option>
+        {% endfor %}
+      </select>
+      <label>Название модуля</label>
+      <input type="text" name="title" required placeholder="Например: Модуль 1. Основы безопасности">
+      <div class="modal-btns">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('createModal').classList.remove('show')">Отмена</button>
+        <button type="submit" class="btn-save">Создать</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

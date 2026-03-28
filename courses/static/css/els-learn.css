@@ -1,0 +1,300 @@
+@charset "UTF-8";
+/* ══════════════════════════════
+   ШАПКА КУРСА
+══════════════════════════════ */
+.course-banner {
+  background: var(--accent);
+  color: #fff;
+}
+.banner-top {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 24px 14px;
+}
+.btn-back {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.18);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: var(--radius-sm);
+  color: #fff; font-family: var(--font);
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; flex-shrink: 0;
+  transition: background .14s;
+}
+.btn-back:hover { background: rgba(255,255,255,0.28); }
+.btn-back svg   { width:14px; height:14px; }
+.banner-info    { flex:1; text-align:center; }
+.banner-title   { font-size:20px; font-weight:900; line-height:1.3; margin-bottom:2px; text-shadow:0 1px 3px rgba(0,0,0,.15); }
+.banner-role    { font-size:13px; opacity:.82; font-style:italic; }
+
+/* ── Прогресс ── */
+.progress-section {
+  background: #fff; border-bottom: 1px solid var(--border); padding: 14px 24px;
+}
+.progress-label { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.progress-text  { font-size:15px; font-weight:700; color:var(--text-primary); }
+.progress-count { font-size:14px; color:var(--text-muted); font-weight:500; }
+.progress-bar-outer { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+.progress-bar-inner { height:100%; background:var(--status-green); border-radius:4px; transition:width .5s ease; }
+
+/* ══════════════════════════════
+   ЦЕНТРИРОВАННЫЙ КОНТЕЙНЕР
+══════════════════════════════ */
+.page-center { max-width:800px; margin:0 auto; padding:0 20px; }
+
+/* ── Описание курса ── */
+.course-info {
+  background: var(--card-bg); border:1px solid var(--border);
+  border-radius: var(--radius); padding:16px 20px; margin:18px 0 0;
+  box-shadow: var(--shadow-card); font-size:14px; line-height:1.7;
+  color: var(--text-secondary);
+}
+.course-info strong { color:var(--text-primary); }
+.course-meta-row  { display:flex; gap:24px; margin-top:10px; flex-wrap:wrap; }
+.course-meta-item { font-size:13px; }
+.course-meta-item strong { color:var(--text-secondary); }
+
+/* ══════════════════════════════
+   ЗАГОЛОВКИ СЕКЦИЙ ШАГОВ
+══════════════════════════════ */
+.steps-section   { padding:20px 0 0; }
+.steps-heading   {
+  font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--text-muted); margin-bottom:10px;
+}
+
+/* ── Разделитель перед практикой ── */
+.practice-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 24px 0 10px;
+}
+.practice-divider-line { flex:1; height:1px; background:var(--border); }
+.practice-divider-label {
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Список шагов ── */
+.steps-list { display:flex; flex-direction:column; gap:8px; }
+
+/* ══════════════════════════════
+   КАРТОЧКИ ШАГОВ
+══════════════════════════════ */
+.step-card {
+  background: var(--card-bg); border:1px solid var(--border);
+  border-radius: var(--radius); box-shadow:var(--shadow-card);
+  overflow: hidden; transition:border-color .15s;
+}
+.step-card.done    { border-color:#8fcb8f; background:#f8fdf8; }
+.step-card.current { border-color:var(--accent); box-shadow:0 0 0 3px rgba(15,98,174,.1),var(--shadow-card); }
+.step-card.locked  { opacity:.6; background:var(--answer-bg); }
+
+/* Практика — особый стиль: всегда видна, но "ожидает преподавателя" */
+.step-card.practice-pending {
+  border-color: #f0c040;
+  background: #fffdf0;
+}
+.step-card.practice-done {
+  border-color: #8fcb8f;
+  background: #f8fdf8;
+}
+
+/* ══════════════════════════════
+   НОВАЯ КОМПОНОВКА КАРТОЧКИ ШАГА
+   ┌─────────────────────────────┐
+   │ [ТИП]           [Автор] №N │  ← верхняя строка
+   │ Название этапа              │  ← полная ширина
+   │ [статус/подсказка] [КНОПКА]│  ← нижняя строка
+   └─────────────────────────────┘
+══════════════════════════════ */
+.step-card-inner { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
+
+/* Верхняя строка: тип слева, автор+номер справа */
+.step-top-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.step-type-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0;
+}
+.step-type-badge.online   { background:var(--accent-light);     color:var(--accent);       border:1px solid var(--accent-mid); }
+.step-type-badge.pdf      { background:var(--status-red-bg);    color:var(--status-red);    border:1px solid #e8a0a3; }
+.step-type-badge.test     { background:var(--status-yellow-bg); color:var(--status-yellow); border:1px solid #f0c040; }
+.step-type-badge.practice { background:#fff4ce;                 color:#7a5000;              border:1px solid #e6c96d; }
+.step-type-badge.upload   { background:#ede8f8;                 color:#5c3fb0;              border:1px solid #c4b3f0; }
+.step-type-badge svg { width:12px; height:12px; }
+
+.step-author-num {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--text-muted); flex-shrink: 0;
+}
+.step-num { white-space: nowrap; font-size: 11px; }
+
+/* Название — на всю ширину */
+.step-title {
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+  line-height: 1.4; width: 100%;
+}
+.step-card.locked .step-title        { color: var(--text-muted); font-weight: 600; }
+.step-card.done .step-title          { color: var(--text-secondary); }
+.step-card.practice-done .step-title { color: var(--text-secondary); }
+
+/* Нижняя строка: статус слева, кнопка справа */
+.step-bottom-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.step-subtitle {
+  font-size: 13px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+}
+.step-card.current .step-subtitle        { color: var(--accent);       font-weight: 600; }
+.step-card.done .step-subtitle           { color: var(--status-green); font-weight: 600; }
+.step-card.practice-done .step-subtitle  { color: var(--status-green); font-weight: 600; }
+.step-card.practice-pending .step-subtitle { color: #7a5000; }
+.step-subtitle svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* Кнопки */
+.step-actions { flex-shrink: 0; }
+.btn-step {
+  display:flex; align-items:center; gap:6px;
+  padding:9px 18px; border-radius:var(--radius-sm);
+  font-family:var(--font); font-size:14px; font-weight:600;
+  cursor:pointer; border:none; white-space:nowrap; transition:all .15s;
+}
+.btn-step svg { width:15px; height:15px; }
+
+.btn-step.open {
+  background:var(--accent); color:#fff;
+  box-shadow:0 2px 8px rgba(15,98,174,.3);
+}
+.btn-step.open:hover { background:var(--accent-hover); box-shadow:0 4px 14px rgba(15,98,174,.4); transform:translateY(-1px); }
+
+.btn-step.repeat {
+  background:var(--status-green-bg); color:var(--status-green);
+  border:1.5px solid #8fcb8f;
+}
+.btn-step.repeat:hover { background:#c0e8c0; transform:translateY(-1px); }
+
+.btn-step.locked-btn {
+  background:var(--sidebar-bg); color:var(--text-muted);
+  border:1.5px solid var(--border); cursor:not-allowed;
+}
+
+/* Кнопка «Ожидает преподавателя» — не кликабельна */
+.btn-step.practice-wait {
+  background:#fff4ce; color:#7a5000;
+  border:1.5px solid #e6c96d; cursor:default;
+  font-size:13px;
+}
+
+/* Кнопка загрузки файла */
+.btn-upload-label {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:var(--radius-sm);
+  background:#5c3fb0; color:#fff; border:none;
+  font-family:var(--font); font-size:14px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:all .15s;
+  box-shadow:0 2px 8px rgba(92,63,176,.3);
+}
+.btn-upload-label:hover { background:#4a31a0; transform:translateY(-1px); box-shadow:0 4px 14px rgba(92,63,176,.4); }
+.btn-upload-label svg { width:15px; height:15px; }
+.btn-upload-label input { display:none; }
+
+/* Зона загруженного файла под карточкой */
+.upload-status {
+  display:none; border-top:1px solid var(--border);
+  padding:11px 18px; background:var(--answer-hover);
+  align-items:center; gap:10px; flex-wrap:wrap;
+}
+.upload-status.visible { display:flex; }
+.upload-file-icon { font-size:22px; flex-shrink:0; }
+.upload-file-info { flex:1; min-width:0; }
+.upload-file-name { font-size:13px; font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.upload-file-size { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.upload-awaiting  { font-size:12px; color:#7a5000; display:flex; align-items:center; gap:5px; margin-top:3px; font-weight:500; }
+.btn-remove-file  { padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius-sm); background:#fff; color:var(--status-red); font-family:var(--font); font-size:12px; cursor:pointer; transition:background .13s; flex-shrink:0; }
+.btn-remove-file:hover { background:var(--status-red-bg); }
+
+/* ── Строка подтверждения (online/pdf) ── */
+.step-confirm {
+  display:none; background:var(--answer-hover);
+  border-top:1px solid var(--border);
+  padding:12px 18px; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.step-confirm.visible { display:flex; }
+.step-confirm-text    { flex:1; font-size:14px; color:var(--text-secondary); }
+.step-confirm-text strong { color:var(--text-primary); }
+
+.btn-mark-done {
+  display:flex; align-items:center; gap:6px;
+  padding:8px 18px; border-radius:var(--radius-sm);
+  background:var(--status-green); color:#fff; border:none;
+  font-family:var(--font); font-size:14px; font-weight:600;
+  cursor:pointer; box-shadow:0 2px 6px rgba(16,124,16,.3); transition:all .15s; white-space:nowrap;
+}
+.btn-mark-done:hover { background:#0d660d; transform:translateY(-1px); }
+.btn-mark-done svg   { width:14px; height:14px; }
+
+/* ══════════════════════════════
+   КНОПКА ЗАВЕРШИТЬ
+══════════════════════════════ */
+.finish-section { padding:24px 0 40px; }
+.finish-card {
+  background:var(--card-bg); border:2px dashed var(--border);
+  border-radius:var(--radius); padding:24px; text-align:center; transition:border-color .3s,background .3s;
+}
+.finish-card.ready { border-color:var(--status-green); background:var(--status-green-bg); animation:finishPulse .5s ease; }
+@keyframes finishPulse { 0%{transform:scale(1)} 40%{transform:scale(1.015)} 100%{transform:scale(1)} }
+.finish-emoji  { font-size:42px; margin-bottom:10px; }
+.finish-title  { font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:6px; }
+.finish-desc   { font-size:14px; color:var(--text-muted); margin-bottom:20px; }
+.btn-finish {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:13px 32px; background:var(--status-green); color:#fff;
+  border:none; border-radius:var(--radius-sm);
+  font-family:var(--font); font-size:16px; font-weight:700;
+  cursor:pointer; box-shadow:0 2px 12px rgba(16,124,16,.35); transition:all .15s;
+}
+.btn-finish:hover:not(:disabled) { background:#0d660d; box-shadow:0 4px 18px rgba(16,124,16,.45); transform:translateY(-2px); }
+.btn-finish:disabled { opacity:.35; cursor:not-allowed; transform:none!important; box-shadow:none!important; }
+.btn-finish svg { width:18px; height:18px; }
+
+/* ══════════════════════════════
+   МОДАЛ ЗАВЕРШЕНИЯ
+══════════════════════════════ */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,30,60,.55); z-index:500; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(3px); }
+.modal-overlay.visible { display:flex; animation:fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal-card { background:var(--card-bg); border-radius:var(--radius); box-shadow:0 12px 48px rgba(0,0,0,.2); padding:36px 32px 32px; width:100%; max-width:420px; text-align:center; animation:modalIn .25s ease; }
+@keyframes modalIn { from{transform:scale(.94);opacity:0} to{transform:none;opacity:1} }
+.modal-icon  { font-size:60px; margin-bottom:14px; }
+.modal-title { font-size:24px; font-weight:900; color:var(--text-primary); margin-bottom:8px; }
+.modal-text  { font-size:15px; color:var(--text-muted); margin-bottom:26px; line-height:1.6; }
+.modal-btns  { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+
+/* ── Адаптив ── */
+@media (max-width:640px) {
+  .banner-title  { font-size:15px; }
+  .banner-top    { padding:12px 14px; gap:8px; }
+  .step-card-inner { padding:11px 13px; gap:7px; }
+  .step-title    { font-size:14px; }
+  .btn-step      { padding:8px 13px; font-size:13px; }
+  .btn-upload-label { padding:8px 13px; font-size:13px; }
+  .finish-section { padding:20px 0 28px; }
+  .progress-section { padding:11px 14px; }
+  .course-info   { padding:13px 14px; }
+  .step-author-num { display:none; }
+  .modal-card    { padding:26px 18px 22px; }
+  .modal-title   { font-size:19px; }
+  .page-center   { padding:0 12px; }
+}
+@media (max-width:420px) {
+  .btn-back span { display:none; }
+  .btn-back { padding:8px 12px; }
+}
+
+/* Slide type badge */
+.step-type-badge.slide { background:#112240; color:#e8a838; border:1px solid #1a3a5c; }

@@ -1,0 +1,188 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ step.title }} — Тестирование ДВИК</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/els.css' %}">
+<link rel="stylesheet" href="{% static 'css/els-quest.css' %}">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">ДВИК — Тестирование</span>
+  <div class="header-right">
+    <div class="header-timer" id="headerTimer">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="8" cy="9" r="6"/><path d="M8 6v3l2 1" stroke-linecap="round"/>
+        <path d="M6 1h4M8 1v2" stroke-linecap="round"/>
+      </svg>
+      <span id="timerDisplay">{% if step.time_limit_minutes %}{{ step.time_limit_minutes }}:00{% else %}--:--{% endif %}</span>
+    </div>
+    <button id="btnBackLearn" onclick="returnToLearn()" style="display:none;align-items:center;gap:6px;padding:6px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:5px;color:#fff;font-family:'Golos Text',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      В модуль
+    </button>
+  </div>
+</header>
+
+<!-- MOBILE NAV BAR -->
+<div class="mobile-nav-bar">
+  <button class="mobile-bar-toggle" id="mobileBarToggle" onclick="toggleMobileExpanded()">
+    <span>Вопрос <strong id="mobileQNum">1</strong> из <span id="mobileTotalQ">?</span> — Прогресс</span>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+  </button>
+  <div class="mobile-dots-strip" id="mobileDotsStrip"></div>
+  <div class="mobile-expanded" id="mobileExpanded">
+    <div class="mobile-expanded-inner">
+      <div class="m-chips-row" id="mChipsRow"></div>
+      <div class="m-legend">
+        <span class="m-legend-item"><span class="m-legend-dot" style="background:#8fcb8f"></span>Верно</span>
+        <span class="m-legend-item"><span class="m-legend-dot" style="background:#f0c040"></span>Частично</span>
+        <span class="m-legend-item"><span class="m-legend-dot" style="background:#e8a0a3"></span>Неверно</span>
+        <span class="m-legend-item"><span class="m-legend-dot" style="background:#d4dce8"></span>Не пройден</span>
+      </div>
+    </div>
+  </div>
+  <div class="mobile-result-strip">
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:2px;">Результат</div>
+      <span class="mobile-result-pct" id="mobileResultPct">—</span>
+    </div>
+    <div class="mobile-result-bar-wrap">
+      <div class="mobile-result-bar">
+        <div class="mobile-result-bar-fill" id="mobileResultBar"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:3px;" id="mobileResultNote">нет ответов</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="page-wrap">
+
+  <!-- SIDEBAR NAV PANEL -->
+  <aside class="nav-panel">
+    <div class="nav-panel-card">
+      <div class="nav-panel-header">
+        <span class="nav-panel-title">Вопросы</span>
+        <span class="nav-panel-count" id="panelCount">0 / ?</span>
+      </div>
+      <div class="nav-progress-wrap">
+        <div class="nav-progress-bar">
+          <div class="nav-progress-fill" id="navProgressFill"></div>
+        </div>
+        <div class="nav-progress-text">
+          <span>Пройдено</span>
+          <strong id="navProgressText">0 из ?</strong>
+        </div>
+      </div>
+      <div class="nav-grid" id="navGrid"></div>
+      <div class="nav-legend">
+        <div class="legend-item"><span class="legend-dot current"></span>Текущий вопрос</div>
+        <div class="legend-item"><span class="legend-dot correct"></span>Верный ответ</div>
+        <div class="legend-item"><span class="legend-dot partial"></span>Частично верный</div>
+        <div class="legend-item"><span class="legend-dot wrong"></span>Неверный ответ</div>
+        <div class="legend-item"><span class="legend-dot untouched"></span>Не пройден</div>
+      </div>
+    </div>
+    <div class="score-card">
+      <div class="score-item"><div class="score-val green" id="sCorrect">0</div><div class="score-lbl">Верно</div></div>
+      <div class="score-item"><div class="score-val yellow" id="sPartial">0</div><div class="score-lbl">Частично</div></div>
+      <div class="score-item"><div class="score-val red" id="sWrong">0</div><div class="score-lbl">Неверно</div></div>
+      <div class="score-item"><div class="score-val muted" id="sLeft">?</div><div class="score-lbl">Осталось</div></div>
+    </div>
+    <div class="result-panel">
+      <div class="result-panel-header">
+        <span class="result-panel-title">Результат</span>
+        <span id="resultAnswered" style="font-size:11px;color:var(--text-muted);">0 из ?</span>
+      </div>
+      <div class="result-score-main">
+        <span class="score-gauge-pct" id="gaugePct">—</span>
+        <span class="score-gauge-sub" id="gaugeNote">нет пройденных вопросов</span>
+        <div style="width:100%;margin-top:4px;">
+          <div class="nav-progress-bar" style="height:7px;">
+            <div class="nav-progress-fill" id="resultBar" style="width:0%;transition:width .5s ease,background .4s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- QUIZ AREA -->
+  <div class="quiz-container">
+    <div class="nav-row">
+      <button class="btn-nav" id="btnPrev" onclick="navigateQ(-1)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/></svg>Назад
+      </button>
+      <span class="nav-counter" id="navCounter">Загрузка...</span>
+      <button class="btn-nav" id="btnNext" onclick="navigateQ(1)">
+        Вперёд<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+      </button>
+    </div>
+
+    <div class="instruction-card">
+      <svg class="instruction-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.5v.5" stroke-linecap="round"/>
+      </svg>
+      <div class="instruction-text" id="instructionText"></div>
+    </div>
+
+    <div class="question-card" id="questionCard">
+      <div class="question-header">
+        <div class="question-meta">
+          <span class="question-num" id="qNum">Вопрос 1</span>
+          <span class="question-type" id="qType">—</span>
+          <span class="question-points" id="qPoints">—</span>
+        </div>
+        <div class="question-text" id="qText">Загрузка вопросов...</div>
+      </div>
+      <div id="qImageWrap" class="question-image-wrap" style="display:none">
+        <img id="qImage" src="" alt="Рисунок к вопросу">
+        <div class="image-caption" id="qCaption"></div>
+      </div>
+      <div id="qDesc" class="question-description" style="display:none"></div>
+      <div class="answers-section">
+        <div class="answers-label" id="answersLabel">Выберите ответ</div>
+        <div class="answers-list" id="answersList"></div>
+      </div>
+      <div class="question-footer">
+        <span class="selection-hint">
+          Выбрано: <span class="count" id="selCount">0</span><span id="selMaxWrap"> из <span id="selMax">1</span></span>
+        </span>
+        <button class="btn-confirm" id="confirmBtn" disabled onclick="confirmAnswer()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M3 8l4 4 6-7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Подтвердить ответ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Result Screen (hidden by default) -->
+<div id="resultScreen" style="display:none; position:fixed; inset:0; z-index:300; background:var(--sidebar-bg, #f5f7fa); overflow-y:auto;">
+  <div id="resultContent" style="max-width:500px; margin:80px auto; padding:20px;"></div>
+</div>
+
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span>{{ step.title }}</span>
+  <span style="margin-left:auto">Набрано баллов: <strong id="totalPts" style="color:var(--text-secondary)">0</strong></span>
+</footer>
+
+<script>
+const STEP_PK = {{ step.pk }};
+const MODULE_ID = {{ step.module.pk }};
+const TIME_LIMIT = {{ step.time_limit_minutes|default:"0" }};
+const PASS_SCORE = {{ step.pass_score|default:"0" }};
+const RETURN_URL = '{% url "module_preview" step.module.pk %}';
+</script>
+<script src="{% static 'js/els-quest.js' %}"></script>
+</body>
+</html>

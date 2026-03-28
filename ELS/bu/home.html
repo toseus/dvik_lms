@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Личный кабинет — ДВИК СЭО</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.section { display:none; }
+.section.active { display:block; animation:secIn .2s ease both; }
+@keyframes secIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+.inner-pad { padding: 24px 24px 40px; }
+
+/* ── Книги ── */
+.books-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px; }
+.no-courses { grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted); font-size:16px; }
+
+.book-card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); cursor:pointer; display:flex; flex-direction:column; overflow:hidden; transition:transform .2s,box-shadow .2s,border-color .2s; }
+.book-card:hover { transform:translateY(-5px); box-shadow:0 8px 32px rgba(15,98,174,0.15); border-color:var(--accent-mid); }
+
+.book-cover { height:148px; position:relative; display:flex; align-items:flex-end; padding:0 0 12px 14px; overflow:hidden; }
+.book-cover-bg { position:absolute; inset:0; }
+.book-cover-lines { position:absolute;inset:0;z-index:1;background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,0) 0px,rgba(255,255,255,0) 10px,rgba(255,255,255,0.04) 10px,rgba(255,255,255,0.04) 11px); }
+.book-cover-shine { position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,transparent 50%); }
+.book-cover-shadow { position:absolute;bottom:0;left:0;right:0;height:60%;z-index:3;background:linear-gradient(0deg,rgba(0,0,0,0.35) 0%,transparent 100%); }
+.book-spine { position:absolute;top:0;left:0;bottom:0;width:8px;z-index:4;background:rgba(0,0,0,0.2); }
+.book-short { position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);color:rgba(255,255,255,0.92);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);text-transform:uppercase; }
+.book-emoji { position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);font-size:44px;z-index:4;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4));pointer-events:none; }
+.book-progress { position:absolute;bottom:0;left:0;right:0;height:4px;z-index:6;background:rgba(255,255,255,0.15); }
+.book-progress-fill { height:100%;background:rgba(255,255,255,0.8);border-radius:0 2px 2px 0;transition:width .5s; }
+
+.book-body { padding:14px 16px 16px;flex:1;display:flex;flex-direction:column;gap:7px; }
+.book-category { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted); }
+.book-title { font-size:15px;font-weight:700;color:var(--text-primary);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.book-desc  { font-size:13px;color:var(--text-muted);line-height:1.5;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.book-footer { display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap; }
+.book-author { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);min-width:0; }
+.book-author span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.book-author svg { width:13px;height:13px;flex-shrink:0; }
+
+/* ── Расписание ── */
+.sched-list { display:flex;flex-direction:column;gap:10px;max-width:700px; }
+.sched-item { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-card); }
+.sched-date { flex-shrink:0;width:52px;background:var(--accent-light);border:1px solid var(--accent-mid);border-radius:var(--radius-sm);padding:8px 4px;text-align:center; }
+.sched-day  { font-size:24px;font-weight:900;color:var(--accent);line-height:1; }
+.sched-month{ font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em; }
+.sched-info { flex:1; }
+.sched-name { font-size:15px;font-weight:700;margin-bottom:3px; }
+.sched-meta { font-size:12px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap; }
+
+/* ── Результаты ── */
+.results-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:880px; }
+.result-card { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-card); }
+.rc-head { display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px; }
+.rc-name { font-size:14px;font-weight:700;line-height:1.4; }
+.rc-pct  { font-size:28px;font-weight:900;flex-shrink:0;line-height:1; }
+.rc-bar  { height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:8px; }
+.rc-fill { height:100%;border-radius:3px; }
+.rc-meta { display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted); }
+
+/* ── Библиотека ── */
+.lib-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;max-width:880px; }
+.lib-item { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:var(--shadow-card);transition:border-color .14s,transform .15s; }
+.lib-item:hover { border-color:var(--accent-mid);transform:translateX(3px); }
+.lib-ico  { width:42px;height:42px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0; }
+.lib-name { font-size:14px;font-weight:700;margin-bottom:2px; }
+.lib-meta { font-size:12px;color:var(--text-muted); }
+
+/* ── Заголовок секции ── */
+.sec-head  { margin-bottom:22px; }
+.sec-title { font-size:22px;font-weight:900;color:var(--text-primary);margin-bottom:3px; }
+.sec-sub   { font-size:13px;color:var(--text-muted); }
+
+/* ════════════════════════════════════
+   МОИ ДИСЦИПЛИНЫ (Преподаватель)
+════════════════════════════════════ */
+.disciplines-layout { display:grid; grid-template-columns:1fr 1fr; gap:0; min-height:500px; }
+
+/* Левая колонка — список занятий */
+.disc-left { border-right:1px solid var(--border); }
+.disc-list-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.disc-list-title  { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); }
+
+.disc-item {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 18px;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background .13s;
+  user-select:none;
+}
+.disc-item:hover   { background:var(--answer-hover); }
+.disc-item.selected{ background:var(--accent-light); }
+
+.disc-star {
+  flex-shrink:0; width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; color:var(--text-muted);
+  transition:color .13s;
+}
+.disc-item.selected .disc-star { color:#e6a817; }
+
+.disc-info { flex:1; min-width:0; }
+.disc-course-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--accent); background:var(--accent-light); border-radius:3px; padding:1px 6px; display:inline-block; margin-bottom:3px; }
+.disc-prac-title  { font-size:14px; font-weight:600; color:var(--text-primary); line-height:1.35; }
+.disc-prac-date   { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+/* Правая колонка — список слушателей */
+.disc-right { }
+.disc-right-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:40px 20px; color:var(--text-muted); text-align:center; gap:12px; font-size:14px; }
+.disc-right-empty .empty-ico { font-size:48px; opacity:.4; }
+
+.disc-students-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.disc-students-count  { font-size:12px; color:var(--text-muted); }
+.disc-sel-hint { font-size:11px; color:var(--accent); font-weight:600; }
+
+.student-row {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 18px;
+  border-bottom:1px solid var(--border);
+  transition:background .12s;
+}
+.student-row:hover { background:var(--answer-hover); }
+
+.stu-ava {
+  width:34px; height:34px; border-radius:50%;
+  background:var(--accent-light); color:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; flex-shrink:0;
+  border:1.5px solid var(--accent-mid);
+}
+.stu-info { flex:1; min-width:0; }
+.stu-name { font-size:14px; font-weight:600; color:var(--text-primary); }
+.stu-login{ font-size:11px; color:var(--text-muted); }
+
+.btn-grade {
+  flex-shrink:0;
+  padding:7px 16px;
+  border-radius:var(--radius-sm);
+  font-family:var(--font); font-size:13px; font-weight:700;
+  cursor:pointer; border:none; transition:all .14s;
+  display:flex; align-items:center; gap:5px;
+}
+.btn-grade.not-graded {
+  background:var(--status-green-bg); color:var(--status-green);
+  border:1.5px solid #8fcb8f;
+}
+.btn-grade.not-graded:hover { background:#c0e8c0; transform:translateY(-1px); }
+.btn-grade.graded {
+  background:var(--status-green); color:#fff;
+  box-shadow:0 2px 6px rgba(16,124,16,0.3);
+}
+.btn-grade.graded:hover { background:#0d660d; }
+.btn-grade svg { width:13px; height:13px; }
+
+/* Пустое состояние в правой панели */
+.disc-multi-hint {
+  padding:10px 18px;
+  background:var(--accent-light);
+  border-bottom:1px solid var(--accent-mid);
+  font-size:12px; color:var(--accent); font-weight:500;
+}
+
+/* ════════════════════════════════════
+   СЛУШАТЕЛИ (Администратор)
+════════════════════════════════════ */
+.stu-search-bar {
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:18px; flex-wrap:wrap;
+}
+.stu-search-wrap { position:relative; flex:1; min-width:200px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s,box-shadow .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+
+.students-table { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); overflow:hidden; max-width:960px; }
+.st-head { display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0; background:var(--sidebar-bg); border-bottom:1px solid var(--border); }
+.st-th   { padding:10px 16px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); }
+.st-row  { display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0; border-bottom:1px solid var(--border); align-items:center; transition:background .12s; }
+.st-row:last-child { border-bottom:none; }
+.st-row:hover { background:var(--answer-hover); }
+.st-td   { padding:12px 16px; font-size:14px; }
+.st-td-name { display:flex; align-items:center; gap:10px; }
+.st-ava  { width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1.5px solid var(--accent-mid); }
+.st-name-wrap .st-name  { font-weight:600; color:var(--text-primary); }
+.st-name-wrap .st-login { font-size:11px; color:var(--text-muted); }
+
+.st-courses-list { display:flex; flex-wrap:wrap; gap:4px; }
+.st-course-tag   { font-size:11px; font-weight:700; padding:2px 7px; border-radius:3px; background:var(--accent-light); color:var(--accent); }
+
+.st-prog-cell { padding:12px 16px; }
+.st-prog-bar  { height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:3px; }
+.st-prog-fill { height:100%;background:var(--accent);border-radius:3px;transition:width .5s; }
+.st-prog-text { font-size:11px;color:var(--text-muted); }
+
+/* ════════════════════════════════════
+   ПРОГРАММЫ
+════════════════════════════════════ */
+.prog-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  min-height: calc(100vh - 52px);
+}
+
+/* Боковой список подразделений */
+.prog-sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  overflow-y: auto;
+}
+.prog-sb-head {
+  padding: 14px 14px 8px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.prog-dept-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s, color .12s;
+  gap: 6px;
+}
+.prog-dept-item:hover  { background: var(--answer-hover); color: var(--text-primary); }
+.prog-dept-item.active { background: var(--accent-light); color: var(--accent); font-weight: 700; border-left: 3px solid var(--accent); }
+.prog-dept-item .dept-cnt { font-size: 11px; color: var(--text-muted); background: var(--border); border-radius: 10px; padding: 1px 7px; flex-shrink: 0; }
+.prog-dept-item.active .dept-cnt { background: var(--accent-mid); color: var(--accent); }
+
+/* Основная зона */
+.prog-main { min-width: 0; overflow: hidden; }
+
+/* Тулбар */
+.prog-toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 10px;
+}
+.prog-select {
+  padding: 8px 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--card-bg);
+  font-family: var(--font); font-size: 13px; color: var(--text-primary);
+  cursor: pointer; outline: none; min-width: 140px;
+  transition: border-color .15s;
+}
+.prog-select:focus { border-color: var(--accent); }
+
+.btn-import {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--status-green); color: #fff;
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; border: none;
+  box-shadow: 0 2px 6px rgba(16,124,16,.25); transition: all .14s;
+}
+.btn-import:hover { background: #0d660d; transform: translateY(-1px); }
+.btn-import svg { width: 15px; height: 15px; }
+
+.prog-count-row { display: flex; align-items: center; justify-content: space-between; min-height: 22px; margin-bottom: 2px; }
+.prog-clear-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: var(--radius-sm);
+  background: var(--status-red-bg); color: var(--status-red);
+  border: 1px solid #e8a0a3; font-family: var(--font); font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: background .14s;
+}
+.prog-clear-btn:hover { background: #f9c5c8; }
+.prog-clear-btn svg { width: 12px; height: 12px; }
+
+/* Таблица */
+.prog-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+}
+.prog-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; min-width: 780px;
+}
+.prog-table thead tr { background: var(--sidebar-bg); }
+.prog-table th {
+  padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap; cursor: pointer; user-select: none;
+  transition: color .12s;
+}
+.prog-table th:hover { color: var(--accent); }
+.prog-table th.sort-asc  .sort-ico::after { content: ' ↑'; }
+.prog-table th.sort-desc .sort-ico::after { content: ' ↓'; }
+.prog-table th .sort-ico { color: var(--text-muted); font-size: 10px; }
+.prog-table th.sort-asc .sort-ico,
+.prog-table th.sort-desc .sort-ico { color: var(--accent); }
+
+.prog-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-primary); vertical-align: middle;
+}
+.prog-table tbody tr:hover { background: var(--answer-hover); }
+.prog-table tbody tr:last-child td { border-bottom: none; }
+
+.prog-code { font-family: monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.prog-short-badge { display: inline-block; background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.prog-title-cell { max-width: 260px; }
+.prog-title-text { font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+.prog-dept-text  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.prog-price { font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.prog-empty {
+  text-align: center; padding: 60px 24px;
+  color: var(--text-muted); font-size: 15px;
+}
+
+@media (max-width: 860px) {
+  .prog-layout { grid-template-columns: 1fr; }
+  .prog-sidebar { display: flex; flex-wrap: nowrap; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .prog-sb-head { display: none; }
+  .prog-dept-item { border-bottom: none; border-right: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+  .prog-dept-item.active { border-left: none; border-bottom: 3px solid var(--accent); }
+}
+
+  .disciplines-layout { grid-template-columns:1fr; }
+  .disc-left { border-right:none; border-bottom:1px solid var(--border); }
+  .st-head,.st-row { grid-template-columns:2fr 1fr; }
+  .st-th:nth-child(3),.st-th:nth-child(4),.st-td:nth-child(3),.st-td:nth-child(4) { display:none; }
+}
+@media (max-width:600px) {
+  .books-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+  .book-cover { height:120px; }
+  .book-desc  { display:none; }
+  .inner-pad  { padding:14px 12px 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ШАПКА -->
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">ДВИК — Личный кабинет</span>
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-user-avatar" id="headerUserAvatar">МС</div>
+      <div class="header-user-info">
+        <span class="header-user-name"  id="headerUserName">—</span>
+        <span class="header-user-role"  id="headerUserRole">—</span>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Выход</span>
+    </button>
+  </div>
+</header>
+
+<div class="page-layout">
+
+  <!-- САЙДБАР -->
+  <nav class="sidebar">
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">Обучение</div>
+
+      <button class="sidebar-link" id="sl-schedule" onclick="showSection('schedule')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 7h13" stroke-linecap="round"/></svg>
+        <span>График курсов</span>
+      </button>
+
+      <button class="sidebar-link active" id="sl-learning" onclick="showSection('learning')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2L2 5.5v.5l6 3.5 6-3.5V6L8 2z" stroke-linejoin="round"/><path d="M2 9.5l6 3.5 6-3.5" stroke-linecap="round"/><path d="M4.5 7.5v4" stroke-linecap="round"/></svg>
+        <span>Обучение</span>
+        <span class="sidebar-badge" id="courseBadge">—</span>
+      </button>
+
+      <button class="sidebar-link" id="sl-results" onclick="showSection('results')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13V8M7 13V4M11 13V7M15 13H1" stroke-linecap="round"/></svg>
+        <span>Результаты</span>
+      </button>
+
+      <button class="sidebar-link" id="sl-library" onclick="showSection('library')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="4" width="4" height="10" rx="1"/><path d="M11.5 3l3 10.5" stroke-linecap="round"/></svg>
+        <span>Библиотека</span>
+      </button>
+
+      <!-- Только для преподавателей -->
+      <div id="sb-teacher-block" style="display:none">
+        <div class="sidebar-section-label">Преподавание</div>
+        <button class="sidebar-link" id="sl-disciplines" onclick="showSection('disciplines')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="1.5" width="14" height="10" rx="1.5"/><path d="M5 14h6M8 11.5V14" stroke-linecap="round"/></svg>
+          <span>Мои дисциплины</span>
+        </button>
+      </div>
+
+      <!-- Только для администраторов -->
+      <div id="sb-admin-block" style="display:none">
+        <div class="sidebar-section-label">Управление</div>
+        <button class="sidebar-link" id="sl-students" onclick="showSection('students')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="5" r="2.5"/><path d="M1 14c0-2.8 2-4.5 4.5-4.5S10 11.2 10 14"/><circle cx="12" cy="5.5" r="2"/><path d="M12 9.5c1.8.1 3 1.4 3 3.5" stroke-linecap="round"/></svg>
+          <span>Слушатели</span>
+        </button>
+        <button class="sidebar-link" id="sl-programs" onclick="showSection('programs')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="14" height="12" rx="1.5"/><path d="M1 6h14M5 2v4M5 10h6M5 12.5h4" stroke-linecap="round"/></svg>
+          <span>Программы</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Прогресс (только для слушателя) -->
+    <div class="sidebar-progress-card" id="sbProgressCard">
+      <div class="sp-label">Прогресс обучения</div>
+      <div class="sp-bar"><div class="sp-fill" id="sbFill" style="width:0%"></div></div>
+      <div class="sp-nums"><span id="sbDone">0 завершено</span><strong id="sbTotal">из 0</strong></div>
+    </div>
+  </nav>
+
+  <!-- КОНТЕНТ -->
+  <main class="main-content">
+
+    <!-- ── ОБУЧЕНИЕ ── -->
+    <div class="section active inner-pad" id="sec-learning">
+      <div class="sec-head">
+        <div class="sec-title">Обучение</div>
+        <div class="sec-sub">Назначенные учебные программы и курсы</div>
+      </div>
+      <div class="books-grid" id="booksGrid"></div>
+    </div>
+
+    <!-- ── РАСПИСАНИЕ ── -->
+    <div class="section inner-pad" id="sec-schedule">
+      <div class="sec-head">
+        <div class="sec-title">График курсов</div>
+        <div class="sec-sub">Ближайшие занятия и контрольные мероприятия</div>
+      </div>
+      <div class="sched-list" id="schedList"></div>
+    </div>
+
+    <!-- ── РЕЗУЛЬТАТЫ ── -->
+    <div class="section inner-pad" id="sec-results">
+      <div class="sec-head">
+        <div class="sec-title">Результаты тестирований</div>
+        <div class="sec-sub">История прохождения контрольных заданий</div>
+      </div>
+      <div class="results-grid" id="resultsGrid"></div>
+    </div>
+
+    <!-- ── БИБЛИОТЕКА ── -->
+    <div class="section inner-pad" id="sec-library">
+      <div class="sec-head">
+        <div class="sec-title">Библиотека</div>
+        <div class="sec-sub">Учебные материалы и нормативная документация</div>
+      </div>
+      <div class="lib-grid" id="libGrid"></div>
+    </div>
+
+    <!-- ── МОИ ДИСЦИПЛИНЫ (Преподаватель) ── -->
+    <div class="section" id="sec-disciplines">
+      <div class="inner-pad" style="padding-bottom:12px">
+        <div class="sec-head" style="margin-bottom:0">
+          <div class="sec-title">Мои дисциплины</div>
+          <div class="sec-sub">Выберите практические занятия и проставьте зачёты слушателям</div>
+        </div>
+      </div>
+      <div class="disciplines-layout" id="disciplinesLayout">
+        <!-- Заполняется JS -->
+      </div>
+    </div>
+
+    <!-- ── СЛУШАТЕЛИ (Администратор) ── -->
+    <div class="section inner-pad" id="sec-students">
+      <div class="sec-head">
+        <div class="sec-title">Слушатели</div>
+        <div class="sec-sub">Список слушателей на обучении</div>
+      </div>
+      <div class="stu-search-bar">
+        <div class="stu-search-wrap">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+          <input class="stu-search-input" id="stuSearch" type="text" placeholder="Поиск по ФИО или логину…" oninput="renderStudents()">
+        </div>
+      </div>
+      <div class="students-table" id="studentsTable"></div>
+    </div>
+
+    <!-- ── ПРОГРАММЫ (Администратор) ── -->
+    <div class="section" id="sec-programs">
+      <div class="prog-layout">
+
+        <!-- Узкий список подразделений слева -->
+        <div class="prog-sidebar">
+          <div class="prog-sb-head">Подразделения</div>
+          <div id="progDeptList"></div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="prog-main">
+          <div class="inner-pad" style="padding-bottom:12px">
+            <div class="sec-head" style="margin-bottom:14px">
+              <div class="sec-title">Программы</div>
+              <div class="sec-sub">Реестр учебных программ</div>
+            </div>
+
+            <!-- Панель фильтров и действий -->
+            <div class="prog-toolbar">
+              <div class="stu-search-wrap" style="flex:1;min-width:180px">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+                <input class="stu-search-input" id="progSearch" type="text" placeholder="Поиск по сокращению или названию…" oninput="renderPrograms()">
+              </div>
+
+              <select class="prog-select" id="progFilterMoo" onchange="renderPrograms()">
+                <option value="">МОО: все</option>
+              </select>
+
+              <select class="prog-select" id="progFilterCat" onchange="renderPrograms()">
+                <option value="">Категория: все</option>
+              </select>
+
+              <!-- Импорт Excel -->
+              <label class="btn-import" title="Импортировать из Excel">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1v9M5 7l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke-linecap="round"/></svg>
+                Импорт Excel
+                <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+              </label>
+            </div>
+
+            <!-- Счётчик результатов -->
+            <div class="prog-count-row">
+              <span id="progCount" style="font-size:13px;color:var(--text-muted)"></span>
+              <button class="prog-clear-btn" id="progClearBtn" onclick="clearPrograms()" style="display:none">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13" stroke-linecap="round"/></svg>
+                Очистить данные
+              </button>
+            </div>
+          </div>
+
+          <!-- Таблица -->
+          <div class="prog-table-wrap">
+            <table class="prog-table" id="progTable">
+              <thead>
+                <tr>
+                  <th onclick="sortPrograms('code')"    data-col="code">    Код <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('short')"   data-col="short">   Сокращённо <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('title')"   data-col="title">   Название <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('dept')"    data-col="dept">    Подразделение <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('price')"   data-col="price">   Цена <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('category')" data-col="category">Категория <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('moo')"     data-col="moo">     МОО <span class="sort-ico">↕</span></th>
+                </tr>
+              </thead>
+              <tbody id="progTbody"></tbody>
+            </table>
+            <div class="prog-empty" id="progEmpty" style="display:none">
+              <div style="font-size:40px;margin-bottom:12px;opacity:.35">📋</div>
+              <div>Программы не найдены</div>
+              <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">Измените фильтры или импортируйте данные из Excel</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Мобильная нижняя навигация -->
+<div class="mobile-bottom-nav">
+  <div class="mobile-nav-tabs">
+    <button class="mobile-nav-tab" id="mn-schedule" onclick="showSection('schedule')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 7h13" stroke-linecap="round"/></svg>График
+    </button>
+    <button class="mobile-nav-tab active" id="mn-learning" onclick="showSection('learning')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2L2 5.5v.5l6 3.5 6-3.5V6L8 2z" stroke-linejoin="round"/></svg>Обучение
+    </button>
+    <button class="mobile-nav-tab" id="mn-results" onclick="showSection('results')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13V8M7 13V4M11 13V7M15 13H1" stroke-linecap="round"/></svg>Результаты
+    </button>
+    <button class="mobile-nav-tab" id="mn-library" onclick="showSection('library')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="4" width="4" height="10" rx="1"/><path d="M11.5 3l3 10.5" stroke-linecap="round"/></svg>Библиотека
+    </button>
+  </div>
+</div>
+
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span>Система электронного обучения ДВИК</span>
+  <span style="margin-left:auto" id="footerDate"></span>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════
+   АВТОНОМНЫЕ ФУНКЦИИ (не зависят от script.js)
+══════════════════════════════════════════════ */
+const DEMO_USERS = [
+  { login:'morozov',  password:'1234', name:'Морозов Сергей Александрович',  role:'student',  courseIds:['svtest','safety','navigation','radio'] },
+  { login:'35784',    password:'526102', name:'Волков Вячеслав Григорьвич',         role:'student',  courseIds:['svtest'] },
+  { login:'46047',   password:'036481', name:'Пашогорьев Владимир Анатольевич',         role:'student',  courseIds:['svpk'] },
+  { login:'sidorov',  password:'1234', name:'Сидоров Дмитрий Олегович',        role:'student',  courseIds:['stcw','safety','navigation'] },
+  { login:'kozlova',  password:'1234', name:'Козлова Анна Викторовна',          role:'student',  courseIds:['radio','navigation'] },
+  { login:'teacher',  password:'1234', name:'Никитин Владимир Сергеевич',       role:'teacher',  courseIds:['stcw','safety','navigation','radio'] },
+  { login:'admin',    password:'1234', name:'Администратор системы',            role:'admin',    courseIds:[] },
+];
+const ROLE_LABELS = { student:'Слушатель', teacher:'Преподаватель', admin:'Администратор' };
+
+function getUser()  { try{return JSON.parse(sessionStorage.getItem('lms_user')||'null');}catch{return null;} }
+function logout()   { sessionStorage.clear(); window.location.href='login.html'; }
+function requireAuth() { if(!getUser()) window.location.href='login.html'; }
+
+function setActiveCourse(id) { sessionStorage.setItem('lms_active_course',id); }
+
+function _sk(login) { return 'lms_state_'+(login||((getUser()||{}).login)||'anon'); }
+function getLmsState(login)    { try{return JSON.parse(sessionStorage.getItem(_sk(login))||'{}');}catch{return{};} }
+function saveLmsState(s,login) { sessionStorage.setItem(_sk(login),JSON.stringify(s)); }
+function isStepDone(courseId,stepIdx,login) { const s=getLmsState(login); return !!(s[courseId]&&s[courseId][stepIdx]); }
+function markStepDone(courseId,stepIdx,login) { const key=login||((getUser()||{}).login); const s=getLmsState(key); if(!s[courseId])s[courseId]={}; s[courseId][stepIdx]=true; saveLmsState(s,key); }
+
+function getPracticeState()   { try{return JSON.parse(sessionStorage.getItem('lms_practice')||'{}');}catch{return{};} }
+function savePracticeState(s) { sessionStorage.setItem('lms_practice',JSON.stringify(s)); }
+function isPracticeGraded(courseId,stepIdx,login) { return !!(getPracticeState()[courseId+'__'+stepIdx+'__'+login]); }
+function gradePractice(courseId,stepIdx,login) {
+  const s=getPracticeState(); s[courseId+'__'+stepIdx+'__'+login]=true; savePracticeState(s);
+  markStepDone(courseId,stepIdx,login);
+}
+function ungradePractice(courseId,stepIdx,login) {
+  const s=getPracticeState(); delete s[courseId+'__'+stepIdx+'__'+login]; savePracticeState(s);
+  const st=getLmsState(login); if(st[courseId]){delete st[courseId][stepIdx];saveLmsState(st,login);}
+}
+
+function getCourseById(id) { return COURSES.find(c=>c.id===id)||null; }
+function getStudentsForCourse(courseId) { return DEMO_USERS.filter(u=>u.role==='student'&&u.courseIds.includes(courseId)); }
+function getAllStudents() { return DEMO_USERS.filter(u=>u.role==='student'); }
+
+function fillHeader() {
+  const u=getUser(); if(!u) return;
+  const av=document.getElementById('headerUserAvatar');
+  const nm=document.getElementById('headerUserName');
+  const rl=document.getElementById('headerUserRole');
+  if(av){ const p=u.name.split(' '); av.textContent=p.map(x=>x[0]).join('').slice(0,2).toUpperCase(); }
+  if(nm) nm.textContent=u.name;
+  if(rl) rl.textContent=ROLE_LABELS[u.role]||u.role;
+}
+
+const COURSES = [
+  {
+    id:'stcw', short:'ПДНВ',
+    title:'Подготовка, оценка компетентности и дипломирование моряков',
+    author:'Кафедра морского права и менеджмента',
+    description:'В соответствии с требованиями правила I/6 Конвенции ПДНВ лица, ответственные за подготовку и оценку компетентности моряков, должны иметь надлежащую квалификацию.',
+    assignedDate:'05.02.2026', coverColor:'#0f62ae', coverEmoji:'⚓',
+    coverBg:'linear-gradient(135deg,#0f62ae 0%,#1a3a6e 100%)',
+    steps:[
+      {type:'online',  title:'Общие положения и введение в курс',              role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Пересмотренная конвенция ПДНВ, 1995 год',        role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Требования к подготовке и дипломированию',       role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Международные обязательства государств',          role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Полномочия государств и организаций',             role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Система качества подготовки',                    role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Профессиональные дипломы и документы',            role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Стандарты компетентности',                       role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Методические материалы по оценке компетентности', role:'Инструктор',  url:'#'},
+      {type:'online',  title:'Нормативно-правовое регулирование',              role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Организация процесса подготовки',                role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Документирование результатов оценки',            role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Образцы документов для заполнения',               role:'Инструктор',  url:'#'},
+      {type:'online',  title:'Медицинское обеспечение и фитнес-стандарты',     role:'Экзаменатор', url:'#'},
+      {type:'practice',title:'Практическое занятие: оценка компетентности',    role:'Практика',    date:'18.03.2026'},
+      {type:'practice',title:'Практическое занятие: оформление документации',  role:'Практика',    date:'25.03.2026'},
+      {type:'upload',  title:'Загрузка работы: отчёт по оценке компетентности', role:'Практика',   date:'28.03.2026'},
+      {type:'test',    title:'Итоговая аттестация',                             role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+  "id": "svpk",              // можешь изменить id на нужный
+  "short": "КПК СВ",         // или любое другое короткое название
+  "title": "Программа дополнительного профессионального образования в соответствии с требованиями раздела А-II/2 Кодекса ПДНВ",
+  "author": "Проценко И.В.",
+  "description": "Подготовка судоводителей ",
+  "assignedDate": "05.02.2026",
+  "coverColor": "#0f62ae",
+  "coverEmoji": "⚓",
+  "coverBg": "linear-gradient(135deg,#0f62ae 0%,#1a3a6e 100%)",
+  "steps": [
+    { type: 'online', title: 'Тема 1.1 Планирование рейса, навигационное обеспечение предстоящего перехода', role: 'Экзаменатор', url: 'https://ispri.ng/NGm26' },
+    { type: 'online', title: 'Тема 1.2 Метеорология и океанография', role: 'Экзаменатор', url: 'https://ispri.ng/RZp8v' },
+    { type: 'online', title: 'Тема 1.3 Определение места различными способами с оценкой их точности', role: 'Экзаменатор', url: 'https://ispri.ng/v0lQZ' },
+    { type: 'online', title: 'Тема 1.4 Определение поправок компасов', role: 'Экзаменатор', url: 'https://ispri.ng/z9q1g' },
+    { type: 'online', title: 'Тема 1.5 Организация и процедуры несения вахты', role: 'Экзаменатор', url: 'https://ispri.ng/D6K07' },
+    { type: 'online', title: 'Тема 1.6 Маневрирование и управление судном', role: 'Экзаменатор', url: 'https://ispri.ng/ZNKvN' },
+    { type: 'online', title: 'Тема 1.7 Эксплуатация систем дистанционного управления двигательной установкой и системами, и службами машинного отделения', role: 'Экзаменатор', url: 'https://ispri.ng/QMBWG' },
+    { type: 'online', title: 'Тема 1.8 Поисково-спасательные операции', role: 'Экзаменатор', url: 'https://ispri.ng/V5g8Z' },
+    { type: 'online', title: 'Тема 1.9 Действия в аварийных ситуациях.', role: 'Экзаменатор', url: 'https://ispri.ng/RZ9Ly' },
+    { type: 'online', title: 'Тема 2.1 Международные и национальные правила, кодексы и стандарты, касающиеся безопасной обработки, размещения, крепления и перевозки грузов', role: 'Экзаменатор', url: 'https://ispri.ng/0lkxr' },
+    { type: 'online', title: 'Тема 2.3 Размещение, крепление и перевозка грузов на судах', role: 'Экзаменатор', url: 'https://ispri.ng/7BKQD' },
+    { type: 'online', title: 'Тема 2.4 Общие знания о танкерах и танкерных операциях', role: 'Экзаменатор', url: 'https://ispri.ng/LzLM5' },
+    { type: 'online', title: 'Тема 2.5 Перевозка опасных грузов', role: 'Экзаменатор', url: 'https://ispri.ng/D6NxQ' },
+    { type: 'online', title: 'Тема 3.1 Морское право', role: 'Экзаменатор', url: 'https://ispri.ng/nJ0vq' },
+    { type: 'online', title: 'Тема 3.2 Системы управления безопасностью в международном морском судоходстве', role: 'Экзаменатор', url: 'https://ispri.ng/mzVpv' },
+    { type: 'online', title: 'Тема 3.3 Процедуры контроля государствами флага и порта', role: 'Экзаменатор', url: 'https://ispri.ng/8xZMM' },
+    { type: 'online', title: 'Тема 3.4 Предотвращение загрязнения с судов', role: 'Экзаменатор', url: 'https://ispri.ng/Y8GpD' },
+    { type: 'online', title: 'Тема 3.5 Техническая эксплуатация систем безопасности.', role: 'Экзаменатор', url: 'https://ispri.ng/x910Y' },
+    { type: 'online', title: 'Тема 3.6 Охрана труда и техника безопасности', role: 'Экзаменатор', url: 'https://ispri.ng/p6nJW' },
+    { type: 'online', title: 'Тема 4.1. Изменения в международных правилах относительно безопасности человеческой жизни на море и защиты окружающей среды', role: 'Экзаменатор', url: 'https://ispri.ng/5xzGW' },
+    { type: 'online', title: 'Тема 4.2 Изменения в национальных правилах относительно безопасности человеческой жизни на море и защиты окружающей среды', role: 'Экзаменатор', url: 'https://ispri.ng/lvMxz' },
+    { type: 'online', title: 'Тема 4.3 Изменения в международных и национальных правилах относительно требований к техническим средствам судовождения', role: 'Экзаменатор', url: 'https://ispri.ng/BJW8q' },
+    { type: 'online', title: 'Тема 4.4 Изменения в международных и национальных правилах относительно обработки и размещения грузов.', role: 'Экзаменатор', url: 'https://ispri.ng/yXg75' },
+    { type: 'online', title: 'Тема 5.1 Аварии и инциденты на море. Классификация, расследование, учет', role: 'Экзаменатор', url: 'https://ispri.ng/9xRZV' },
+    { type: 'online', title: 'Тема 5.2 Посадки на мель и касания грунта, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/qK8Gk' },
+    { type: 'online', title: 'Тема 5.3 Столкновения судов, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/kp6Y9' },
+    { type: 'online', title: 'Тема 5.4. Потери остойчивости, непотопляемости, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/W3XYQ' },
+    { type: 'online', title: 'Тема 5.5 Нарушения прочности корпуса, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/231vB' },
+    { type: 'online', title: 'Тема 6.1 Новые технологии и новые требования к компетентности моряков', role: 'Экзаменатор', url: 'https://ispri.ng/rMx6L' },
+    { type: 'online', title: 'Тема 6.2 Усталость и меры по ее контролю', role: 'Экзаменатор', url: 'https://ispri.ng/1x2p5' },
+    { type: 'online', title: 'Тема 6.3 Оценка и управление рисками', role: 'Экзаменатор', url: 'https://ispri.ng/NG8V8' },
+    { type: 'online', title: 'Тема 6.4 Управление ресурсами. Методы принятия решений. Владение ситуацией', role: 'Экзаменатор', url: 'https://ispri.ng/gYNXG' }
+  ]
+},
+  {
+    id:'safety', short:'ОТ и ПБ',
+    title:'Охрана труда и безопасность на производстве',
+    author:'Кафедра морской безопасности',
+    description:'Программа охватывает нормативную базу, процедуры аварийного реагирования и требования международных стандартов безопасности.',
+    assignedDate:'10.02.2026', coverColor:'#107c10', coverEmoji:'🛡️',
+    coverBg:'linear-gradient(135deg,#107c10 0%,#0a4d0a 100%)',
+    steps:[
+      {type:'online',  title:'Введение в охрану труда',                        role:'Инструктор', url:'#'},
+      {type:'online',  title:'Нормативно-правовая база',                       role:'Инструктор', url:'#'},
+      {type:'pdf',     title:'Инструкция по охране труда',                     role:'Инструктор', url:'#'},
+      {type:'online',  title:'Аварийное реагирование',                         role:'Инструктор', url:'#'},
+      {type:'practice',title:'Практическое занятие: действия при аварии',      role:'Практика',   date:'20.03.2026'},
+      {type:'upload',  title:'Загрузка работы: план эвакуации',                 role:'Практика',   date:'23.03.2026'},
+      {type:'test',    title:'Итоговая аттестация по ОТ и ПБ',                 role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+    id:'navigation', short:'Навигация',
+    title:'Навигация и управление судном',
+    author:'Кафедра судовождения',
+    description:'Курс охватывает принципы безопасного судовождения, навигационные системы и правила предупреждения столкновений.',
+    assignedDate:'15.02.2026', coverColor:'#a4262c', coverEmoji:'🧭',
+    coverBg:'linear-gradient(135deg,#a4262c 0%,#6b1418 100%)',
+    steps:[
+      {type:'online',  title:'Основы навигации',                               role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'МППСС-72',                                       role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Навигационные таблицы и карты',                  role:'Инструктор',  url:'#'},
+      {type:'practice',title:'Практическое занятие: прокладка курса',          role:'Практика',    date:'22.03.2026'},
+      {type:'upload',  title:'Загрузка работы: навигационный расчёт',           role:'Практика',    date:'25.03.2026'},
+      {type:'test',    title:'Итоговая аттестация по навигации',               role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+    id:'radio', short:'ГМССБ',
+    title:'Глобальная морская система связи при бедствии (ГМССБ)',
+    author:'Кафедра связи и навигации',
+    description:'Программа включает изучение ГМССБ: оборудование, процедуры, частоты и порядок действий в аварийных ситуациях.',
+    assignedDate:'20.02.2026', coverColor:'#9a6300', coverEmoji:'📡',
+    coverBg:'linear-gradient(135deg,#9a6300 0%,#5c3c00 100%)',
+    steps:[
+      {type:'online',  title:'Введение в ГМССБ',                               role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Оборудование ГМССБ',                             role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Процедуры аварийной связи',                      role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Справочник ГМССБ',                               role:'Инструктор',  url:'#'},
+      {type:'practice',title:'Практическое занятие: работа с оборудованием',   role:'Практика',    date:'28.03.2026'},
+      {type:'upload',  title:'Загрузка работы: схема радиосвязи',              role:'Практика',    date:'01.04.2026'},
+      {type:'test',    title:'Итоговая аттестация ГМССБ',                      role:'Тестирование', url:'quest.html'},
+    ]
+  }
+];
+</script>
+<script>
+requireAuth();
+fillHeader();
+
+const ME = getUser();
+
+/* ── Показать/скрыть пункты меню по роли ── */
+if (ME.role === 'teacher') {
+  document.getElementById('sb-teacher-block').style.display = 'block';
+}
+if (ME.role === 'admin') {
+  document.getElementById('sb-admin-block').style.display = 'block';
+  document.getElementById('sbProgressCard').style.display = 'none';
+  /* Скрываем блоки только для слушателей */
+  document.getElementById('sl-learning').style.display = 'none';
+  document.getElementById('sl-results').style.display = 'none';
+}
+if (ME.role === 'teacher') {
+  document.getElementById('sbProgressCard').style.display = 'none';
+}
+
+/* ── Данные ── */
+const SCHEDULE_DATA = [
+  { date:'18.03.2026', name:'Практическое занятие: оценка компетентности (ПДНВ)',   place:'Аудитория 302',   type:'practice' },
+  { date:'20.03.2026', name:'Практическое занятие: действия при аварии (ОТ и ПБ)',  place:'Учебный тренажёр', type:'practice' },
+  { date:'22.03.2026', name:'Практическое занятие: прокладка курса (Навигация)',     place:'Навигационный класс', type:'practice' },
+  { date:'14.04.2026', name:'Итоговая аттестация ПДНВ',                             place:'Аудитория 302',   type:'exam' },
+  { date:'20.04.2026', name:'Итоговая аттестация ОТ и ПБ',                          place:'Аудитория 101',   type:'exam' },
+];
+
+const RESULTS_DATA = [
+  { name:'Промежуточный тест ПДНВ', pct:94, date:'01.03.2026', course:'ПДНВ' },
+  { name:'Тест по ОТ и ПБ',         pct:78, date:'12.02.2026', course:'ОТ и ПБ' },
+  { name:'Вводный тест Навигация',  pct:55, date:'20.02.2026', course:'Навигация' },
+  { name:'Пробный тест ГМССБ',      pct:88, date:'22.02.2026', course:'ГМССБ' },
+];
+
+const LIBRARY_DATA = [
+  { e:'📋', name:'Конвенция ПДНВ с поправками 2010 г.',  size:'PDF · 2.4 МБ', bg:'#d0e4f7' },
+  { e:'📘', name:'Кодекс ПДНВ — Часть A',                size:'PDF · 1.8 МБ', bg:'#d0e4f7' },
+  { e:'📙', name:'Руководство по оценке компетентности',  size:'PDF · 0.9 МБ', bg:'#fff4ce' },
+  { e:'📕', name:'Инструкция по охране труда на судне',   size:'PDF · 0.5 МБ', bg:'#fde7e9' },
+  { e:'📗', name:'Методические рекомендации ПДНВ',        size:'PDF · 1.1 МБ', bg:'#dff6dd' },
+  { e:'📓', name:'Справочник ГМССБ',                      size:'PDF · 0.8 МБ', bg:'#fff4ce' },
+];
+
+/* ── Переключение секций ── */
+let currentSection = 'learning';
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-link[id^="sl-"]').forEach(l=>l.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-tab[id^="mn-"]').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  const sl=document.getElementById('sl-'+name); if(sl) sl.classList.add('active');
+  const mn=document.getElementById('mn-'+name); if(mn) mn.classList.add('active');
+  currentSection = name;
+  if (name === 'disciplines') renderDisciplines();
+  if (name === 'students')    renderStudents();
+  if (name === 'programs')    initPrograms();
+}
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: ОБУЧЕНИЕ (книги)
+════════════════════════════════════ */
+function renderBooks() {
+  const grid = document.getElementById('booksGrid');
+  const myCourses = ME.role === 'student'
+    ? COURSES.filter(c => ME.courseIds.includes(c.id))
+    : COURSES;
+
+  document.getElementById('courseBadge').textContent = myCourses.length;
+
+  if (!myCourses.length) {
+    grid.innerHTML = '<div class="no-courses">Курсов не назначено</div>';
+    return;
+  }
+
+  let totalDone=0, totalCourses=myCourses.length;
+  grid.innerHTML = myCourses.map(c => {
+    const s    = getLmsState(ME.login);
+    const done = s[c.id] ? Object.keys(s[c.id]).length : 0;
+    const pct  = c.steps.length ? Math.round(done/c.steps.length*100) : 0;
+    totalDone += (pct===100 ? 1 : 0);
+    let badgeCls, badgeTxt;
+    if (pct===100)      { badgeCls='badge-green';  badgeTxt='Завершён'; }
+    else if (done>0)    { badgeCls='badge-yellow'; badgeTxt='В процессе ('+pct+'%)'; }
+    else                { badgeCls='badge-gray';   badgeTxt='Назначен'; }
+    return `
+    <div class="book-card" onclick="openCourse('${c.id}')">
+      <div class="book-cover">
+        <div class="book-cover-bg" style="background:${c.coverBg}"></div>
+        <div class="book-cover-lines"></div><div class="book-cover-shine"></div>
+        <div class="book-cover-shadow"></div><div class="book-spine"></div>
+        <div class="book-short">${c.short}</div>
+        <div class="book-emoji">${c.coverEmoji}</div>
+        <div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="book-body">
+        <div class="book-category">Электронный курс</div>
+        <div class="book-title">${c.title}</div>
+        <div class="book-desc">${c.description}</div>
+        <div class="book-footer">
+          <div class="book-author">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/></svg>
+            <span>${c.author}</span>
+          </div>
+          <span class="badge ${badgeCls}">${badgeTxt}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Прогресс в сайдбаре */
+  const pctSb = totalCourses ? Math.round(totalDone/totalCourses*100) : 0;
+  document.getElementById('sbFill').style.width = pctSb+'%';
+  document.getElementById('sbDone').textContent  = totalDone+' завершено';
+  document.getElementById('sbTotal').textContent  = 'из '+totalCourses;
+}
+
+function openCourse(id) { setActiveCourse(id); window.location.href='learn.html'; }
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: МОИ ДИСЦИПЛИНЫ
+════════════════════════════════════ */
+/* Собрать все практические занятия И загрузки из курсов */
+function getPracticeItems() {
+  const items = [];
+  COURSES.forEach(course => {
+    course.steps.forEach((step, idx) => {
+      if (step.type === 'practice' || step.type === 'upload') {
+        items.push({ course, step, stepIdx: idx });
+      }
+    });
+  });
+  return items;
+}
+
+/* Получить загруженный файл слушателя */
+function getStudentUpload(courseId, stepIdx, login) {
+  try {
+    const raw = sessionStorage.getItem('lms_uploads_'+login);
+    if (!raw) return null;
+    return JSON.parse(raw)[courseId+'__'+stepIdx] || null;
+  } catch { return null; }
+}
+
+let selectedPractices = new Set(); /* ключи "courseId__stepIdx" */
+
+function togglePractice(key) {
+  if (selectedPractices.has(key)) selectedPractices.delete(key);
+  else selectedPractices.add(key);
+  renderDisciplines();
+}
+
+function renderDisciplines() {
+  const layout = document.getElementById('disciplinesLayout');
+  const items  = getPracticeItems();
+
+  /* Левая колонка */
+  const leftHtml = `
+    <div class="disc-left">
+      <div class="disc-list-header">
+        <span class="disc-list-title">Практические занятия</span>
+        <span style="font-size:11px;color:var(--text-muted)">${items.length} занятий</span>
+      </div>
+      ${items.map(({course, step, stepIdx}) => {
+        const key = course.id+'__'+stepIdx;
+        const sel = selectedPractices.has(key);
+        return `
+        <div class="disc-item${sel?' selected':''}" onclick="togglePractice('${key}')">
+          <div class="disc-star">${sel ? '★' : '☆'}</div>
+          <div class="disc-info">
+            <div class="disc-course-tag">${course.short}</div>
+            <div class="disc-prac-title">${step.title}</div>
+            <div class="disc-prac-date">📅 ${step.date}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  /* Правая колонка */
+  let rightHtml;
+  if (selectedPractices.size === 0) {
+    rightHtml = `
+      <div class="disc-right">
+        <div class="disc-right-empty">
+          <div class="empty-ico">☆</div>
+          <div>Выберите одно или несколько практических занятий слева, чтобы увидеть список слушателей</div>
+        </div>
+      </div>`;
+  } else {
+    /* Собрать всех уникальных слушателей выбранных занятий */
+    const selItems = items.filter(({course, stepIdx}) => selectedPractices.has(course.id+'__'+stepIdx));
+
+    /* Уникальные слушатели */
+    const stuMap = new Map();
+    selItems.forEach(({course, step, stepIdx}) => {
+      getStudentsForCourse(course.id).forEach(stu => {
+        if (!stuMap.has(stu.login)) stuMap.set(stu.login, { stu, practices: [] });
+        stuMap.get(stu.login).practices.push({ course, step, stepIdx });
+      });
+    });
+    const students = [...stuMap.values()];
+
+    const multiSel = selectedPractices.size > 1;
+
+    const rowsHtml = students.length === 0
+      ? '<div style="padding:24px;text-align:center;color:var(--text-muted)">Нет слушателей для выбранных занятий</div>'
+      : students.map(({stu, practices}) => {
+          /* Все занятия зачтены? */
+          const allGraded = practices.every(p => isPracticeGraded(p.course.id, p.stepIdx, stu.login));
+          const someGraded= practices.some(p  => isPracticeGraded(p.course.id, p.stepIdx, stu.login));
+          const initials  = stu.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+
+          const allIsUpload = practices.every(p => p.step.type === 'upload');
+          let btnLabel, btnCls, btnAction;
+          if (allGraded) {
+            btnLabel = allIsUpload ? '✓ Принято' : '✓ Зачтено';
+            btnCls   = 'graded';
+            btnAction = `ungradeAll('${stu.login}')`;
+          } else {
+            btnLabel = allIsUpload ? 'Принять' : 'Зачесть';
+            btnCls   = 'not-graded';
+            btnAction = `gradeAll('${stu.login}')`;
+          }
+
+          const pracList = practices.map(p => {
+            const graded   = isPracticeGraded(p.course.id, p.stepIdx, stu.login);
+            const isUpload = p.step.type === 'upload';
+            const uploaded = isUpload ? getStudentUpload(p.course.id, p.stepIdx, stu.login) : null;
+
+            let statusBadge;
+            if (graded) {
+              statusBadge = `<span class="badge badge-green" style="font-size:10px">${p.course.short}: ✓ ${isUpload?'принято':'зачтено'}</span>`;
+            } else if (uploaded) {
+              statusBadge = `<span class="badge" style="font-size:10px;background:#ede8f8;color:#5c3fb0;border:1px solid #c4b3f0">${p.course.short}: 📎 ${uploaded.name}</span>`;
+            } else {
+              statusBadge = `<span class="badge badge-gray" style="font-size:10px">${p.course.short}: ${isUpload?'файл не загружен':'не зачтено'}</span>`;
+            }
+            return statusBadge;
+          }).join(' ');
+
+          return `
+          <div class="student-row">
+            <div class="stu-ava">${initials}</div>
+            <div class="stu-info">
+              <div class="stu-name">${stu.name}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${pracList}</div>
+            </div>
+            <button class="btn-grade ${btnCls}" onclick="${btnAction}">
+              ${allGraded
+                ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><path d="M3 8l4 4 6-7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M2 8l4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+              ${btnLabel}
+            </button>
+          </div>`;
+        }).join('');
+
+    rightHtml = `
+      <div class="disc-right">
+        <div class="disc-students-header">
+          <span class="disc-list-title">Слушатели</span>
+          <span class="disc-students-count">${students.length} чел.</span>
+        </div>
+        ${multiSel ? '<div class="disc-multi-hint">Выбрано несколько занятий — кнопка «Зачесть» применяется ко всем выбранным занятиям</div>' : ''}
+        ${rowsHtml}
+      </div>`;
+  }
+
+  layout.innerHTML = leftHtml + rightHtml;
+}
+
+/* Зачесть все выбранные практики для слушателя */
+function gradeAll(login) {
+  const items = getPracticeItems();
+  items.forEach(({course, stepIdx}) => {
+    const key = course.id+'__'+stepIdx;
+    if (selectedPractices.has(key)) gradePractice(course.id, stepIdx, login);
+  });
+  renderDisciplines();
+}
+function ungradeAll(login) {
+  const items = getPracticeItems();
+  items.forEach(({course, stepIdx}) => {
+    const key = course.id+'__'+stepIdx;
+    if (selectedPractices.has(key)) ungradePractice(course.id, stepIdx, login);
+  });
+  renderDisciplines();
+}
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: СЛУШАТЕЛИ (Администратор)
+════════════════════════════════════ */
+function renderStudents() {
+  const q = (document.getElementById('stuSearch').value||'').toLowerCase();
+  const all = getAllStudents().filter(u =>
+    !q || u.name.toLowerCase().includes(q) || u.login.toLowerCase().includes(q)
+  );
+
+  const rowsHtml = all.map(stu => {
+    const initials = stu.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+    const courses  = stu.courseIds.map(cid => {
+      const c = getCourseById(cid);
+      return c ? `<span class="st-course-tag">${c.short}</span>` : '';
+    }).join('');
+
+    /* Общий прогресс по всем курсам */
+    let totalSteps=0, totalDone=0;
+    stu.courseIds.forEach(cid => {
+      const c=getCourseById(cid); if(!c) return;
+      totalSteps += c.steps.length;
+      const s=getLmsState(stu.login);
+      totalDone  += s[cid] ? Object.keys(s[cid]).length : 0;
+    });
+    const pct = totalSteps ? Math.round(totalDone/totalSteps*100) : 0;
+
+    return `
+    <div class="st-row">
+      <div class="st-td st-td-name">
+        <div class="st-ava">${initials}</div>
+        <div class="st-name-wrap">
+          <div class="st-name">${stu.name}</div>
+          <div class="st-login">${stu.login}</div>
+        </div>
+      </div>
+      <div class="st-td"><span class="badge badge-blue">${ROLE_LABELS[stu.role]}</span></div>
+      <div class="st-td"><div class="st-courses-list">${courses||'—'}</div></div>
+      <div class="st-prog-cell">
+        <div class="st-prog-bar"><div class="st-prog-fill" style="width:${pct}%"></div></div>
+        <div class="st-prog-text">${totalDone} / ${totalSteps} шагов</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('studentsTable').innerHTML = `
+    <div class="st-head">
+      <div class="st-th">ФИО / Логин</div>
+      <div class="st-th">Роль</div>
+      <div class="st-th">Курсы</div>
+      <div class="st-th">Прогресс</div>
+    </div>
+    ${rowsHtml || '<div style="padding:24px;text-align:center;color:var(--text-muted)">Слушатели не найдены</div>'}`;
+}
+
+/* ════════════════════════════════════
+   РАСПИСАНИЕ / РЕЗУЛЬТАТЫ / БИБЛИОТЕКА
+════════════════════════════════════ */
+function renderSchedule() {
+  const months=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const typeMap={ exam:{cls:'badge-red',lbl:'Экзамен'}, practice:{cls:'badge-blue',lbl:'Практика'}, online:{cls:'badge-yellow',lbl:'Онлайн'} };
+  document.getElementById('schedList').innerHTML = SCHEDULE_DATA.map(s => {
+    const [dd,mm]=s.date.split('.');
+    const t=typeMap[s.type]||{cls:'badge-gray',lbl:s.type};
+    return `
+    <div class="sched-item">
+      <div class="sched-date"><div class="sched-day">${dd}</div><div class="sched-month">${months[+mm]}</div></div>
+      <div class="sched-info"><div class="sched-name">${s.name}</div><div class="sched-meta"><span>📍 ${s.place}</span><span>📅 ${s.date}</span></div></div>
+      <span class="badge ${t.cls}">${t.lbl}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderResults() {
+  document.getElementById('resultsGrid').innerHTML = RESULTS_DATA.map(r => {
+    const color = r.pct>=80?'var(--status-green)':r.pct>=60?'var(--status-yellow)':'var(--status-red)';
+    const barBg = r.pct>=80?'#4caf50':r.pct>=60?'#f0c040':'#e8a0a3';
+    return `
+    <div class="result-card">
+      <div class="rc-head"><div class="rc-name">${r.name}</div><div class="rc-pct" style="color:${color}">${r.pct}%</div></div>
+      <div class="rc-bar"><div class="rc-fill" style="width:${r.pct}%;background:${barBg}"></div></div>
+      <div class="rc-meta"><span>${r.course}</span><span>📅 ${r.date}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderLibrary() {
+  document.getElementById('libGrid').innerHTML = LIBRARY_DATA.map(d => `
+    <div class="lib-item">
+      <div class="lib-ico" style="background:${d.bg}">${d.e}</div>
+      <div><div class="lib-name">${d.name}</div><div class="lib-meta">${d.size}</div></div>
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════
+   ПРОГРАММЫ
+════════════════════════════════════ */
+let PROGRAMS = [];          /* массив объектов программ */
+let progSortCol = 'code';
+let progSortDir = 1;        /* 1 = asc, -1 = desc */
+let progActiveDept = '';    /* '' = все подразделения */
+
+/* Ключи Excel → поля объекта (регистронезависимо) */
+const COL_MAP = {
+  'код программы':'code','код':'code',
+  'сокращённо':'short','сокращенно':'short','сокр':'short',
+  'название':'title','наименование':'title',
+  'подразделение':'dept','кафедра':'dept',
+  'цена':'price','стоимость':'price',
+  'категория':'category','кат':'category',
+  'моо':'moo',
+};
+
+function _normKey(k) { return String(k).trim().toLowerCase().replace(/ё/g,'е'); }
+
+/* ── Импорт Excel через SheetJS (CDN) ── */
+function importExcel(input) {
+  const file = input.files[0]; if (!file) return;
+
+  /* Динамически подгружаем SheetJS если ещё нет */
+  function doRead() {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+        if (!rows.length) { alert('Лист пустой или нет данных'); return; }
+
+        /* Определяем маппинг колонок */
+        const sample    = rows[0];
+        const keyMap    = {};  /* нормализованный ключ Excel → поле объекта */
+        Object.keys(sample).forEach(k => {
+          const mapped = COL_MAP[_normKey(k)];
+          if (mapped) keyMap[k] = mapped;
+        });
+
+        PROGRAMS = rows.map((row, i) => {
+          const obj = { _id: i };
+          Object.keys(keyMap).forEach(k => { obj[keyMap[k]] = String(row[k]||'').trim(); });
+          if (!obj.code)  obj.code  = '';
+          if (!obj.short) obj.short = '';
+          if (!obj.title) obj.title = '';
+          if (!obj.dept)  obj.dept  = '';
+          if (!obj.price) obj.price = '';
+          if (!obj.category) obj.category = '';
+          if (!obj.moo)   obj.moo   = '';
+          return obj;
+        }).filter(o => o.code || o.title || o.short);
+
+        /* Сохраняем в sessionStorage */
+        sessionStorage.setItem('lms_programs', JSON.stringify(PROGRAMS));
+        progActiveDept = '';
+        buildProgramFilters();
+        renderPrograms();
+        document.getElementById('progClearBtn').style.display = 'flex';
+      } catch(err) {
+        alert('Ошибка чтения файла: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    input.value = '';
+  }
+
+  if (window.XLSX) { doRead(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = doRead;
+  s.onerror = () => alert('Не удалось загрузить библиотеку для чтения Excel. Проверьте подключение к интернету.');
+  document.head.appendChild(s);
+}
+
+function clearPrograms() {
+  if (!confirm('Удалить все загруженные программы?')) return;
+  PROGRAMS = [];
+  sessionStorage.removeItem('lms_programs');
+  progActiveDept = '';
+  buildProgramFilters();
+  renderPrograms();
+  document.getElementById('progClearBtn').style.display = 'none';
+}
+
+/* ── Построить боковой список подразделений + фильтры МОО/Категория ── */
+function buildProgramFilters() {
+  /* Подразделения */
+  const depts = [...new Set(PROGRAMS.map(p=>p.dept).filter(Boolean))].sort();
+  const deptList = document.getElementById('progDeptList');
+  const allCount = PROGRAMS.length;
+
+  deptList.innerHTML =
+    `<div class="prog-dept-item${progActiveDept===''?' active':''}" onclick="setProgDept('')">
+       <span>Все</span><span class="dept-cnt">${allCount}</span>
+     </div>` +
+    depts.map(d => {
+      const cnt = PROGRAMS.filter(p=>p.dept===d).length;
+      return `<div class="prog-dept-item${progActiveDept===d?' active':''}" onclick="setProgDept('${CSS.escape(d)}')">
+        <span>${d}</span><span class="dept-cnt">${cnt}</span>
+      </div>`;
+    }).join('');
+
+  /* МОО */
+  const moos = [...new Set(PROGRAMS.map(p=>p.moo).filter(Boolean))].sort();
+  const mooSel = document.getElementById('progFilterMoo');
+  const curMoo = mooSel.value;
+  mooSel.innerHTML = '<option value="">МОО: все</option>' +
+    moos.map(m=>`<option value="${m}"${m===curMoo?' selected':''}>${m}</option>`).join('');
+
+  /* Категория */
+  const cats = [...new Set(PROGRAMS.map(p=>p.category).filter(Boolean))].sort();
+  const catSel = document.getElementById('progFilterCat');
+  const curCat = catSel.value;
+  catSel.innerHTML = '<option value="">Категория: все</option>' +
+    cats.map(c=>`<option value="${c}"${c===curCat?' selected':''}>${c}</option>`).join('');
+}
+
+function setProgDept(dept) {
+  /* CSS.escape may wrap with quotes for some chars — strip them */
+  progActiveDept = dept.replace(/^\\?"|\\?"$/g,'');
+  buildProgramFilters();
+  renderPrograms();
+}
+
+/* ── Сортировка ── */
+function sortPrograms(col) {
+  if (progSortCol === col) progSortDir *= -1;
+  else { progSortCol = col; progSortDir = 1; }
+  renderPrograms();
+}
+
+/* ── Рендер таблицы ── */
+function renderPrograms() {
+  const q       = (document.getElementById('progSearch').value||'').toLowerCase();
+  const mooF    = document.getElementById('progFilterMoo').value;
+  const catF    = document.getElementById('progFilterCat').value;
+
+  let list = PROGRAMS.filter(p => {
+    if (progActiveDept && p.dept !== progActiveDept) return false;
+    if (mooF && p.moo !== mooF) return false;
+    if (catF && p.category !== catF) return false;
+    if (q && !p.short.toLowerCase().includes(q) && !p.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  /* Сортировка */
+  list = [...list].sort((a,b) => {
+    let av = a[progSortCol]||'', bv = b[progSortCol]||'';
+    if (progSortCol === 'price') { av = parseFloat(av)||0; bv = parseFloat(bv)||0; return (av-bv)*progSortDir; }
+    return av.localeCompare(bv, 'ru') * progSortDir;
+  });
+
+  /* Иконки сортировки */
+  document.querySelectorAll('.prog-table th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.col === progSortCol) th.classList.add(progSortDir===1?'sort-asc':'sort-desc');
+  });
+
+  const tbody = document.getElementById('progTbody');
+  const empty = document.getElementById('progEmpty');
+  const table = document.getElementById('progTable');
+
+  document.getElementById('progCount').textContent =
+    PROGRAMS.length ? `Показано ${list.length} из ${PROGRAMS.length} программ` : 'Нет загруженных программ';
+
+  if (!list.length) {
+    tbody.innerHTML=''; table.style.display='none'; empty.style.display='block'; return;
+  }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = list.map(p => {
+    const priceNum = parseFloat(p.price);
+    const priceStr = p.price
+      ? (isNaN(priceNum) ? p.price : priceNum.toLocaleString('ru-RU',{minimumFractionDigits:0})+'&nbsp;₽')
+      : '—';
+    return `<tr>
+      <td class="prog-code">${p.code||'—'}</td>
+      <td>${p.short ? `<span class="prog-short-badge">${p.short}</span>` : '—'}</td>
+      <td class="prog-title-cell">
+        <div class="prog-title-text">${p.title||'—'}</div>
+      </td>
+      <td><span style="font-size:13px;color:var(--text-secondary)">${p.dept||'—'}</span></td>
+      <td class="prog-price">${priceStr}</td>
+      <td>${p.category ? `<span class="badge badge-blue">${p.category}</span>` : '—'}</td>
+      <td>${p.moo ? `<span class="badge badge-gray">${p.moo}</span>` : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Инициализация раздела Программы ── */
+function initPrograms() {
+  /* Восстановить данные из sessionStorage */
+  try {
+    const saved = sessionStorage.getItem('lms_programs');
+    if (saved) {
+      PROGRAMS = JSON.parse(saved);
+      document.getElementById('progClearBtn').style.display = 'flex';
+    }
+  } catch {}
+  buildProgramFilters();
+  renderPrograms();
+}
+
+/* ── Init ── */
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+/* Для администратора открываем сразу Слушателей */
+if (ME.role === 'admin') {
+  showSection('students');
+} else if (ME.role === 'teacher') {
+  showSection('disciplines');
+} else {
+  renderBooks();
+}
+
+renderSchedule();
+renderResults();
+renderLibrary();
+
+const hash=location.hash.replace('#','');
+if (['schedule','results','library','disciplines','students','programs'].includes(hash)) showSection(hash);
+</script>
+</body>
+</html>

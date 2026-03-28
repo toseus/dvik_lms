@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Личный кабинет — ДВИК СЭО</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.section { display:none; }
+.section.active { display:block; animation:secIn .2s ease both; }
+@keyframes secIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+.inner-pad { padding: 24px 24px 40px; }
+
+/* ── Книги ── */
+.books-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px; }
+.no-courses { grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted); font-size:16px; }
+
+.book-card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); cursor:pointer; display:flex; flex-direction:column; overflow:hidden; transition:transform .2s,box-shadow .2s,border-color .2s; }
+.book-card:hover { transform:translateY(-5px); box-shadow:0 8px 32px rgba(15,98,174,0.15); border-color:var(--accent-mid); }
+
+.book-cover { height:148px; position:relative; display:flex; align-items:flex-end; padding:0 0 12px 14px; overflow:hidden; }
+.book-cover-bg { position:absolute; inset:0; }
+.book-cover-lines { position:absolute;inset:0;z-index:1;background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,0) 0px,rgba(255,255,255,0) 10px,rgba(255,255,255,0.04) 10px,rgba(255,255,255,0.04) 11px); }
+.book-cover-shine { position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,transparent 50%); }
+.book-cover-shadow { position:absolute;bottom:0;left:0;right:0;height:60%;z-index:3;background:linear-gradient(0deg,rgba(0,0,0,0.35) 0%,transparent 100%); }
+.book-spine { position:absolute;top:0;left:0;bottom:0;width:8px;z-index:4;background:rgba(0,0,0,0.2); }
+.book-short { position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);color:rgba(255,255,255,0.92);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);text-transform:uppercase; }
+.book-emoji { position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);font-size:44px;z-index:4;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4));pointer-events:none; }
+.book-progress { position:absolute;bottom:0;left:0;right:0;height:4px;z-index:6;background:rgba(255,255,255,0.15); }
+.book-progress-fill { height:100%;background:rgba(255,255,255,0.8);border-radius:0 2px 2px 0;transition:width .5s; }
+
+.book-body { padding:14px 16px 16px;flex:1;display:flex;flex-direction:column;gap:7px; }
+.book-category { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted); }
+.book-title { font-size:15px;font-weight:700;color:var(--text-primary);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.book-desc  { font-size:13px;color:var(--text-muted);line-height:1.5;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.book-footer { display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap; }
+.book-author { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);min-width:0; }
+.book-author span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.book-author svg { width:13px;height:13px;flex-shrink:0; }
+
+/* ── Расписание ── */
+.sched-list { display:flex;flex-direction:column;gap:10px;max-width:700px; }
+.sched-item { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-card); }
+.sched-date { flex-shrink:0;width:52px;background:var(--accent-light);border:1px solid var(--accent-mid);border-radius:var(--radius-sm);padding:8px 4px;text-align:center; }
+.sched-day  { font-size:24px;font-weight:900;color:var(--accent);line-height:1; }
+.sched-month{ font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em; }
+.sched-info { flex:1; }
+.sched-name { font-size:15px;font-weight:700;margin-bottom:3px; }
+.sched-meta { font-size:12px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap; }
+
+/* ── Результаты ── */
+.results-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:880px; }
+.result-card { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-card); }
+.rc-head { display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px; }
+.rc-name { font-size:14px;font-weight:700;line-height:1.4; }
+.rc-pct  { font-size:28px;font-weight:900;flex-shrink:0;line-height:1; }
+.rc-bar  { height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:8px; }
+.rc-fill { height:100%;border-radius:3px; }
+.rc-meta { display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted); }
+
+/* ── Библиотека ── */
+.lib-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;max-width:880px; }
+.lib-item { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:var(--shadow-card);transition:border-color .14s,transform .15s; }
+.lib-item:hover { border-color:var(--accent-mid);transform:translateX(3px); }
+.lib-ico  { width:42px;height:42px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0; }
+.lib-name { font-size:14px;font-weight:700;margin-bottom:2px; }
+.lib-meta { font-size:12px;color:var(--text-muted); }
+
+/* ── Заголовок секции ── */
+.sec-head  { margin-bottom:22px; }
+.sec-title { font-size:22px;font-weight:900;color:var(--text-primary);margin-bottom:3px; }
+.sec-sub   { font-size:13px;color:var(--text-muted); }
+
+/* ════════════════════════════════════
+   МОИ ДИСЦИПЛИНЫ (Преподаватель)
+════════════════════════════════════ */
+.disciplines-layout { display:grid; grid-template-columns:1fr 1fr; gap:0; min-height:500px; }
+
+/* Левая колонка — список занятий */
+.disc-left { border-right:1px solid var(--border); }
+.disc-list-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.disc-list-title  { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); }
+
+.disc-item {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 18px;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background .13s;
+  user-select:none;
+}
+.disc-item:hover   { background:var(--answer-hover); }
+.disc-item.selected{ background:var(--accent-light); }
+
+.disc-star {
+  flex-shrink:0; width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; color:var(--text-muted);
+  transition:color .13s;
+}
+.disc-item.selected .disc-star { color:#e6a817; }
+
+.disc-info { flex:1; min-width:0; }
+.disc-course-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--accent); background:var(--accent-light); border-radius:3px; padding:1px 6px; display:inline-block; margin-bottom:3px; }
+.disc-prac-title  { font-size:14px; font-weight:600; color:var(--text-primary); line-height:1.35; }
+.disc-prac-date   { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+/* Правая колонка — список слушателей */
+.disc-right { }
+.disc-right-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:40px 20px; color:var(--text-muted); text-align:center; gap:12px; font-size:14px; }
+.disc-right-empty .empty-ico { font-size:48px; opacity:.4; }
+
+.disc-students-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.disc-students-count  { font-size:12px; color:var(--text-muted); }
+.disc-sel-hint { font-size:11px; color:var(--accent); font-weight:600; }
+
+.student-row {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 18px;
+  border-bottom:1px solid var(--border);
+  transition:background .12s;
+}
+.student-row:hover { background:var(--answer-hover); }
+
+.stu-ava {
+  width:34px; height:34px; border-radius:50%;
+  background:var(--accent-light); color:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; flex-shrink:0;
+  border:1.5px solid var(--accent-mid);
+}
+.stu-info { flex:1; min-width:0; }
+.stu-name { font-size:14px; font-weight:600; color:var(--text-primary); }
+.stu-login{ font-size:11px; color:var(--text-muted); }
+
+.btn-grade {
+  flex-shrink:0;
+  padding:7px 16px;
+  border-radius:var(--radius-sm);
+  font-family:var(--font); font-size:13px; font-weight:700;
+  cursor:pointer; border:none; transition:all .14s;
+  display:flex; align-items:center; gap:5px;
+}
+.btn-grade.not-graded {
+  background:var(--status-green-bg); color:var(--status-green);
+  border:1.5px solid #8fcb8f;
+}
+.btn-grade.not-graded:hover { background:#c0e8c0; transform:translateY(-1px); }
+.btn-grade.graded {
+  background:var(--status-green); color:#fff;
+  box-shadow:0 2px 6px rgba(16,124,16,0.3);
+}
+.btn-grade.graded:hover { background:#0d660d; }
+.btn-grade svg { width:13px; height:13px; }
+
+/* Пустое состояние в правой панели */
+.disc-multi-hint {
+  padding:10px 18px;
+  background:var(--accent-light);
+  border-bottom:1px solid var(--accent-mid);
+  font-size:12px; color:var(--accent); font-weight:500;
+}
+
+/* ════════════════════════════════════
+   СЛУШАТЕЛИ (Администратор)
+════════════════════════════════════ */
+.stu-search-bar {
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:18px; flex-wrap:wrap;
+}
+.stu-search-wrap { position:relative; flex:1; min-width:200px; }
+.stu-search-wrap svg { position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none; }
+.stu-search-input { width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);font-family:var(--font);font-size:14px;color:var(--text-primary);outline:none;transition:border-color .15s,box-shadow .15s; }
+.stu-search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,98,174,0.09); }
+.stu-search-input::placeholder { color:var(--text-muted); }
+
+.students-table { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); overflow:hidden; max-width:960px; }
+.st-head { display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0; background:var(--sidebar-bg); border-bottom:1px solid var(--border); }
+.st-th   { padding:10px 16px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); }
+.st-row  { display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0; border-bottom:1px solid var(--border); align-items:center; transition:background .12s; }
+.st-row:last-child { border-bottom:none; }
+.st-row:hover { background:var(--answer-hover); }
+.st-td   { padding:12px 16px; font-size:14px; }
+.st-td-name { display:flex; align-items:center; gap:10px; }
+.st-ava  { width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1.5px solid var(--accent-mid); }
+.st-name-wrap .st-name  { font-weight:600; color:var(--text-primary); }
+.st-name-wrap .st-login { font-size:11px; color:var(--text-muted); }
+
+.st-courses-list { display:flex; flex-wrap:wrap; gap:4px; }
+.st-course-tag   { font-size:11px; font-weight:700; padding:2px 7px; border-radius:3px; background:var(--accent-light); color:var(--accent); }
+
+.st-prog-cell { padding:12px 16px; }
+.st-prog-bar  { height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:3px; }
+.st-prog-fill { height:100%;background:var(--accent);border-radius:3px;transition:width .5s; }
+.st-prog-text { font-size:11px;color:var(--text-muted); }
+
+/* ════════════════════════════════════
+   ФИЗИЧЕСКИЕ ЛИЦА / СЛУШАТЕЛИ (новый дизайн)
+════════════════════════════════════ */
+.persons-toolbar {
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:0 24px 14px;
+}
+.persons-count { font-size:13px; color:var(--text-muted); padding:0 24px 8px; }
+
+.persons-table-wrap { overflow-x:auto; border-top:1px solid var(--border); }
+.persons-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.persons-table thead tr { background:var(--sidebar-bg); }
+.persons-table th {
+  padding:9px 14px; text-align:left;
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-muted);
+  border-bottom:2px solid var(--border); white-space:nowrap;
+}
+.persons-table td {
+  padding:10px 14px; border-bottom:1px solid var(--border);
+  color:var(--text-primary); vertical-align:middle;
+}
+.persons-table tbody tr:hover { background:var(--answer-hover); }
+.persons-table tbody tr:last-child td { border-bottom:none; }
+.persons-table td.td-snils { font-family:monospace; color:var(--text-muted); white-space:nowrap; }
+.persons-table td.td-fio   { font-weight:600; }
+.persons-table td.td-dob   { white-space:nowrap; color:var(--text-secondary); }
+.persons-table td.td-stub  { color:var(--text-muted); font-style:italic; }
+
+.persons-empty { text-align:center; padding:60px 24px; color:var(--text-muted); font-size:15px; }
+.persons-empty-ico { font-size:48px; margin-bottom:12px; opacity:.3; }
+
+.btn-new-student {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:var(--radius-sm);
+  background:var(--accent); color:#fff; border:none;
+  font-family:var(--font); font-size:14px; font-weight:600;
+  cursor:pointer; box-shadow:0 2px 8px rgba(15,98,174,.3);
+  transition:all .14s; white-space:nowrap;
+}
+.btn-new-student:hover { background:var(--accent-hover); transform:translateY(-1px); }
+.btn-new-student svg { width:15px; height:15px; }
+
+/* ════════════════════════════════════
+   МОДАЛ ПОИСКА ПО СНИЛС
+════════════════════════════════════ */
+.snils-modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(15,30,60,.55); z-index:600;
+  align-items:center; justify-content:center;
+  padding:20px; backdrop-filter:blur(3px);
+}
+.snils-modal-overlay.visible { display:flex; animation:fadeIn .2s ease; }
+.snils-modal {
+  background:var(--card-bg); border-radius:var(--radius);
+  box-shadow:0 12px 48px rgba(0,0,0,.2);
+  padding:32px; width:100%; max-width:440px;
+  animation:modalIn .22s ease;
+}
+.snils-modal-title { font-size:18px; font-weight:900; color:var(--text-primary); margin-bottom:4px; }
+.snils-modal-sub   { font-size:13px; color:var(--text-muted); margin-bottom:22px; }
+.snils-input-wrap  { position:relative; margin-bottom:8px; }
+.snils-input {
+  width:100%; padding:13px 14px;
+  border:2px solid var(--border); border-radius:var(--radius-sm);
+  font-family:monospace; font-size:18px; font-weight:600;
+  color:var(--text-primary); background:var(--page-bg);
+  outline:none; letter-spacing:.08em; transition:border-color .15s;
+}
+.snils-input:focus { border-color:var(--accent); background:#fff; }
+.snils-input.error { border-color:var(--status-red); }
+.snils-input.ok    { border-color:var(--status-green); }
+.snils-hint { font-size:12px; color:var(--text-muted); margin-bottom:18px; min-height:16px; }
+.snils-hint.err { color:var(--status-red); font-weight:600; }
+.snils-hint.ok  { color:var(--status-green); font-weight:600; }
+.snils-modal-btns { display:flex; gap:10px; }
+.btn-snils-search {
+  flex:1; padding:11px; border-radius:var(--radius-sm);
+  background:var(--accent); color:#fff; border:none;
+  font-family:var(--font); font-size:15px; font-weight:700;
+  cursor:pointer; transition:background .14s;
+}
+.btn-snils-search:hover { background:var(--accent-hover); }
+.btn-snils-search:disabled { opacity:.4; cursor:not-allowed; }
+.btn-snils-cancel {
+  padding:11px 18px; border-radius:var(--radius-sm);
+  background:var(--sidebar-bg); color:var(--text-secondary);
+  border:1.5px solid var(--border); font-family:var(--font);
+  font-size:15px; font-weight:600; cursor:pointer; transition:background .14s;
+}
+.btn-snils-cancel:hover { background:var(--border); }
+.snils-result {
+  display:none; margin-top:18px; padding:14px 16px;
+  border-radius:var(--radius-sm); border:1.5px solid var(--border);
+}
+.snils-result.found    { background:#f0fdf0; border-color:#8fcb8f; }
+.snils-result.notfound { background:#fff4ce; border-color:#e6c96d; }
+.snils-result-title { font-size:13px; font-weight:700; margin-bottom:6px; }
+.snils-result.found .snils-result-title    { color:var(--status-green); }
+.snils-result.notfound .snils-result-title { color:#7a5000; }
+.snils-result-body { font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.btn-snils-add {
+  margin-top:12px; width:100%; padding:10px;
+  border-radius:var(--radius-sm); background:var(--status-green);
+  color:#fff; border:none; font-family:var(--font);
+  font-size:14px; font-weight:700; cursor:pointer; transition:background .14s;
+}
+.btn-snils-add:hover { background:#0d660d; }
+
+/* ════════════════════════════════════
+   РОЛИ — мульти-бейджи
+════════════════════════════════════ */
+.roles-badges-cell { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+
+.role-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 10px; border-radius:20px;
+  font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.05em;
+  white-space:nowrap; flex-shrink:0;
+}
+.role-badge .role-remove {
+  cursor:pointer; opacity:.6; font-size:10px;
+  margin-left:2px; line-height:1;
+}
+.role-badge .role-remove:hover { opacity:1; }
+
+/* Цвета системных ролей */
+.role-student    { background:#d0e4f7; color:#0f62ae; border:1px solid #b3d4f0; }
+.role-teacher    { background:#fff4ce; color:#7a5000; border:1px solid #e6c96d; }
+.role-admin      { background:#fde7e9; color:#a4262c; border:1px solid #e8a0a3; }
+.role-superadmin { background:#ede8f8; color:#5c3fb0; border:1px solid #c4b3f0; }
+/* Пользовательские роли — нейтральный цвет */
+.role-custom     { background:#e8f4f0; color:#1a5c48; border:1px solid #9fcfbf; }
+
+/* Кнопка добавления роли в ячейке */
+.btn-add-role-inline {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 8px; border-radius:20px;
+  font-size:11px; font-weight:600; cursor:pointer;
+  background:var(--sidebar-bg); color:var(--text-muted);
+  border:1.5px dashed var(--border); transition:all .13s;
+  white-space:nowrap;
+}
+.btn-add-role-inline:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+
+/* Дропдаун добавления роли */
+.role-add-dropdown {
+  position:relative; display:inline-block;
+}
+.role-add-menu {
+  display:none; position:absolute; top:100%; left:0;
+  background:var(--card-bg); border:1.5px solid var(--border);
+  border-radius:var(--radius-sm); box-shadow:0 4px 16px rgba(0,0,0,.12);
+  z-index:200; min-width:160px; padding:4px 0;
+}
+.role-add-menu.open { display:block; }
+.role-add-menu-item {
+  padding:7px 14px; font-size:13px; cursor:pointer;
+  color:var(--text-primary); transition:background .1s;
+}
+.role-add-menu-item:hover { background:var(--answer-hover); }
+.role-add-menu-item.disabled { color:var(--text-muted); cursor:default; }
+
+/* ════════════════════════════════════
+   НАСТРОЙКИ — конструктор ролей
+════════════════════════════════════ */
+.settings-layout {
+  display:grid; grid-template-columns:240px 1fr;
+  gap:0; border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  min-height:500px;
+}
+.settings-roles-panel {
+  border-right:1px solid var(--border);
+  background:var(--sidebar-bg);
+}
+.settings-panel-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px; font-size:12px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.07em;
+  color:var(--text-muted); border-bottom:1px solid var(--border);
+}
+.btn-add-role {
+  width:24px; height:24px; border-radius:5px;
+  background:var(--accent); color:#fff; border:none;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .13s; flex-shrink:0;
+}
+.btn-add-role svg { width:12px; height:12px; }
+.btn-add-role:hover { background:var(--accent-hover); }
+
+.settings-role-item {
+  padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border);
+  transition:background .13s; display:flex; align-items:center; gap:8px;
+}
+.settings-role-item:hover   { background:var(--answer-hover); }
+.settings-role-item.active  { background:var(--accent-light); border-left:3px solid var(--accent); }
+.settings-role-name  { font-size:13px; font-weight:600; color:var(--text-primary); }
+.settings-role-meta  { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.settings-role-dot   { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+.settings-perms-panel { padding:20px 22px; }
+.settings-perms-empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:14px; }
+
+.settings-perms-head {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:12px; margin-bottom:18px;
+}
+.settings-role-title {
+  font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:4px;
+}
+.settings-desc-input {
+  width:100%; padding:6px 10px; border:1.5px solid var(--border);
+  border-radius:var(--radius-sm); font-family:var(--font);
+  font-size:13px; color:var(--text-secondary); background:var(--page-bg);
+  outline:none; transition:border-color .14s; min-width:220px;
+}
+.settings-desc-input:focus { border-color:var(--accent); background:#fff; }
+
+.btn-delete-role {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 12px; border-radius:var(--radius-sm);
+  background:var(--status-red-bg); color:var(--status-red);
+  border:1px solid #e8a0a3; font-family:var(--font);
+  font-size:12px; font-weight:600; cursor:pointer;
+  transition:background .13s; white-space:nowrap; flex-shrink:0;
+}
+.btn-delete-role:hover { background:#fcd0d3; }
+.btn-delete-role svg { width:13px; height:13px; }
+.btn-delete-role:disabled { opacity:.35; cursor:not-allowed; }
+
+.settings-sections-title {
+  font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--text-muted); margin-bottom:12px;
+}
+.settings-sections-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px;
+}
+.settings-section-toggle {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border-radius:var(--radius-sm);
+  border:1.5px solid var(--border); background:var(--card-bg);
+  cursor:pointer; transition:all .13s; user-select:none;
+}
+.settings-section-toggle:hover { border-color:var(--accent); background:var(--accent-light); }
+.settings-section-toggle.checked { border-color:var(--accent); background:var(--accent-light); }
+.settings-section-toggle input { display:none; }
+.sst-check {
+  width:18px; height:18px; border-radius:4px;
+  border:2px solid var(--border); background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:all .13s;
+}
+.settings-section-toggle.checked .sst-check {
+  background:var(--accent); border-color:var(--accent);
+}
+.sst-check svg { width:10px; height:10px; display:none; }
+.settings-section-toggle.checked .sst-check svg { display:block; }
+.sst-label { font-size:13px; font-weight:600; color:var(--text-primary); }
+.sst-sub   { font-size:11px; color:var(--text-muted); margin-top:1px; }
+
+@media (max-width:700px) {
+  .settings-layout { grid-template-columns:1fr; }
+  .settings-roles-panel { border-right:none; border-bottom:1px solid var(--border); }
+}
+
+/* ════════════════════════════════════
+   ПРОГРАММЫ
+════════════════════════════════════ */
+.prog-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  min-height: calc(100vh - 52px);
+}
+
+/* Боковой список подразделений */
+.prog-sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  overflow-y: auto;
+}
+.prog-sb-head {
+  padding: 14px 14px 8px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.prog-dept-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s, color .12s;
+  gap: 6px;
+}
+.prog-dept-item:hover  { background: var(--answer-hover); color: var(--text-primary); }
+.prog-dept-item.active { background: var(--accent-light); color: var(--accent); font-weight: 700; border-left: 3px solid var(--accent); }
+.prog-dept-item .dept-cnt { font-size: 11px; color: var(--text-muted); background: var(--border); border-radius: 10px; padding: 1px 7px; flex-shrink: 0; }
+.prog-dept-item.active .dept-cnt { background: var(--accent-mid); color: var(--accent); }
+
+/* Основная зона */
+.prog-main { min-width: 0; overflow: hidden; }
+
+/* Тулбар */
+.prog-toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 10px;
+}
+.prog-select {
+  padding: 8px 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--card-bg);
+  font-family: var(--font); font-size: 13px; color: var(--text-primary);
+  cursor: pointer; outline: none; min-width: 140px;
+  transition: border-color .15s;
+}
+.prog-select:focus { border-color: var(--accent); }
+
+.btn-import {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--status-green); color: #fff;
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; border: none;
+  box-shadow: 0 2px 6px rgba(16,124,16,.25); transition: all .14s;
+}
+.btn-import:hover { background: #0d660d; transform: translateY(-1px); }
+.btn-import svg { width: 15px; height: 15px; }
+
+.prog-count-row { display: flex; align-items: center; justify-content: space-between; min-height: 22px; margin-bottom: 2px; }
+.prog-clear-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: var(--radius-sm);
+  background: var(--status-red-bg); color: var(--status-red);
+  border: 1px solid #e8a0a3; font-family: var(--font); font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: background .14s;
+}
+.prog-clear-btn:hover { background: #f9c5c8; }
+.prog-clear-btn svg { width: 12px; height: 12px; }
+
+/* Таблица */
+.prog-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+}
+.prog-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; min-width: 780px;
+}
+.prog-table thead tr { background: var(--sidebar-bg); }
+.prog-table th {
+  padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap; cursor: pointer; user-select: none;
+  transition: color .12s;
+}
+.prog-table th:hover { color: var(--accent); }
+.prog-table th.sort-asc  .sort-ico::after { content: ' ↑'; }
+.prog-table th.sort-desc .sort-ico::after { content: ' ↓'; }
+.prog-table th .sort-ico { color: var(--text-muted); font-size: 10px; }
+.prog-table th.sort-asc .sort-ico,
+.prog-table th.sort-desc .sort-ico { color: var(--accent); }
+
+.prog-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-primary); vertical-align: middle;
+}
+.prog-table tbody tr:hover { background: var(--answer-hover); }
+.prog-table tbody tr:last-child td { border-bottom: none; }
+
+.prog-code { font-family: monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.prog-short-badge { display: inline-block; background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.prog-title-cell { max-width: 260px; }
+.prog-title-text { font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+.prog-dept-text  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.prog-price { font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.prog-empty {
+  text-align: center; padding: 60px 24px;
+  color: var(--text-muted); font-size: 15px;
+}
+
+@media (max-width: 860px) {
+  .prog-layout { grid-template-columns: 1fr; }
+  .prog-sidebar { display: flex; flex-wrap: nowrap; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .prog-sb-head { display: none; }
+  .prog-dept-item { border-bottom: none; border-right: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+  .prog-dept-item.active { border-left: none; border-bottom: 3px solid var(--accent); }
+}
+
+  .disciplines-layout { grid-template-columns:1fr; }
+  .disc-left { border-right:none; border-bottom:1px solid var(--border); }
+  .st-head,.st-row { grid-template-columns:2fr 1fr; }
+  .st-th:nth-child(3),.st-th:nth-child(4),.st-td:nth-child(3),.st-td:nth-child(4) { display:none; }
+}
+@media (max-width:600px) {
+  .books-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+  .book-cover { height:120px; }
+  .book-desc  { display:none; }
+  .inner-pad  { padding:14px 12px 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ШАПКА -->
+<header class="app-header">
+  <div class="logo-icon">📚</div>
+  <span class="app-title">ДВИК — Личный кабинет</span>
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-user-avatar" id="headerUserAvatar">МС</div>
+      <div class="header-user-info">
+        <span class="header-user-name"  id="headerUserName">—</span>
+        <span class="header-user-role"  id="headerUserRole">—</span>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Выход</span>
+    </button>
+  </div>
+</header>
+
+<div class="page-layout">
+
+  <!-- САЙДБАР -->
+  <nav class="sidebar">
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">Обучение</div>
+
+      <button class="sidebar-link" id="sl-schedule" onclick="showSection('schedule')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 7h13" stroke-linecap="round"/></svg>
+        <span>График курсов</span>
+      </button>
+
+      <button class="sidebar-link active" id="sl-learning" onclick="showSection('learning')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2L2 5.5v.5l6 3.5 6-3.5V6L8 2z" stroke-linejoin="round"/><path d="M2 9.5l6 3.5 6-3.5" stroke-linecap="round"/><path d="M4.5 7.5v4" stroke-linecap="round"/></svg>
+        <span>Обучение</span>
+        <span class="sidebar-badge" id="courseBadge">—</span>
+      </button>
+
+      <button class="sidebar-link" id="sl-results" onclick="showSection('results')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13V8M7 13V4M11 13V7M15 13H1" stroke-linecap="round"/></svg>
+        <span>Результаты</span>
+      </button>
+
+      <button class="sidebar-link" id="sl-library" onclick="showSection('library')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="4" width="4" height="10" rx="1"/><path d="M11.5 3l3 10.5" stroke-linecap="round"/></svg>
+        <span>Библиотека</span>
+      </button>
+
+      <!-- Только для преподавателей -->
+      <div id="sb-teacher-block" style="display:none">
+        <div class="sidebar-section-label">Преподавание</div>
+        <button class="sidebar-link" id="sl-disciplines" onclick="showSection('disciplines')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="1.5" width="14" height="10" rx="1.5"/><path d="M5 14h6M8 11.5V14" stroke-linecap="round"/></svg>
+          <span>Мои дисциплины</span>
+        </button>
+      </div>
+
+      <!-- Только для администраторов -->
+      <div id="sb-admin-block" style="display:none">
+        <div class="sidebar-section-label">Управление</div>
+        <button class="sidebar-link" id="sl-students" onclick="showSection('students')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="5" r="2.5"/><path d="M1 14c0-2.8 2-4.5 4.5-4.5S10 11.2 10 14"/><circle cx="12" cy="5.5" r="2"/><path d="M12 9.5c1.8.1 3 1.4 3 3.5" stroke-linecap="round"/></svg>
+          <span>Слушатели</span>
+        </button>
+        <button class="sidebar-link" id="sl-programs" onclick="showSection('programs')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="14" height="12" rx="1.5"/><path d="M1 6h14M5 2v4M5 10h6M5 12.5h4" stroke-linecap="round"/></svg>
+          <span>Программы</span>
+        </button>
+      </div>
+
+      <!-- Только для суперадминистратора — пункты строятся динамически в buildSuperadminMenu() -->
+      <div id="sb-superadmin-block" style="display:none">
+        <div class="sidebar-section-label">Обучение</div>
+        <button class="sidebar-link" id="sl-sa-learning" onclick="showSection('learning')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1L1 5l7 4 7-4-7-4zM1 11l7 4 7-4M1 8l7 4 7-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Обучение</span>
+        </button>
+        <button class="sidebar-link" id="sl-sa-schedule" onclick="showSection('schedule')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 7h13" stroke-linecap="round"/></svg>
+          <span>График</span>
+        </button>
+        <button class="sidebar-link" id="sl-sa-results" onclick="showSection('results')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12l3-4 3 2 3-5 3 3" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="1.5"/></svg>
+          <span>Результаты</span>
+        </button>
+        <button class="sidebar-link" id="sl-sa-library" onclick="showSection('library')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 2h2v12H3zM7 2h2v12H7zM11 2l2 .5v11l-2-.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Библиотека</span>
+        </button>
+        <button class="sidebar-link" id="sl-sa-disciplines" onclick="showSection('disciplines')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h12M2 8h8M2 12h10" stroke-linecap="round"/></svg>
+          <span>Дисциплины</span>
+        </button>
+        <div class="sidebar-section-label" style="margin-top:8px">Управление</div>
+        <button class="sidebar-link" id="sl-persons" onclick="showSection('persons')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/></svg>
+          <span>Физические лица</span>
+        </button>
+        <button class="sidebar-link" id="sl-roles" onclick="showSection('roles')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3l2 2" stroke-linecap="round"/><path d="M5 2.5A6.5 6.5 0 0112 3" stroke-linecap="round" stroke-dasharray="2 1.5"/></svg>
+          <span>Роли</span>
+        </button>
+        <button class="sidebar-link" id="sl-students" onclick="showSection('students')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="5" r="2.5"/><path d="M1 14c0-2.8 2-4.5 4.5-4.5S10 11.2 10 14"/><circle cx="12" cy="5.5" r="2"/><path d="M12 9.5c1.8.1 3 1.4 3 3.5" stroke-linecap="round"/></svg>
+          <span>Слушатели</span>
+        </button>
+        <button class="sidebar-link" id="sl-programs" onclick="showSection('programs')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="14" height="12" rx="1.5"/><path d="M1 6h14M5 2v4M5 10h6M5 12.5h4" stroke-linecap="round"/></svg>
+          <span>Программы</span>
+        </button>
+        <button class="sidebar-link" id="sl-settings" onclick="showSection('settings')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.3 3.3l.7.7M12 12l.7.7M12 3.3l-.7.7M4 12l-.7.7" stroke-linecap="round"/></svg>
+          <span>Настройки</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Прогресс (только для слушателя) -->
+    <div class="sidebar-progress-card" id="sbProgressCard">
+      <div class="sp-label">Прогресс обучения</div>
+      <div class="sp-bar"><div class="sp-fill" id="sbFill" style="width:0%"></div></div>
+      <div class="sp-nums"><span id="sbDone">0 завершено</span><strong id="sbTotal">из 0</strong></div>
+    </div>
+  </nav>
+
+  <!-- КОНТЕНТ -->
+  <main class="main-content">
+
+    <!-- ── ОБУЧЕНИЕ ── -->
+    <div class="section active inner-pad" id="sec-learning">
+      <div class="sec-head">
+        <div class="sec-title">Обучение</div>
+        <div class="sec-sub">Назначенные учебные программы и курсы</div>
+      </div>
+      <div class="books-grid" id="booksGrid"></div>
+    </div>
+
+    <!-- ── РАСПИСАНИЕ ── -->
+    <div class="section inner-pad" id="sec-schedule">
+      <div class="sec-head">
+        <div class="sec-title">График курсов</div>
+        <div class="sec-sub">Ближайшие занятия и контрольные мероприятия</div>
+      </div>
+      <div class="sched-list" id="schedList"></div>
+    </div>
+
+    <!-- ── РЕЗУЛЬТАТЫ ── -->
+    <div class="section inner-pad" id="sec-results">
+      <div class="sec-head">
+        <div class="sec-title">Результаты тестирований</div>
+        <div class="sec-sub">История прохождения контрольных заданий</div>
+      </div>
+      <div class="results-grid" id="resultsGrid"></div>
+    </div>
+
+    <!-- ── БИБЛИОТЕКА ── -->
+    <div class="section inner-pad" id="sec-library">
+      <div class="sec-head">
+        <div class="sec-title">Библиотека</div>
+        <div class="sec-sub">Учебные материалы и нормативная документация</div>
+      </div>
+      <div class="lib-grid" id="libGrid"></div>
+    </div>
+
+    <!-- ── МОИ ДИСЦИПЛИНЫ (Преподаватель) ── -->
+    <div class="section" id="sec-disciplines">
+      <div class="inner-pad" style="padding-bottom:12px">
+        <div class="sec-head" style="margin-bottom:0">
+          <div class="sec-title">Мои дисциплины</div>
+          <div class="sec-sub">Выберите практические занятия и проставьте зачёты слушателям</div>
+        </div>
+      </div>
+      <div class="disciplines-layout" id="disciplinesLayout">
+        <!-- Заполняется JS -->
+      </div>
+    </div>
+
+    <!-- ── СЛУШАТЕЛИ (Администратор / Суперадмин) ── -->
+    <div class="section" id="sec-students">
+      <div class="inner-pad" style="padding-bottom:12px">
+        <div class="sec-head" style="margin-bottom:14px">
+          <div class="sec-title">Слушатели</div>
+          <div class="sec-sub">Список клиентов, зачисленных на обучение</div>
+        </div>
+        <div class="persons-toolbar">
+          <div class="stu-search-wrap" style="flex:1;min-width:180px">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+            <input class="stu-search-input" id="stuSearch" type="text" placeholder="Поиск по ФИО или СНИЛС…" oninput="renderStudents()">
+          </div>
+          <button class="btn-new-student" onclick="openSnilsModal()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+            Новый слушатель
+          </button>
+        </div>
+        <div class="persons-count" id="stuCount"></div>
+      </div>
+      <div class="persons-table-wrap" id="studentsTableWrap">
+        <div class="persons-empty" id="stuEmpty">
+          <div class="persons-empty-ico">🎓</div>
+          <div>Слушателей пока нет</div>
+          <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">Нажмите «Новый слушатель» чтобы добавить</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ФИЗИЧЕСКИЕ ЛИЦА (только Суперадмин) ── -->
+    <div class="section" id="sec-persons">
+      <div class="inner-pad" style="padding-bottom:12px">
+        <div class="sec-head" style="margin-bottom:14px">
+          <div class="sec-title">Физические лица</div>
+          <div class="sec-sub">Справочник — все физические лица в системе</div>
+        </div>
+        <div class="persons-toolbar">
+          <div class="stu-search-wrap" style="flex:1;min-width:180px">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+            <input class="stu-search-input" id="persSearch" type="text" placeholder="Поиск по ФИО, СНИЛС, месту работы…" oninput="renderPersons()">
+          </div>
+          <select class="prog-select" id="persRoleFilter" onchange="renderPersons()" style="min-width:160px">
+            <option value="">Все роли</option>
+            <option value="student">Слушатель</option>
+            <option value="teacher">Преподаватель</option>
+            <option value="admin">Администратор</option>
+            <option value="superadmin">Суперадминистратор</option>
+          </select>
+        </div>
+        <div class="persons-count" id="persCount"></div>
+      </div>
+      <div class="persons-table-wrap">
+        <table class="persons-table" id="persTable">
+          <thead><tr>
+            <th>ID</th><th>СНИЛС</th><th>ФИО</th><th>Дата рожд.</th>
+            <th>Должность</th><th>Место работы</th><th>Роль в системе</th><th>Примечания</th>
+          </tr></thead>
+          <tbody id="persTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── РОЛИ (только Суперадмин) ── -->
+    <div class="section inner-pad" id="sec-roles">
+      <div class="sec-head" style="margin-bottom:16px">
+        <div class="sec-title">Роли</div>
+        <div class="sec-sub">Назначение одной или нескольких ролей физическим лицам</div>
+      </div>
+
+      <div class="persons-toolbar" style="padding:0 0 10px">
+        <div class="stu-search-wrap" style="flex:1;min-width:180px">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+          <input class="stu-search-input" id="rolesSearch" type="text" placeholder="Поиск по ФИО или СНИЛС…" oninput="renderRoles()">
+        </div>
+        <select class="prog-select" id="rolesFilter" onchange="renderRoles()" style="min-width:160px">
+          <option value="">Все роли</option>
+        </select>
+      </div>
+      <div class="persons-count" id="rolesCount"></div>
+
+      <div class="persons-table-wrap" style="margin-top:8px">
+        <table class="persons-table" id="rolesTable">
+          <thead><tr>
+            <th>ФИО</th>
+            <th>СНИЛС</th>
+            <th>Должность / Место работы</th>
+            <th>Назначенные роли</th>
+            <th>Добавить / убрать роль</th>
+          </tr></thead>
+          <tbody id="rolesTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── НАСТРОЙКИ (только Суперадмин) ── -->
+    <div class="section inner-pad" id="sec-settings">
+      <div class="sec-head" style="margin-bottom:20px">
+        <div class="sec-title">Настройки</div>
+        <div class="sec-sub">Управление ролями системы и их правами доступа к разделам</div>
+      </div>
+
+      <div class="settings-layout">
+
+        <!-- Левая панель: список ролей -->
+        <div class="settings-roles-panel">
+          <div class="settings-panel-head">
+            Роли
+            <button class="btn-add-role" onclick="openAddRoleModal()">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div id="settingsRolesList"></div>
+        </div>
+
+        <!-- Правая панель: права выбранной роли -->
+        <div class="settings-perms-panel" id="settingsPermsPanel">
+          <div class="settings-perms-empty" id="settingsPermsEmpty">
+            <div style="font-size:32px;opacity:.25;margin-bottom:8px">🔐</div>
+            Выберите роль слева чтобы настроить права доступа
+          </div>
+          <div id="settingsPermsContent" style="display:none">
+            <div class="settings-perms-head">
+              <div>
+                <div class="settings-role-title" id="settingsRoleTitle"></div>
+                <div class="settings-role-desc-edit">
+                  <input class="settings-desc-input" id="settingsRoleDesc" placeholder="Описание роли…"
+                    onchange="saveRoleDesc(this.value)">
+                </div>
+              </div>
+              <button class="btn-delete-role" id="settingsDeleteBtn" onclick="deleteCurrentRole()">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Удалить роль
+              </button>
+            </div>
+
+            <div class="settings-sections-title">Доступные разделы меню</div>
+            <div class="settings-sections-grid" id="settingsSectionsGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модал добавления роли -->
+    <div class="snils-modal-overlay" id="addRoleModal">
+      <div class="snils-modal" style="max-width:380px">
+        <div class="snils-modal-title">Новая роль</div>
+        <div class="snils-modal-sub">Введите название новой роли</div>
+        <input class="snils-input" id="newRoleName" placeholder="Например: Методист" style="font-size:15px;letter-spacing:0"
+          onkeydown="if(event.key==='Enter')confirmAddRole()">
+        <div style="margin-top:8px">
+          <input class="snils-input" id="newRoleDesc" placeholder="Описание (необязательно)" style="font-size:13px;padding:9px 12px;letter-spacing:0">
+        </div>
+        <div class="snils-modal-btns" style="margin-top:16px">
+          <button class="btn-snils-search" onclick="confirmAddRole()">Создать</button>
+          <button class="btn-snils-cancel" onclick="closeAddRoleModal()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ПРОГРАММЫ (Администратор) ── -->
+    <div class="section" id="sec-programs">
+      <div class="prog-layout">
+
+        <!-- Узкий список подразделений слева -->
+        <div class="prog-sidebar">
+          <div class="prog-sb-head">Подразделения</div>
+          <div id="progDeptList"></div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="prog-main">
+          <div class="inner-pad" style="padding-bottom:12px">
+            <div class="sec-head" style="margin-bottom:14px">
+              <div class="sec-title">Программы</div>
+              <div class="sec-sub">Реестр учебных программ</div>
+            </div>
+
+            <!-- Панель фильтров и действий -->
+            <div class="prog-toolbar">
+              <div class="stu-search-wrap" style="flex:1;min-width:180px">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3" stroke-linecap="round"/></svg>
+                <input class="stu-search-input" id="progSearch" type="text" placeholder="Поиск по сокращению или названию…" oninput="renderPrograms()">
+              </div>
+
+              <select class="prog-select" id="progFilterMoo" onchange="renderPrograms()">
+                <option value="">МОО: все</option>
+              </select>
+
+              <select class="prog-select" id="progFilterCat" onchange="renderPrograms()">
+                <option value="">Категория: все</option>
+              </select>
+
+              <!-- Импорт Excel -->
+              <label class="btn-import" title="Импортировать из Excel">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1v9M5 7l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke-linecap="round"/></svg>
+                Импорт Excel
+                <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+              </label>
+            </div>
+
+            <!-- Счётчик результатов -->
+            <div class="prog-count-row">
+              <span id="progCount" style="font-size:13px;color:var(--text-muted)"></span>
+              <button class="prog-clear-btn" id="progClearBtn" onclick="clearPrograms()" style="display:none">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13" stroke-linecap="round"/></svg>
+                Очистить данные
+              </button>
+            </div>
+          </div>
+
+          <!-- Таблица -->
+          <div class="prog-table-wrap">
+            <table class="prog-table" id="progTable">
+              <thead>
+                <tr>
+                  <th onclick="sortPrograms('code')"    data-col="code">    Код <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('short')"   data-col="short">   Сокращённо <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('title')"   data-col="title">   Название <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('dept')"    data-col="dept">    Подразделение <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('price')"   data-col="price">   Цена <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('category')" data-col="category">Категория <span class="sort-ico">↕</span></th>
+                  <th onclick="sortPrograms('moo')"     data-col="moo">     МОО <span class="sort-ico">↕</span></th>
+                </tr>
+              </thead>
+              <tbody id="progTbody"></tbody>
+            </table>
+            <div class="prog-empty" id="progEmpty" style="display:none">
+              <div style="font-size:40px;margin-bottom:12px;opacity:.35">📋</div>
+              <div>Программы не найдены</div>
+              <div style="font-size:13px;margin-top:6px;color:var(--text-muted)">Измените фильтры или импортируйте данные из Excel</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛ ПОИСКА ПО СНИЛС -->
+<div class="snils-modal-overlay" id="snilsModal">
+  <div class="snils-modal">
+    <div class="snils-modal-title">Новый слушатель</div>
+    <div class="snils-modal-sub">Введите СНИЛС для поиска в базе физических лиц</div>
+    <div class="snils-input-wrap">
+      <input class="snils-input" id="snilsInput" type="text"
+        placeholder="000-000-000 00" maxlength="14"
+        oninput="snilsMask(this)" onkeydown="if(event.key==='Enter')doSnilsSearch()">
+    </div>
+    <div class="snils-hint" id="snilsHint">Формат: XXX-XXX-XXX XX</div>
+    <div class="snils-modal-btns">
+      <button class="btn-snils-search" id="snilsSearchBtn" onclick="doSnilsSearch()" disabled>Найти</button>
+      <button class="btn-snils-cancel" onclick="closeSnilsModal()">Отмена</button>
+    </div>
+    <div class="snils-result" id="snilsResult">
+      <div class="snils-result-title" id="snilsResultTitle"></div>
+      <div class="snils-result-body" id="snilsResultBody"></div>
+      <button class="btn-snils-add" id="snilsAddBtn" onclick="addStudentFromModal()">Добавить в слушатели</button>
+    </div>
+  </div>
+</div>
+
+<!-- Мобильная нижняя навигация -->
+<div class="mobile-bottom-nav">
+  <div class="mobile-nav-tabs">
+    <button class="mobile-nav-tab" id="mn-schedule" onclick="showSection('schedule')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 7h13" stroke-linecap="round"/></svg>График
+    </button>
+    <button class="mobile-nav-tab active" id="mn-learning" onclick="showSection('learning')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2L2 5.5v.5l6 3.5 6-3.5V6L8 2z" stroke-linejoin="round"/></svg>Обучение
+    </button>
+    <button class="mobile-nav-tab" id="mn-results" onclick="showSection('results')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13V8M7 13V4M11 13V7M15 13H1" stroke-linecap="round"/></svg>Результаты
+    </button>
+    <button class="mobile-nav-tab" id="mn-library" onclick="showSection('library')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="4" width="4" height="10" rx="1"/><path d="M11.5 3l3 10.5" stroke-linecap="round"/></svg>Библиотека
+    </button>
+  </div>
+</div>
+
+<footer class="status-bar">
+  <span class="status-dot">●</span>
+  <span>Система электронного обучения ДВИК</span>
+  <span style="margin-left:auto" id="footerDate"></span>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════
+   АВТОНОМНЫЕ ФУНКЦИИ (не зависят от script.js)
+══════════════════════════════════════════════ */
+const DEMO_USERS = [
+  { login:'morozov',  password:'1234', name:'Морозов Сергей Александрович',  role:'student',  courseIds:['svtest','safety','navigation','radio'] },
+  { login:'35784',    password:'526102', name:'Волков Вячеслав Григорьвич',         role:'student',  courseIds:['svtest'] },
+  { login:'46047',   password:'036481', name:'Пашогорьев Владимир Анатольевич',         role:'student',  courseIds:['svpk'] },
+  { login:'sidorov',  password:'1234', name:'Сидоров Дмитрий Олегович',        role:'student',  courseIds:['stcw','safety','navigation'] },
+  { login:'kozlova',  password:'1234', name:'Козлова Анна Викторовна',          role:'student',  courseIds:['radio','navigation'] },
+  { login:'teacher',  password:'1234', name:'Никитин Владимир Сергеевич',       role:'teacher',  courseIds:['stcw','safety','navigation','radio'] },
+  { login:'admin',    password:'1234', name:'Администратор системы',            role:'admin',    courseIds:[] },
+  { login:'superadmin', password:'1234', name:'Суперадминистратор',             role:'superadmin', courseIds:[] },
+];
+const ROLE_LABELS = { student:'Слушатель', teacher:'Преподаватель', admin:'Администратор', superadmin:'Суперадминистратор' };
+
+function getUser()  { try{return JSON.parse(sessionStorage.getItem('lms_user')||'null');}catch{return null;} }
+function logout()   { sessionStorage.clear(); window.location.href='login.html'; }
+function requireAuth() { if(!getUser()) window.location.href='login.html'; }
+
+function setActiveCourse(id) { sessionStorage.setItem('lms_active_course',id); }
+
+function _sk(login) { return 'lms_state_'+(login||((getUser()||{}).login)||'anon'); }
+function getLmsState(login)    { try{return JSON.parse(sessionStorage.getItem(_sk(login))||'{}');}catch{return{};} }
+function saveLmsState(s,login) { sessionStorage.setItem(_sk(login),JSON.stringify(s)); }
+function isStepDone(courseId,stepIdx,login) { const s=getLmsState(login); return !!(s[courseId]&&s[courseId][stepIdx]); }
+function markStepDone(courseId,stepIdx,login) { const key=login||((getUser()||{}).login); const s=getLmsState(key); if(!s[courseId])s[courseId]={}; s[courseId][stepIdx]=true; saveLmsState(s,key); }
+
+function getPracticeState()   { try{return JSON.parse(sessionStorage.getItem('lms_practice')||'{}');}catch{return{};} }
+function savePracticeState(s) { sessionStorage.setItem('lms_practice',JSON.stringify(s)); }
+function isPracticeGraded(courseId,stepIdx,login) { return !!(getPracticeState()[courseId+'__'+stepIdx+'__'+login]); }
+function gradePractice(courseId,stepIdx,login) {
+  const s=getPracticeState(); s[courseId+'__'+stepIdx+'__'+login]=true; savePracticeState(s);
+  markStepDone(courseId,stepIdx,login);
+}
+function ungradePractice(courseId,stepIdx,login) {
+  const s=getPracticeState(); delete s[courseId+'__'+stepIdx+'__'+login]; savePracticeState(s);
+  const st=getLmsState(login); if(st[courseId]){delete st[courseId][stepIdx];saveLmsState(st,login);}
+}
+
+function getCourseById(id) { return COURSES.find(c=>c.id===id)||null; }
+function getStudentsForCourse(courseId) { return DEMO_USERS.filter(u=>u.role==='student'&&u.courseIds.includes(courseId)); }
+function getAllStudents() { return DEMO_USERS.filter(u=>u.role==='student'); }
+
+function fillHeader() {
+  const u=getUser(); if(!u) return;
+  const av=document.getElementById('headerUserAvatar');
+  const nm=document.getElementById('headerUserName');
+  const rl=document.getElementById('headerUserRole');
+  if(av){ const p=u.name.split(' '); av.textContent=p.map(x=>x[0]).join('').slice(0,2).toUpperCase(); }
+  if(nm) nm.textContent=u.name;
+  if(rl) rl.textContent=ROLE_LABELS[u.role]||u.role;
+}
+
+const COURSES = [
+  {
+    id:'stcw', short:'ПДНВ',
+    title:'Подготовка, оценка компетентности и дипломирование моряков',
+    author:'Кафедра морского права и менеджмента',
+    description:'В соответствии с требованиями правила I/6 Конвенции ПДНВ лица, ответственные за подготовку и оценку компетентности моряков, должны иметь надлежащую квалификацию.',
+    assignedDate:'05.02.2026', coverColor:'#0f62ae', coverEmoji:'⚓',
+    coverBg:'linear-gradient(135deg,#0f62ae 0%,#1a3a6e 100%)',
+    steps:[
+      {type:'online',  title:'Общие положения и введение в курс',              role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Пересмотренная конвенция ПДНВ, 1995 год',        role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Требования к подготовке и дипломированию',       role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Международные обязательства государств',          role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Полномочия государств и организаций',             role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Система качества подготовки',                    role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Профессиональные дипломы и документы',            role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Стандарты компетентности',                       role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Методические материалы по оценке компетентности', role:'Инструктор',  url:'#'},
+      {type:'online',  title:'Нормативно-правовое регулирование',              role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Организация процесса подготовки',                role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Документирование результатов оценки',            role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Образцы документов для заполнения',               role:'Инструктор',  url:'#'},
+      {type:'online',  title:'Медицинское обеспечение и фитнес-стандарты',     role:'Экзаменатор', url:'#'},
+      {type:'practice',title:'Практическое занятие: оценка компетентности',    role:'Практика',    date:'18.03.2026'},
+      {type:'practice',title:'Практическое занятие: оформление документации',  role:'Практика',    date:'25.03.2026'},
+      {type:'upload',  title:'Загрузка работы: отчёт по оценке компетентности', role:'Практика',   date:'28.03.2026'},
+      {type:'test',    title:'Итоговая аттестация',                             role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+  "id": "svpk",              // можешь изменить id на нужный
+  "short": "КПК СВ",         // или любое другое короткое название
+  "title": "Программа дополнительного профессионального образования в соответствии с требованиями раздела А-II/2 Кодекса ПДНВ",
+  "author": "Проценко И.В.",
+  "description": "Подготовка судоводителей ",
+  "assignedDate": "05.02.2026",
+  "coverColor": "#0f62ae",
+  "coverEmoji": "⚓",
+  "coverBg": "linear-gradient(135deg,#0f62ae 0%,#1a3a6e 100%)",
+  "steps": [
+    { type: 'online', title: 'Тема 1.1 Планирование рейса, навигационное обеспечение предстоящего перехода', role: 'Экзаменатор', url: 'https://ispri.ng/NGm26' },
+    { type: 'online', title: 'Тема 1.2 Метеорология и океанография', role: 'Экзаменатор', url: 'https://ispri.ng/RZp8v' },
+    { type: 'online', title: 'Тема 1.3 Определение места различными способами с оценкой их точности', role: 'Экзаменатор', url: 'https://ispri.ng/v0lQZ' },
+    { type: 'online', title: 'Тема 1.4 Определение поправок компасов', role: 'Экзаменатор', url: 'https://ispri.ng/z9q1g' },
+    { type: 'online', title: 'Тема 1.5 Организация и процедуры несения вахты', role: 'Экзаменатор', url: 'https://ispri.ng/D6K07' },
+    { type: 'online', title: 'Тема 1.6 Маневрирование и управление судном', role: 'Экзаменатор', url: 'https://ispri.ng/ZNKvN' },
+    { type: 'online', title: 'Тема 1.7 Эксплуатация систем дистанционного управления двигательной установкой и системами, и службами машинного отделения', role: 'Экзаменатор', url: 'https://ispri.ng/QMBWG' },
+    { type: 'online', title: 'Тема 1.8 Поисково-спасательные операции', role: 'Экзаменатор', url: 'https://ispri.ng/V5g8Z' },
+    { type: 'online', title: 'Тема 1.9 Действия в аварийных ситуациях.', role: 'Экзаменатор', url: 'https://ispri.ng/RZ9Ly' },
+    { type: 'online', title: 'Тема 2.1 Международные и национальные правила, кодексы и стандарты, касающиеся безопасной обработки, размещения, крепления и перевозки грузов', role: 'Экзаменатор', url: 'https://ispri.ng/0lkxr' },
+    { type: 'online', title: 'Тема 2.3 Размещение, крепление и перевозка грузов на судах', role: 'Экзаменатор', url: 'https://ispri.ng/7BKQD' },
+    { type: 'online', title: 'Тема 2.4 Общие знания о танкерах и танкерных операциях', role: 'Экзаменатор', url: 'https://ispri.ng/LzLM5' },
+    { type: 'online', title: 'Тема 2.5 Перевозка опасных грузов', role: 'Экзаменатор', url: 'https://ispri.ng/D6NxQ' },
+    { type: 'online', title: 'Тема 3.1 Морское право', role: 'Экзаменатор', url: 'https://ispri.ng/nJ0vq' },
+    { type: 'online', title: 'Тема 3.2 Системы управления безопасностью в международном морском судоходстве', role: 'Экзаменатор', url: 'https://ispri.ng/mzVpv' },
+    { type: 'online', title: 'Тема 3.3 Процедуры контроля государствами флага и порта', role: 'Экзаменатор', url: 'https://ispri.ng/8xZMM' },
+    { type: 'online', title: 'Тема 3.4 Предотвращение загрязнения с судов', role: 'Экзаменатор', url: 'https://ispri.ng/Y8GpD' },
+    { type: 'online', title: 'Тема 3.5 Техническая эксплуатация систем безопасности.', role: 'Экзаменатор', url: 'https://ispri.ng/x910Y' },
+    { type: 'online', title: 'Тема 3.6 Охрана труда и техника безопасности', role: 'Экзаменатор', url: 'https://ispri.ng/p6nJW' },
+    { type: 'online', title: 'Тема 4.1. Изменения в международных правилах относительно безопасности человеческой жизни на море и защиты окружающей среды', role: 'Экзаменатор', url: 'https://ispri.ng/5xzGW' },
+    { type: 'online', title: 'Тема 4.2 Изменения в национальных правилах относительно безопасности человеческой жизни на море и защиты окружающей среды', role: 'Экзаменатор', url: 'https://ispri.ng/lvMxz' },
+    { type: 'online', title: 'Тема 4.3 Изменения в международных и национальных правилах относительно требований к техническим средствам судовождения', role: 'Экзаменатор', url: 'https://ispri.ng/BJW8q' },
+    { type: 'online', title: 'Тема 4.4 Изменения в международных и национальных правилах относительно обработки и размещения грузов.', role: 'Экзаменатор', url: 'https://ispri.ng/yXg75' },
+    { type: 'online', title: 'Тема 5.1 Аварии и инциденты на море. Классификация, расследование, учет', role: 'Экзаменатор', url: 'https://ispri.ng/9xRZV' },
+    { type: 'online', title: 'Тема 5.2 Посадки на мель и касания грунта, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/qK8Gk' },
+    { type: 'online', title: 'Тема 5.3 Столкновения судов, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/kp6Y9' },
+    { type: 'online', title: 'Тема 5.4. Потери остойчивости, непотопляемости, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/W3XYQ' },
+    { type: 'online', title: 'Тема 5.5 Нарушения прочности корпуса, их причины и предотвращение', role: 'Экзаменатор', url: 'https://ispri.ng/231vB' },
+    { type: 'online', title: 'Тема 6.1 Новые технологии и новые требования к компетентности моряков', role: 'Экзаменатор', url: 'https://ispri.ng/rMx6L' },
+    { type: 'online', title: 'Тема 6.2 Усталость и меры по ее контролю', role: 'Экзаменатор', url: 'https://ispri.ng/1x2p5' },
+    { type: 'online', title: 'Тема 6.3 Оценка и управление рисками', role: 'Экзаменатор', url: 'https://ispri.ng/NG8V8' },
+    { type: 'online', title: 'Тема 6.4 Управление ресурсами. Методы принятия решений. Владение ситуацией', role: 'Экзаменатор', url: 'https://ispri.ng/gYNXG' }
+  ]
+},
+  {
+    id:'safety', short:'ОТ и ПБ',
+    title:'Охрана труда и безопасность на производстве',
+    author:'Кафедра морской безопасности',
+    description:'Программа охватывает нормативную базу, процедуры аварийного реагирования и требования международных стандартов безопасности.',
+    assignedDate:'10.02.2026', coverColor:'#107c10', coverEmoji:'🛡️',
+    coverBg:'linear-gradient(135deg,#107c10 0%,#0a4d0a 100%)',
+    steps:[
+      {type:'online',  title:'Введение в охрану труда',                        role:'Инструктор', url:'#'},
+      {type:'online',  title:'Нормативно-правовая база',                       role:'Инструктор', url:'#'},
+      {type:'pdf',     title:'Инструкция по охране труда',                     role:'Инструктор', url:'#'},
+      {type:'online',  title:'Аварийное реагирование',                         role:'Инструктор', url:'#'},
+      {type:'practice',title:'Практическое занятие: действия при аварии',      role:'Практика',   date:'20.03.2026'},
+      {type:'upload',  title:'Загрузка работы: план эвакуации',                 role:'Практика',   date:'23.03.2026'},
+      {type:'test',    title:'Итоговая аттестация по ОТ и ПБ',                 role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+    id:'navigation', short:'Навигация',
+    title:'Навигация и управление судном',
+    author:'Кафедра судовождения',
+    description:'Курс охватывает принципы безопасного судовождения, навигационные системы и правила предупреждения столкновений.',
+    assignedDate:'15.02.2026', coverColor:'#a4262c', coverEmoji:'🧭',
+    coverBg:'linear-gradient(135deg,#a4262c 0%,#6b1418 100%)',
+    steps:[
+      {type:'online',  title:'Основы навигации',                               role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'МППСС-72',                                       role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Навигационные таблицы и карты',                  role:'Инструктор',  url:'#'},
+      {type:'practice',title:'Практическое занятие: прокладка курса',          role:'Практика',    date:'22.03.2026'},
+      {type:'upload',  title:'Загрузка работы: навигационный расчёт',           role:'Практика',    date:'25.03.2026'},
+      {type:'test',    title:'Итоговая аттестация по навигации',               role:'Тестирование', url:'quest.html'},
+    ]
+  },
+  {
+    id:'radio', short:'ГМССБ',
+    title:'Глобальная морская система связи при бедствии (ГМССБ)',
+    author:'Кафедра связи и навигации',
+    description:'Программа включает изучение ГМССБ: оборудование, процедуры, частоты и порядок действий в аварийных ситуациях.',
+    assignedDate:'20.02.2026', coverColor:'#9a6300', coverEmoji:'📡',
+    coverBg:'linear-gradient(135deg,#9a6300 0%,#5c3c00 100%)',
+    steps:[
+      {type:'online',  title:'Введение в ГМССБ',                               role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Оборудование ГМССБ',                             role:'Экзаменатор', url:'#'},
+      {type:'online',  title:'Процедуры аварийной связи',                      role:'Экзаменатор', url:'#'},
+      {type:'pdf',     title:'Справочник ГМССБ',                               role:'Инструктор',  url:'#'},
+      {type:'practice',title:'Практическое занятие: работа с оборудованием',   role:'Практика',    date:'28.03.2026'},
+      {type:'upload',  title:'Загрузка работы: схема радиосвязи',              role:'Практика',    date:'01.04.2026'},
+      {type:'test',    title:'Итоговая аттестация ГМССБ',                      role:'Тестирование', url:'quest.html'},
+    ]
+  }
+];
+</script>
+<script>
+requireAuth();
+fillHeader();
+
+const ME = getUser();
+
+/* ── Показать/скрыть пункты меню по роли ── */
+if (ME.role === 'teacher') {
+  document.getElementById('sb-teacher-block').style.display = 'block';
+}
+if (ME.role === 'admin') {
+  document.getElementById('sb-admin-block').style.display = 'block';
+  document.getElementById('sbProgressCard').style.display = 'none';
+  document.getElementById('sl-learning').style.display = 'none';
+  document.getElementById('sl-results').style.display = 'none';
+}
+if (ME.role === 'superadmin') {
+  document.getElementById('sb-superadmin-block').style.display = 'block';
+  document.getElementById('sbProgressCard').style.display = 'none';
+  document.getElementById('sl-learning').style.display = 'none';
+  document.getElementById('sl-results').style.display = 'none';
+}
+if (ME.role === 'teacher') {
+  document.getElementById('sbProgressCard').style.display = 'none';
+}
+
+/* ── Данные ── */
+const SCHEDULE_DATA = [
+  { date:'18.03.2026', name:'Практическое занятие: оценка компетентности (ПДНВ)',   place:'Аудитория 302',   type:'practice' },
+  { date:'20.03.2026', name:'Практическое занятие: действия при аварии (ОТ и ПБ)',  place:'Учебный тренажёр', type:'practice' },
+  { date:'22.03.2026', name:'Практическое занятие: прокладка курса (Навигация)',     place:'Навигационный класс', type:'practice' },
+  { date:'14.04.2026', name:'Итоговая аттестация ПДНВ',                             place:'Аудитория 302',   type:'exam' },
+  { date:'20.04.2026', name:'Итоговая аттестация ОТ и ПБ',                          place:'Аудитория 101',   type:'exam' },
+];
+
+const RESULTS_DATA = [
+  { name:'Промежуточный тест ПДНВ', pct:94, date:'01.03.2026', course:'ПДНВ' },
+  { name:'Тест по ОТ и ПБ',         pct:78, date:'12.02.2026', course:'ОТ и ПБ' },
+  { name:'Вводный тест Навигация',  pct:55, date:'20.02.2026', course:'Навигация' },
+  { name:'Пробный тест ГМССБ',      pct:88, date:'22.02.2026', course:'ГМССБ' },
+];
+
+const LIBRARY_DATA = [
+  { e:'📋', name:'Конвенция ПДНВ с поправками 2010 г.',  size:'PDF · 2.4 МБ', bg:'#d0e4f7' },
+  { e:'📘', name:'Кодекс ПДНВ — Часть A',                size:'PDF · 1.8 МБ', bg:'#d0e4f7' },
+  { e:'📙', name:'Руководство по оценке компетентности',  size:'PDF · 0.9 МБ', bg:'#fff4ce' },
+  { e:'📕', name:'Инструкция по охране труда на судне',   size:'PDF · 0.5 МБ', bg:'#fde7e9' },
+  { e:'📗', name:'Методические рекомендации ПДНВ',        size:'PDF · 1.1 МБ', bg:'#dff6dd' },
+  { e:'📓', name:'Справочник ГМССБ',                      size:'PDF · 0.8 МБ', bg:'#fff4ce' },
+];
+
+/* ── Переключение секций ── */
+let currentSection = 'learning';
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-link[id^="sl-"]').forEach(l=>l.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-tab[id^="mn-"]').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  const sl=document.getElementById('sl-'+name); if(sl) sl.classList.add('active');
+  const mn=document.getElementById('mn-'+name); if(mn) mn.classList.add('active');
+  currentSection = name;
+  if (name === 'disciplines') renderDisciplines();
+  if (name === 'students')    renderStudents();
+  if (name === 'persons')     renderPersons();
+  if (name === 'roles')       renderRoles();
+  if (name === 'settings')    renderSettings();
+  if (name === 'programs')    initPrograms();
+}
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: ОБУЧЕНИЕ (книги)
+════════════════════════════════════ */
+function renderBooks() {
+  const grid = document.getElementById('booksGrid');
+  const myCourses = ME.role === 'student'
+    ? COURSES.filter(c => ME.courseIds.includes(c.id))
+    : COURSES;
+
+  document.getElementById('courseBadge').textContent = myCourses.length;
+
+  if (!myCourses.length) {
+    grid.innerHTML = '<div class="no-courses">Курсов не назначено</div>';
+    return;
+  }
+
+  let totalDone=0, totalCourses=myCourses.length;
+  grid.innerHTML = myCourses.map(c => {
+    const s    = getLmsState(ME.login);
+    const done = s[c.id] ? Object.keys(s[c.id]).length : 0;
+    const pct  = c.steps.length ? Math.round(done/c.steps.length*100) : 0;
+    totalDone += (pct===100 ? 1 : 0);
+    let badgeCls, badgeTxt;
+    if (pct===100)      { badgeCls='badge-green';  badgeTxt='Завершён'; }
+    else if (done>0)    { badgeCls='badge-yellow'; badgeTxt='В процессе ('+pct+'%)'; }
+    else                { badgeCls='badge-gray';   badgeTxt='Назначен'; }
+    return `
+    <div class="book-card" onclick="openCourse('${c.id}')">
+      <div class="book-cover">
+        <div class="book-cover-bg" style="background:${c.coverBg}"></div>
+        <div class="book-cover-lines"></div><div class="book-cover-shine"></div>
+        <div class="book-cover-shadow"></div><div class="book-spine"></div>
+        <div class="book-short">${c.short}</div>
+        <div class="book-emoji">${c.coverEmoji}</div>
+        <div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="book-body">
+        <div class="book-category">Электронный курс</div>
+        <div class="book-title">${c.title}</div>
+        <div class="book-desc">${c.description}</div>
+        <div class="book-footer">
+          <div class="book-author">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/></svg>
+            <span>${c.author}</span>
+          </div>
+          <span class="badge ${badgeCls}">${badgeTxt}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Прогресс в сайдбаре */
+  const pctSb = totalCourses ? Math.round(totalDone/totalCourses*100) : 0;
+  document.getElementById('sbFill').style.width = pctSb+'%';
+  document.getElementById('sbDone').textContent  = totalDone+' завершено';
+  document.getElementById('sbTotal').textContent  = 'из '+totalCourses;
+}
+
+function openCourse(id) { setActiveCourse(id); window.location.href='learn.html'; }
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: МОИ ДИСЦИПЛИНЫ
+════════════════════════════════════ */
+/* Собрать все практические занятия И загрузки из курсов */
+function getPracticeItems() {
+  const items = [];
+  COURSES.forEach(course => {
+    course.steps.forEach((step, idx) => {
+      if (step.type === 'practice' || step.type === 'upload') {
+        items.push({ course, step, stepIdx: idx });
+      }
+    });
+  });
+  return items;
+}
+
+/* Получить загруженный файл слушателя */
+function getStudentUpload(courseId, stepIdx, login) {
+  try {
+    const raw = sessionStorage.getItem('lms_uploads_'+login);
+    if (!raw) return null;
+    return JSON.parse(raw)[courseId+'__'+stepIdx] || null;
+  } catch { return null; }
+}
+
+let selectedPractices = new Set(); /* ключи "courseId__stepIdx" */
+
+function togglePractice(key) {
+  if (selectedPractices.has(key)) selectedPractices.delete(key);
+  else selectedPractices.add(key);
+  renderDisciplines();
+}
+
+function renderDisciplines() {
+  const layout = document.getElementById('disciplinesLayout');
+  const items  = getPracticeItems();
+
+  /* Левая колонка */
+  const leftHtml = `
+    <div class="disc-left">
+      <div class="disc-list-header">
+        <span class="disc-list-title">Практические занятия</span>
+        <span style="font-size:11px;color:var(--text-muted)">${items.length} занятий</span>
+      </div>
+      ${items.map(({course, step, stepIdx}) => {
+        const key = course.id+'__'+stepIdx;
+        const sel = selectedPractices.has(key);
+        return `
+        <div class="disc-item${sel?' selected':''}" onclick="togglePractice('${key}')">
+          <div class="disc-star">${sel ? '★' : '☆'}</div>
+          <div class="disc-info">
+            <div class="disc-course-tag">${course.short}</div>
+            <div class="disc-prac-title">${step.title}</div>
+            <div class="disc-prac-date">📅 ${step.date}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  /* Правая колонка */
+  let rightHtml;
+  if (selectedPractices.size === 0) {
+    rightHtml = `
+      <div class="disc-right">
+        <div class="disc-right-empty">
+          <div class="empty-ico">☆</div>
+          <div>Выберите одно или несколько практических занятий слева, чтобы увидеть список слушателей</div>
+        </div>
+      </div>`;
+  } else {
+    /* Собрать всех уникальных слушателей выбранных занятий */
+    const selItems = items.filter(({course, stepIdx}) => selectedPractices.has(course.id+'__'+stepIdx));
+
+    /* Уникальные слушатели */
+    const stuMap = new Map();
+    selItems.forEach(({course, step, stepIdx}) => {
+      getStudentsForCourse(course.id).forEach(stu => {
+        if (!stuMap.has(stu.login)) stuMap.set(stu.login, { stu, practices: [] });
+        stuMap.get(stu.login).practices.push({ course, step, stepIdx });
+      });
+    });
+    const students = [...stuMap.values()];
+
+    const multiSel = selectedPractices.size > 1;
+
+    const rowsHtml = students.length === 0
+      ? '<div style="padding:24px;text-align:center;color:var(--text-muted)">Нет слушателей для выбранных занятий</div>'
+      : students.map(({stu, practices}) => {
+          /* Все занятия зачтены? */
+          const allGraded = practices.every(p => isPracticeGraded(p.course.id, p.stepIdx, stu.login));
+          const someGraded= practices.some(p  => isPracticeGraded(p.course.id, p.stepIdx, stu.login));
+          const initials  = stu.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+
+          const allIsUpload = practices.every(p => p.step.type === 'upload');
+          let btnLabel, btnCls, btnAction;
+          if (allGraded) {
+            btnLabel = allIsUpload ? '✓ Принято' : '✓ Зачтено';
+            btnCls   = 'graded';
+            btnAction = `ungradeAll('${stu.login}')`;
+          } else {
+            btnLabel = allIsUpload ? 'Принять' : 'Зачесть';
+            btnCls   = 'not-graded';
+            btnAction = `gradeAll('${stu.login}')`;
+          }
+
+          const pracList = practices.map(p => {
+            const graded   = isPracticeGraded(p.course.id, p.stepIdx, stu.login);
+            const isUpload = p.step.type === 'upload';
+            const uploaded = isUpload ? getStudentUpload(p.course.id, p.stepIdx, stu.login) : null;
+
+            let statusBadge;
+            if (graded) {
+              statusBadge = `<span class="badge badge-green" style="font-size:10px">${p.course.short}: ✓ ${isUpload?'принято':'зачтено'}</span>`;
+            } else if (uploaded) {
+              statusBadge = `<span class="badge" style="font-size:10px;background:#ede8f8;color:#5c3fb0;border:1px solid #c4b3f0">${p.course.short}: 📎 ${uploaded.name}</span>`;
+            } else {
+              statusBadge = `<span class="badge badge-gray" style="font-size:10px">${p.course.short}: ${isUpload?'файл не загружен':'не зачтено'}</span>`;
+            }
+            return statusBadge;
+          }).join(' ');
+
+          return `
+          <div class="student-row">
+            <div class="stu-ava">${initials}</div>
+            <div class="stu-info">
+              <div class="stu-name">${stu.name}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${pracList}</div>
+            </div>
+            <button class="btn-grade ${btnCls}" onclick="${btnAction}">
+              ${allGraded
+                ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><path d="M3 8l4 4 6-7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M2 8l4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+              ${btnLabel}
+            </button>
+          </div>`;
+        }).join('');
+
+    rightHtml = `
+      <div class="disc-right">
+        <div class="disc-students-header">
+          <span class="disc-list-title">Слушатели</span>
+          <span class="disc-students-count">${students.length} чел.</span>
+        </div>
+        ${multiSel ? '<div class="disc-multi-hint">Выбрано несколько занятий — кнопка «Зачесть» применяется ко всем выбранным занятиям</div>' : ''}
+        ${rowsHtml}
+      </div>`;
+  }
+
+  layout.innerHTML = leftHtml + rightHtml;
+}
+
+/* Зачесть все выбранные практики для слушателя */
+function gradeAll(login) {
+  const items = getPracticeItems();
+  items.forEach(({course, stepIdx}) => {
+    const key = course.id+'__'+stepIdx;
+    if (selectedPractices.has(key)) gradePractice(course.id, stepIdx, login);
+  });
+  renderDisciplines();
+}
+function ungradeAll(login) {
+  const items = getPracticeItems();
+  items.forEach(({course, stepIdx}) => {
+    const key = course.id+'__'+stepIdx;
+    if (selectedPractices.has(key)) ungradePractice(course.id, stepIdx, login);
+  });
+  renderDisciplines();
+}
+
+/* ════════════════════════════════════
+   СЕКЦИЯ: СЛУШАТЕЛИ (Администратор)
+════════════════════════════════════ */
+/* ════════════════════════════════════
+   СПРАВОЧНИК ФИЗИЧЕСКИХ ЛИЦ
+════════════════════════════════════ */
+const PERSONS_DB = [
+  {id:5870,snils:'042-756-334 55',fio:'Филоненко Олег Юрьевич',        dob:'30.01.1967',city:'',position:'Вахтенный механик',        workplace:'ОАО ДВМП',                   notes:''},
+  {id:5872,snils:'042-747-221 46',fio:'Сагитов Альберт Мунирович',      dob:'07.03.1968',city:'',position:'Второй механик',           workplace:'ЮНИКОМ',                     notes:''},
+  {id:5878,snils:'042-742-420 40',fio:'Евдокимов Сергей Николаевич',    dob:'21.05.1959',city:'',position:'Старший механик',          workplace:'Фесконтракт',                notes:''},
+  {id:5880,snils:'072-893-075 93',fio:'Фарков Сергей Валерьевич',       dob:'25.11.1967',city:'',position:'Старший механик',          workplace:'Примтанко',                  notes:''},
+  {id:5891,snils:'045-564-694 82',fio:'Леоненков Владимир Васильевич',  dob:'11.07.1957',city:'',position:'Электромеханик',           workplace:'СКФ "ЮНИКОМ"',               notes:'045-564-694 82'},
+  {id:5893,snils:'042-743-792 60',fio:'Савушкин Игорь Владимирович',    dob:'15.10.1962',city:'',position:'Капитан',                  workplace:'ОАО "ДВМП"',                 notes:''},
+  {id:5895,snils:'117-721-844 57',fio:'Лысенко Андрей Викторович',      dob:'12.08.1962',city:'',position:'Старший механик',          workplace:'ФК',                         notes:''},
+  {id:5896,snils:'137-185-360 68',fio:'Хандогин Аркадий Викторович',    dob:'26.04.1966',city:'',position:'Старший механик',          workplace:'Корсар Марин',               notes:''},
+  {id:5898,snils:'075-865-386 33',fio:'Алехин Александр Николаевич',    dob:'16.08.1969',city:'',position:'Второй механик',           workplace:'BGI',                        notes:''},
+  {id:5901,snils:'072-832-544 67',fio:'Дусов Дмитрий Юрьевич',         dob:'25.05.1971',city:'',position:'Капитан',                  workplace:'ФЕСКОНТРАКТ MOL',             notes:'дипломы и уч'},
+  {id:5904,snils:'110-601-913 89',fio:'Савинов Никонор Ильич',          dob:'08.04.1956',city:'',position:'Боцман',                   workplace:'Морская волна',              notes:''},
+  {id:5906,snils:'037-790-656 93',fio:'Болтенков Александр Павлович',   dob:'22.08.1963',city:'',position:'Капитан',                  workplace:'СВМП',                       notes:''},
+  {id:5908,snils:'076-384-661 01',fio:'Якименко Александр Сергеевич',   dob:'02.09.1980',city:'',position:'Второй механик',           workplace:'временно не работает',       notes:''},
+  {id:5909,snils:'063-204-535 22',fio:'Озеров Олег Олегович',           dob:'18.09.1982',city:'',position:'Капитан',                  workplace:'Фесконтракт',                notes:''},
+  {id:5917,snils:'133-797-818 01',fio:'Березовский Максим Николаевич',  dob:'14.02.1989',city:'',position:'СПКМ',                     workplace:'Фемко-Менеджмент',           notes:''},
+  {id:5919,snils:'037-127-368 45',fio:'Соленый Константин Валерьевич',  dob:'20.12.1969',city:'',position:'Капитан',                  workplace:'',                           notes:''},
+  {id:5923,snils:'045-440-658 46',fio:'Гибадулин Марсиль Мансурович',   dob:'22.07.1960',city:'',position:'Капитан',                  workplace:'временно не работает',       notes:''},
+  {id:5928,snils:'067-344-524 73',fio:'Бурилин Павел Юрьевич',          dob:'23.06.1966',city:'',position:'Капитан',                  workplace:'ООО "Посейдон Шиппинг"',     notes:''},
+  {id:5929,snils:'063-465-129 58',fio:'Мормиль Сергей Олегович',        dob:'12.02.1971',city:'',position:'СПКМ',                     workplace:'Юником',                     notes:''},
+  {id:5930,snils:'063-204-501 12',fio:'Еремин Виталий Владимирович',    dob:'26.08.1976',city:'',position:'СПКМ',                     workplace:'ООО "Рифер"',                notes:''},
+  {id:5933,snils:'074-597-768 26',fio:'Старцев Александр Валентинович', dob:'09.08.1974',city:'',position:'Старший механик',          workplace:'ОАО ДВМП',                   notes:''},
+  {id:5934,snils:'063-204-546 25',fio:'Попов Андрей Вячеславович',      dob:'10.03.1982',city:'',position:'СПКМ',                     workplace:'Фесконтракт',                notes:''},
+  {id:5943,snils:'042-697-249 77',fio:'Курбаков Николай Васильевич',    dob:'25.07.1954',city:'',position:'Боцман',                   workplace:'Fesco Wallem',               notes:''},
+  {id:5947,snils:'042-730-394 33',fio:'Шведов Виктор Владимирович',     dob:'23.07.1964',city:'',position:'Зам.руковод.ОДПО по',      workplace:'ЧОУВО ДВИК',                 notes:''},
+  {id:5948,snils:'042-536-671 47',fio:'Купчик Владислав Владимирович',  dob:'23.02.1974',city:'',position:'Ст.преп.-инструктор БУТЦ', workplace:'НОУ СПО ДВИК',              notes:''},
+  {id:5951,snils:'060-908-498 71',fio:'Куталев Юрий Юрьевич',           dob:'22.01.1959',city:'',position:'Преп.-инструктор БУТЦ',    workplace:'НОУ ВПО ДВИК',              notes:''},
+  {id:5953,snils:'042-729-367 61',fio:'Ахмедов Шамиль Аглямович',       dob:'23.09.1963',city:'',position:'Матрос',                   workplace:'ООО СКФ Варандей',           notes:''},
+  {id:5963,snils:'136-234-509 41',fio:'Голубев Сергей Анатольевич',     dob:'25.06.1970',city:'',position:'ВПКМ',                     workplace:'Аквариус',                   notes:''},
+];
+
+/* ── Хранилище ролей физлиц: ключ = snils (digits), значение = role ── */
+/* ════════════════════════════════════
+   СИСТЕМА РОЛЕЙ
+   - Каждое физлицо имеет массив ролей
+   - По умолчанию: ['student']
+   - Роли бывают системные (нельзя удалить) и пользовательские
+════════════════════════════════════ */
+
+/* Все доступные разделы системы */
+const SYSTEM_SECTIONS = [
+  { id:'learning',     label:'Обучение',        sub:'Курсы и учебные материалы',    icon:'📚' },
+  { id:'schedule',     label:'График',           sub:'Расписание занятий',            icon:'📅' },
+  { id:'results',      label:'Результаты',       sub:'Результаты тестирований',       icon:'📊' },
+  { id:'library',      label:'Библиотека',       sub:'Учебная литература',            icon:'📖' },
+  { id:'disciplines',  label:'Дисциплины',       sub:'Мои дисциплины (преподаватель)',icon:'📋' },
+  { id:'students',     label:'Слушатели',        sub:'Список слушателей',             icon:'👥' },
+  { id:'programs',     label:'Программы',        sub:'Реестр программ',               icon:'🗂️' },
+  { id:'persons',      label:'Физические лица',  sub:'Справочник физлиц',             icon:'🧑‍💼' },
+  { id:'roles',        label:'Роли',             sub:'Назначение ролей',              icon:'🔑' },
+  { id:'settings',     label:'Настройки',        sub:'Конструктор ролей',             icon:'⚙️' },
+];
+
+/* Системные роли (нельзя удалить, id фиксированный) */
+const BUILTIN_ROLES = [
+  { id:'student',     label:'Слушатель',           color:'#0f62ae', desc:'Доступ к курсам, тестам и результатам. Роль по умолчанию.',
+    sections:['learning','schedule','results','library'] },
+  { id:'teacher',     label:'Преподаватель',        color:'#7a5000', desc:'Зачёт практики, проверка загруженных работ.',
+    sections:['schedule','disciplines'] },
+  { id:'admin',       label:'Администратор',        color:'#a4262c', desc:'Управление слушателями и программами.',
+    sections:['students','programs','schedule'] },
+  { id:'superadmin',  label:'Суперадминистратор',   color:'#5c3fb0', desc:'Полный доступ ко всем разделам.',
+    sections:['learning','schedule','results','library','disciplines','students','programs','persons','roles','settings'] },
+];
+
+/* ── Хранилище пользовательских ролей ── */
+function getCustomRoles() {
+  try { return JSON.parse(sessionStorage.getItem('lms_custom_roles') || '[]'); } catch { return []; }
+}
+function saveCustomRoles(arr) { sessionStorage.setItem('lms_custom_roles', JSON.stringify(arr)); }
+
+/* Все роли (системные + пользовательские) */
+function getAllRoles() { return [...BUILTIN_ROLES, ...getCustomRoles()]; }
+function getRoleById(id) { return getAllRoles().find(r => r.id === id) || null; }
+
+/* ── Хранилище назначенных ролей: snilsDigits → [roleId, ...] ── */
+function getPersonRolesMap() {
+  try { return JSON.parse(sessionStorage.getItem('lms_person_roles2') || '{}'); } catch { return {}; }
+}
+function savePersonRolesMap(m) { sessionStorage.setItem('lms_person_roles2', JSON.stringify(m)); }
+
+/* Получить массив ролей физлица (по умолчанию ['student']) */
+function getPersonRoles(snils) {
+  const key = normalizeSnils(snils);
+  return getPersonRolesMap()[key] || ['student'];
+}
+
+/* Добавить роль физлицу */
+function addPersonRole(snils, roleId) {
+  const m = getPersonRolesMap();
+  const key = normalizeSnils(snils);
+  const arr = m[key] || ['student'];
+  if (!arr.includes(roleId)) { arr.push(roleId); m[key] = arr; savePersonRolesMap(m); }
+}
+
+/* Убрать роль физлицу */
+function removePersonRole(snils, roleId) {
+  const m = getPersonRolesMap();
+  const key = normalizeSnils(snils);
+  let arr = m[key] || ['student'];
+  arr = arr.filter(r => r !== roleId);
+  if (!arr.length) arr = ['student']; /* минимум одна роль */
+  m[key] = arr;
+  savePersonRolesMap(m);
+}
+
+/* ── Бейдж роли ── */
+function roleBadge(roleId, withRemove, snils) {
+  const role = getRoleById(roleId);
+  const label = role ? role.label : roleId;
+  const color = role ? role.color : '#555';
+  /* светлый фон из hex */
+  const bg = color + '22';
+  const border = color + '66';
+  const rm = withRemove
+    ? `<span class="role-remove" onclick="removeRoleFromPerson('${normalizeSnils(snils)}','${roleId}')" title="Убрать роль">✕</span>`
+    : '';
+  return `<span class="role-badge" style="background:${bg};color:${color};border:1px solid ${border}">${label}${rm}</span>`;
+}
+
+function removeRoleFromPerson(snilsDigits, roleId) {
+  removePersonRole(snilsDigits, roleId);
+  renderRoles();
+  if (currentSection === 'persons') renderPersons();
+}
+
+/* ── Рендер справочника Физических лиц ── */
+function renderPersons() {
+  const q  = (document.getElementById('persSearch').value || '').toLowerCase();
+  const rf = document.getElementById('persRoleFilter').value;
+
+  const filtered = PERSONS_DB.filter(p => {
+    if (rf && !getPersonRoles(p.snils).includes(rf)) return false;
+    return !q ||
+      p.fio.toLowerCase().includes(q) ||
+      p.snils.toLowerCase().includes(q) ||
+      p.workplace.toLowerCase().includes(q) ||
+      p.position.toLowerCase().includes(q);
+  });
+
+  /* Обновляем фильтр ролей */
+  _fillRoleFilterSelect('persRoleFilter');
+
+  document.getElementById('persCount').textContent =
+    `Показано ${filtered.length} из ${PERSONS_DB.length} записей`;
+
+  document.getElementById('persTbody').innerHTML = filtered.map(p => {
+    const roles = getPersonRoles(p.snils);
+    return `<tr>
+      <td>${p.id}</td>
+      <td class="td-snils">${p.snils}</td>
+      <td class="td-fio">${p.fio}</td>
+      <td class="td-dob">${p.dob}</td>
+      <td>${p.position || '—'}</td>
+      <td>${p.workplace || '—'}</td>
+      <td><div class="roles-badges-cell">${roles.map(r=>roleBadge(r,false,p.snils)).join('')}</div></td>
+      <td>${p.notes || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Рендер раздела «Роли» ── */
+function renderRoles() {
+  _fillRoleFilterSelect('rolesFilter');
+
+  const q  = (document.getElementById('rolesSearch').value || '').toLowerCase();
+  const rf = document.getElementById('rolesFilter').value;
+
+  const filtered = PERSONS_DB.filter(p => {
+    if (rf && !getPersonRoles(p.snils).includes(rf)) return false;
+    return !q ||
+      p.fio.toLowerCase().includes(q) ||
+      p.snils.toLowerCase().includes(q);
+  });
+
+  document.getElementById('rolesCount').textContent =
+    `Показано ${filtered.length} из ${PERSONS_DB.length} записей`;
+
+  document.getElementById('rolesTbody').innerHTML = filtered.map(p => {
+    const assigned = getPersonRoles(p.snils);
+    const snilsD   = normalizeSnils(p.snils);
+    const badges   = assigned.map(r => roleBadge(r, true, p.snils)).join('');
+
+    /* Роли которые ещё не назначены */
+    const available = getAllRoles().filter(r => !assigned.includes(r.id));
+    const addOpts   = available.length
+      ? available.map(r =>
+          `<div class="role-add-menu-item" onclick="addRoleToPerson('${snilsD}','${r.id}')">${r.label}</div>`
+        ).join('')
+      : '<div class="role-add-menu-item disabled">Все роли назначены</div>';
+
+    return `<tr>
+      <td class="td-fio">${p.fio}</td>
+      <td class="td-snils">${p.snils}</td>
+      <td style="font-size:12px;color:var(--text-secondary)">
+        ${p.position  ? `<div>${p.position}</div>`  : ''}
+        ${p.workplace ? `<div style="color:var(--text-muted)">${p.workplace}</div>` : ''}
+      </td>
+      <td><div class="roles-badges-cell" id="rbcell-${snilsD}">${badges}</div></td>
+      <td>
+        <div class="role-add-dropdown" id="rad-${snilsD}">
+          <button class="btn-add-role-inline" onclick="toggleRoleDropdown('${snilsD}')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" width="10" height="10"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+            Добавить роль
+          </button>
+          <div class="role-add-menu" id="ram-${snilsD}">${addOpts}</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function addRoleToPerson(snilsD, roleId) {
+  addPersonRole(snilsD, roleId);
+  closeAllRoleDropdowns();
+  renderRoles();
+  showRoleToast(`Роль «${getRoleById(roleId)?.label}» добавлена`);
+  if (currentSection === 'persons') renderPersons();
+}
+
+function toggleRoleDropdown(snilsD) {
+  const menu = document.getElementById('ram-'+snilsD);
+  const wasOpen = menu.classList.contains('open');
+  closeAllRoleDropdowns();
+  if (!wasOpen) menu.classList.add('open');
+}
+
+function closeAllRoleDropdowns() {
+  document.querySelectorAll('.role-add-menu.open').forEach(m => m.classList.remove('open'));
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.role-add-dropdown')) closeAllRoleDropdowns();
+});
+
+/* Заполнить фильтр-селект всеми ролями */
+function _fillRoleFilterSelect(id) {
+  const sel = document.getElementById(id); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Все роли</option>' +
+    getAllRoles().map(r => `<option value="${r.id}"${cur===r.id?' selected':''}>${r.label}</option>`).join('');
+}
+
+/* ════════════════════════════════════
+   НАСТРОЙКИ — конструктор ролей
+════════════════════════════════════ */
+let _activeRoleId = null;
+
+function renderSettings() {
+  const all = getAllRoles();
+
+  /* Список ролей слева */
+  document.getElementById('settingsRolesList').innerHTML = all.map(r => {
+    const isBuiltin = BUILTIN_ROLES.some(b => b.id === r.id);
+    return `<div class="settings-role-item${_activeRoleId===r.id?' active':''}" onclick="selectSettingsRole('${r.id}')">
+      <div class="settings-role-dot" style="background:${r.color||'#888'}"></div>
+      <div>
+        <div class="settings-role-name">${r.label}</div>
+        <div class="settings-role-meta">${isBuiltin?'системная':'пользовательская'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (_activeRoleId) selectSettingsRole(_activeRoleId);
+}
+
+function selectSettingsRole(roleId) {
+  _activeRoleId = roleId;
+  const role = getRoleById(roleId);
+  if (!role) return;
+
+  /* Активная вкладка */
+  document.querySelectorAll('.settings-role-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('.settings-role-name')?.textContent === role.label);
+  });
+
+  document.getElementById('settingsPermsEmpty').style.display   = 'none';
+  document.getElementById('settingsPermsContent').style.display = 'block';
+  document.getElementById('settingsRoleTitle').textContent = role.label;
+  document.getElementById('settingsRoleDesc').value        = role.desc || '';
+
+  const isBuiltin = BUILTIN_ROLES.some(b => b.id === roleId);
+  const delBtn    = document.getElementById('settingsDeleteBtn');
+  delBtn.disabled = isBuiltin;
+  delBtn.title    = isBuiltin ? 'Системные роли нельзя удалить' : '';
+
+  /* Чекбоксы разделов */
+  document.getElementById('settingsSectionsGrid').innerHTML = SYSTEM_SECTIONS.map(sec => {
+    const checked = (role.sections || []).includes(sec.id);
+    return `<label class="settings-section-toggle${checked?' checked':''}" onclick="toggleSection('${roleId}','${sec.id}',this)">
+      <div class="sst-check">
+        <svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="2"><path d="M1.5 5l3 3 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div class="sst-label">${sec.icon} ${sec.label}</div>
+        <div class="sst-sub">${sec.sub}</div>
+      </div>
+    </label>`;
+  }).join('');
+}
+
+function toggleSection(roleId, sectionId, labelEl) {
+  const role = getRoleById(roleId); if (!role) return;
+  const checked = labelEl.classList.toggle('checked');
+  if (checked) {
+    if (!role.sections.includes(sectionId)) role.sections.push(sectionId);
+  } else {
+    role.sections = role.sections.filter(s => s !== sectionId);
+  }
+  /* Если пользовательская — сохраняем */
+  const customs = getCustomRoles();
+  const idx = customs.findIndex(r => r.id === roleId);
+  if (idx >= 0) { customs[idx] = role; saveCustomRoles(customs); }
+  showRoleToast('Права доступа обновлены');
+}
+
+function saveRoleDesc(val) {
+  if (!_activeRoleId) return;
+  const customs = getCustomRoles();
+  const idx = customs.findIndex(r => r.id === _activeRoleId);
+  if (idx >= 0) { customs[idx].desc = val; saveCustomRoles(customs); }
+}
+
+function deleteCurrentRole() {
+  if (!_activeRoleId) return;
+  const role = getRoleById(_activeRoleId);
+  if (!role || BUILTIN_ROLES.some(b => b.id === _activeRoleId)) return;
+  if (!confirm(`Удалить роль «${role.label}»? Она будет убрана у всех физлиц.`)) return;
+
+  /* Убираем роль у всех */
+  const m = getPersonRolesMap();
+  Object.keys(m).forEach(k => { m[k] = m[k].filter(r => r !== _activeRoleId); if (!m[k].length) m[k] = ['student']; });
+  savePersonRolesMap(m);
+
+  const customs = getCustomRoles().filter(r => r.id !== _activeRoleId);
+  saveCustomRoles(customs);
+  _activeRoleId = null;
+  document.getElementById('settingsPermsContent').style.display = 'none';
+  document.getElementById('settingsPermsEmpty').style.display   = 'block';
+  renderSettings();
+  showRoleToast(`Роль «${role.label}» удалена`);
+}
+
+/* Модал новой роли */
+function openAddRoleModal() {
+  document.getElementById('newRoleName').value = '';
+  document.getElementById('newRoleDesc').value = '';
+  document.getElementById('addRoleModal').classList.add('visible');
+  setTimeout(() => document.getElementById('newRoleName').focus(), 80);
+}
+function closeAddRoleModal() { document.getElementById('addRoleModal').classList.remove('visible'); }
+document.getElementById('addRoleModal').addEventListener('click', function(e){ if(e.target===this) closeAddRoleModal(); });
+
+function confirmAddRole() {
+  const name = document.getElementById('newRoleName').value.trim();
+  if (!name) { document.getElementById('newRoleName').focus(); return; }
+  const id = 'custom_' + Date.now();
+  /* Случайный приятный цвет */
+  const colors = ['#1a6b4a','#6b3fa0','#b05020','#1a7060','#8b3a8b','#1a4a8b'];
+  const color  = colors[Math.floor(Math.random() * colors.length)];
+  const newRole = { id, label:name, color, desc: document.getElementById('newRoleDesc').value.trim(), sections:[] };
+  const customs = getCustomRoles();
+  customs.push(newRole);
+  saveCustomRoles(customs);
+  closeAddRoleModal();
+  _activeRoleId = id;
+  renderSettings();
+  showRoleToast(`Роль «${name}» создана`);
+}
+
+/* Тост */
+function showRoleToast(msg) {
+  let t = document.getElementById('roleToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'roleToast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a2433;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = '✓ ' + msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity='0'; }, 2500);
+}
+
+function getStudentsList() {
+  try { return JSON.parse(sessionStorage.getItem('lms_students_list') || '[]'); } catch { return []; }
+}
+function saveStudentsList(arr) {
+  sessionStorage.setItem('lms_students_list', JSON.stringify(arr));
+}
+
+/* ── Рендер раздела Слушатели (новый) ── */
+function renderStudents() {
+  const q   = (document.getElementById('stuSearch').value || '').toLowerCase();
+  const all = getStudentsList();
+  const filtered = all.filter(s =>
+    !q ||
+    (s.fio  || '').toLowerCase().includes(q) ||
+    (s.snils|| '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('stuCount').textContent =
+    all.length ? `Показано ${filtered.length} из ${all.length} слушателей` : '';
+
+  const wrap = document.getElementById('studentsTableWrap');
+  const emptyEl = document.getElementById('stuEmpty');
+
+  if (!filtered.length) {
+    if (wrap.querySelector('table')) wrap.querySelector('table').remove();
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  let tbl = wrap.querySelector('table');
+  if (!tbl) {
+    tbl = document.createElement('table');
+    tbl.className = 'persons-table';
+    tbl.innerHTML = `<thead><tr>
+      <th>ID</th><th>СНИЛС</th><th>ФИО</th><th>Дата рожд.</th>
+      <th>Город</th><th>Должность</th><th>Место работы</th><th>Примечания</th>
+      <th></th>
+    </tr></thead><tbody id="stuTbody"></tbody>`;
+    wrap.appendChild(tbl);
+  }
+
+  document.getElementById('stuTbody').innerHTML = filtered.map((s, i) => `
+    <tr>
+      <td>${s.id || '—'}</td>
+      <td class="td-snils">${s.snils}</td>
+      <td class="td-fio">${s.fio || '<span class="td-stub">не заполнено</span>'}</td>
+      <td class="td-dob">${s.dob || '—'}</td>
+      <td>${s.city || '—'}</td>
+      <td>${s.position || '—'}</td>
+      <td>${s.workplace || '—'}</td>
+      <td>${s.notes || '—'}</td>
+      <td><button onclick="removeStudent(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:15px;padding:2px 6px" title="Удалить">✕</button></td>
+    </tr>`).join('');
+}
+
+function removeStudent(idx) {
+  const list = getStudentsList();
+  const s = list[idx];
+  if (!confirm(`Удалить слушателя ${s.fio || s.snils}?`)) return;
+  list.splice(idx, 1);
+  saveStudentsList(list);
+  renderStudents();
+}
+
+/* ════════════════════════════════════
+   СНИЛС: МАСКА + ВАЛИДАЦИЯ
+════════════════════════════════════ */
+
+/* Маска ввода: формат XXX-XXX-XXX XX */
+function snilsMask(inp) {
+  let v = inp.value.replace(/\D/g,'');
+  if (v.length > 11) v = v.slice(0,11);
+  let out = '';
+  if (v.length > 0) out += v.slice(0,3);
+  if (v.length > 3) out += '-' + v.slice(3,6);
+  if (v.length > 6) out += '-' + v.slice(6,9);
+  if (v.length > 9) out += ' '  + v.slice(9,11);
+  inp.value = out;
+
+  const digits = v.length;
+  const btn    = document.getElementById('snilsSearchBtn');
+  const hint   = document.getElementById('snilsHint');
+  const result = document.getElementById('snilsResult');
+
+  inp.classList.remove('error','ok');
+  result.style.display = 'none';
+
+  if (digits < 11) {
+    hint.textContent = 'Формат: XXX-XXX-XXX XX';
+    hint.className   = 'snils-hint';
+    btn.disabled = true;
+    return;
+  }
+
+  /* Валидация контрольного числа */
+  const valid = validateSnils(v);
+  if (valid) {
+    hint.textContent = '✓ Контрольное число верно';
+    hint.className   = 'snils-hint ok';
+    inp.classList.add('ok');
+    btn.disabled = false;
+  } else {
+    hint.textContent = '✗ Неверное контрольное число СНИЛС';
+    hint.className   = 'snils-hint err';
+    inp.classList.add('error');
+    btn.disabled = true;
+  }
+}
+
+/* Алгоритм проверки СНИЛС по контрольным суммам */
+function validateSnils(digits11) {
+  /* digits11 — строка из 11 цифр без разделителей */
+  const d = digits11.split('').map(Number);
+  /* Первые 9 цифр — номер, последние 2 — контрольное число */
+  const ctrl = d[9] * 10 + d[10];
+  /* Числа 000-000-000 через 001-001-998 не используются — пропускаем */
+  const num = parseInt(digits11.slice(0,9));
+  if (num <= 1001001) return true; /* для тестовых номеров — принимаем */
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += d[i] * (9 - i);
+
+  let check = sum % 101;
+  if (check >= 100) check = 0;
+  return check === ctrl;
+}
+
+/* Нормализация СНИЛС для сравнения */
+function normalizeSnils(s) {
+  return s.replace(/\D/g,'');
+}
+
+/* ── Модал ── */
+let _snilsFoundPerson = null; /* результат поиска для кнопки «Добавить» */
+
+function openSnilsModal() {
+  _snilsFoundPerson = null;
+  const inp = document.getElementById('snilsInput');
+  inp.value = '';
+  inp.className = 'snils-input';
+  document.getElementById('snilsHint').textContent   = 'Формат: XXX-XXX-XXX XX';
+  document.getElementById('snilsHint').className     = 'snils-hint';
+  document.getElementById('snilsResult').style.display = 'none';
+  document.getElementById('snilsSearchBtn').disabled = true;
+  document.getElementById('snilsModal').classList.add('visible');
+  setTimeout(()=>inp.focus(), 100);
+}
+
+function closeSnilsModal() {
+  document.getElementById('snilsModal').classList.remove('visible');
+}
+
+/* Клик по оверлею закрывает */
+document.getElementById('snilsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSnilsModal();
+});
+
+function doSnilsSearch() {
+  const raw     = document.getElementById('snilsInput').value;
+  const digits  = normalizeSnils(raw);
+  const formatted = raw; /* уже в маске */
+
+  /* Ищем в справочнике */
+  const found = PERSONS_DB.find(p => normalizeSnils(p.snils) === digits);
+
+  /* Проверяем — уже есть в слушателях? */
+  const existing = getStudentsList().find(s => normalizeSnils(s.snils) === digits);
+
+  const resEl    = document.getElementById('snilsResult');
+  const titleEl  = document.getElementById('snilsResultTitle');
+  const bodyEl   = document.getElementById('snilsResultBody');
+  const addBtn   = document.getElementById('snilsAddBtn');
+
+  resEl.style.display = 'block';
+
+  if (existing) {
+    resEl.className = 'snils-result notfound';
+    titleEl.textContent = '⚠ Слушатель уже добавлен';
+    bodyEl.innerHTML    = `<b>${existing.fio || existing.snils}</b> уже есть в списке слушателей.`;
+    addBtn.style.display = 'none';
+    _snilsFoundPerson = null;
+    return;
+  }
+
+  if (found) {
+    resEl.className  = 'snils-result found';
+    titleEl.textContent = '✓ Найдено в справочнике физических лиц';
+    bodyEl.innerHTML = `
+      <b>${found.fio}</b><br>
+      Дата рождения: ${found.dob}<br>
+      Должность: ${found.position || '—'}<br>
+      Место работы: ${found.workplace || '—'}`;
+    addBtn.textContent   = 'Добавить в слушатели';
+    addBtn.style.display = 'block';
+    _snilsFoundPerson = {...found};
+  } else {
+    resEl.className  = 'snils-result notfound';
+    titleEl.textContent = '⚠ В справочнике не найдено';
+    bodyEl.innerHTML = `Физическое лицо со СНИЛС <b>${formatted}</b> не найдено.<br>
+      Будет добавлена пустая запись — заполните данные вручную позже.`;
+    addBtn.textContent   = 'Добавить пустую запись';
+    addBtn.style.display = 'block';
+    _snilsFoundPerson = null;
+  }
+}
+
+function addStudentFromModal() {
+  const raw    = document.getElementById('snilsInput').value;
+  const digits = normalizeSnils(raw);
+  const list   = getStudentsList();
+
+  if (_snilsFoundPerson) {
+    list.push({..._snilsFoundPerson});
+  } else {
+    /* Пустая запись с только СНИЛС */
+    list.push({
+      id: null, snils: raw, fio: '', dob: '',
+      city: '', position: '', workplace: '', notes: ''
+    });
+  }
+  saveStudentsList(list);
+  closeSnilsModal();
+  renderStudents();
+}
+
+/* ════════════════════════════════════
+   РАСПИСАНИЕ / РЕЗУЛЬТАТЫ / БИБЛИОТЕКА
+════════════════════════════════════ */
+function renderSchedule() {
+  const months=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const typeMap={ exam:{cls:'badge-red',lbl:'Экзамен'}, practice:{cls:'badge-blue',lbl:'Практика'}, online:{cls:'badge-yellow',lbl:'Онлайн'} };
+  document.getElementById('schedList').innerHTML = SCHEDULE_DATA.map(s => {
+    const [dd,mm]=s.date.split('.');
+    const t=typeMap[s.type]||{cls:'badge-gray',lbl:s.type};
+    return `
+    <div class="sched-item">
+      <div class="sched-date"><div class="sched-day">${dd}</div><div class="sched-month">${months[+mm]}</div></div>
+      <div class="sched-info"><div class="sched-name">${s.name}</div><div class="sched-meta"><span>📍 ${s.place}</span><span>📅 ${s.date}</span></div></div>
+      <span class="badge ${t.cls}">${t.lbl}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderResults() {
+  document.getElementById('resultsGrid').innerHTML = RESULTS_DATA.map(r => {
+    const color = r.pct>=80?'var(--status-green)':r.pct>=60?'var(--status-yellow)':'var(--status-red)';
+    const barBg = r.pct>=80?'#4caf50':r.pct>=60?'#f0c040':'#e8a0a3';
+    return `
+    <div class="result-card">
+      <div class="rc-head"><div class="rc-name">${r.name}</div><div class="rc-pct" style="color:${color}">${r.pct}%</div></div>
+      <div class="rc-bar"><div class="rc-fill" style="width:${r.pct}%;background:${barBg}"></div></div>
+      <div class="rc-meta"><span>${r.course}</span><span>📅 ${r.date}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderLibrary() {
+  document.getElementById('libGrid').innerHTML = LIBRARY_DATA.map(d => `
+    <div class="lib-item">
+      <div class="lib-ico" style="background:${d.bg}">${d.e}</div>
+      <div><div class="lib-name">${d.name}</div><div class="lib-meta">${d.size}</div></div>
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════
+   ПРОГРАММЫ
+════════════════════════════════════ */
+let PROGRAMS = [];          /* массив объектов программ */
+let progSortCol = 'code';
+let progSortDir = 1;        /* 1 = asc, -1 = desc */
+let progActiveDept = '';    /* '' = все подразделения */
+
+/* Ключи Excel → поля объекта (регистронезависимо) */
+const COL_MAP = {
+  'код программы':'code','код':'code',
+  'сокращённо':'short','сокращенно':'short','сокр':'short',
+  'название':'title','наименование':'title',
+  'подразделение':'dept','кафедра':'dept',
+  'цена':'price','стоимость':'price',
+  'категория':'category','кат':'category',
+  'моо':'moo',
+};
+
+function _normKey(k) { return String(k).trim().toLowerCase().replace(/ё/g,'е'); }
+
+/* ── Импорт Excel через SheetJS (CDN) ── */
+function importExcel(input) {
+  const file = input.files[0]; if (!file) return;
+
+  /* Динамически подгружаем SheetJS если ещё нет */
+  function doRead() {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+        if (!rows.length) { alert('Лист пустой или нет данных'); return; }
+
+        /* Определяем маппинг колонок */
+        const sample    = rows[0];
+        const keyMap    = {};  /* нормализованный ключ Excel → поле объекта */
+        Object.keys(sample).forEach(k => {
+          const mapped = COL_MAP[_normKey(k)];
+          if (mapped) keyMap[k] = mapped;
+        });
+
+        PROGRAMS = rows.map((row, i) => {
+          const obj = { _id: i };
+          Object.keys(keyMap).forEach(k => { obj[keyMap[k]] = String(row[k]||'').trim(); });
+          if (!obj.code)  obj.code  = '';
+          if (!obj.short) obj.short = '';
+          if (!obj.title) obj.title = '';
+          if (!obj.dept)  obj.dept  = '';
+          if (!obj.price) obj.price = '';
+          if (!obj.category) obj.category = '';
+          if (!obj.moo)   obj.moo   = '';
+          return obj;
+        }).filter(o => o.code || o.title || o.short);
+
+        /* Сохраняем в sessionStorage */
+        sessionStorage.setItem('lms_programs', JSON.stringify(PROGRAMS));
+        progActiveDept = '';
+        buildProgramFilters();
+        renderPrograms();
+        document.getElementById('progClearBtn').style.display = 'flex';
+      } catch(err) {
+        alert('Ошибка чтения файла: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    input.value = '';
+  }
+
+  if (window.XLSX) { doRead(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = doRead;
+  s.onerror = () => alert('Не удалось загрузить библиотеку для чтения Excel. Проверьте подключение к интернету.');
+  document.head.appendChild(s);
+}
+
+function clearPrograms() {
+  if (!confirm('Удалить все загруженные программы?')) return;
+  PROGRAMS = [];
+  sessionStorage.removeItem('lms_programs');
+  progActiveDept = '';
+  buildProgramFilters();
+  renderPrograms();
+  document.getElementById('progClearBtn').style.display = 'none';
+}
+
+/* ── Построить боковой список подразделений + фильтры МОО/Категория ── */
+function buildProgramFilters() {
+  /* Подразделения */
+  const depts = [...new Set(PROGRAMS.map(p=>p.dept).filter(Boolean))].sort();
+  const deptList = document.getElementById('progDeptList');
+  const allCount = PROGRAMS.length;
+
+  deptList.innerHTML =
+    `<div class="prog-dept-item${progActiveDept===''?' active':''}" onclick="setProgDept('')">
+       <span>Все</span><span class="dept-cnt">${allCount}</span>
+     </div>` +
+    depts.map(d => {
+      const cnt = PROGRAMS.filter(p=>p.dept===d).length;
+      return `<div class="prog-dept-item${progActiveDept===d?' active':''}" onclick="setProgDept('${CSS.escape(d)}')">
+        <span>${d}</span><span class="dept-cnt">${cnt}</span>
+      </div>`;
+    }).join('');
+
+  /* МОО */
+  const moos = [...new Set(PROGRAMS.map(p=>p.moo).filter(Boolean))].sort();
+  const mooSel = document.getElementById('progFilterMoo');
+  const curMoo = mooSel.value;
+  mooSel.innerHTML = '<option value="">МОО: все</option>' +
+    moos.map(m=>`<option value="${m}"${m===curMoo?' selected':''}>${m}</option>`).join('');
+
+  /* Категория */
+  const cats = [...new Set(PROGRAMS.map(p=>p.category).filter(Boolean))].sort();
+  const catSel = document.getElementById('progFilterCat');
+  const curCat = catSel.value;
+  catSel.innerHTML = '<option value="">Категория: все</option>' +
+    cats.map(c=>`<option value="${c}"${c===curCat?' selected':''}>${c}</option>`).join('');
+}
+
+function setProgDept(dept) {
+  /* CSS.escape may wrap with quotes for some chars — strip them */
+  progActiveDept = dept.replace(/^\\?"|\\?"$/g,'');
+  buildProgramFilters();
+  renderPrograms();
+}
+
+/* ── Сортировка ── */
+function sortPrograms(col) {
+  if (progSortCol === col) progSortDir *= -1;
+  else { progSortCol = col; progSortDir = 1; }
+  renderPrograms();
+}
+
+/* ── Рендер таблицы ── */
+function renderPrograms() {
+  const q       = (document.getElementById('progSearch').value||'').toLowerCase();
+  const mooF    = document.getElementById('progFilterMoo').value;
+  const catF    = document.getElementById('progFilterCat').value;
+
+  let list = PROGRAMS.filter(p => {
+    if (progActiveDept && p.dept !== progActiveDept) return false;
+    if (mooF && p.moo !== mooF) return false;
+    if (catF && p.category !== catF) return false;
+    if (q && !p.short.toLowerCase().includes(q) && !p.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  /* Сортировка */
+  list = [...list].sort((a,b) => {
+    let av = a[progSortCol]||'', bv = b[progSortCol]||'';
+    if (progSortCol === 'price') { av = parseFloat(av)||0; bv = parseFloat(bv)||0; return (av-bv)*progSortDir; }
+    return av.localeCompare(bv, 'ru') * progSortDir;
+  });
+
+  /* Иконки сортировки */
+  document.querySelectorAll('.prog-table th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.col === progSortCol) th.classList.add(progSortDir===1?'sort-asc':'sort-desc');
+  });
+
+  const tbody = document.getElementById('progTbody');
+  const empty = document.getElementById('progEmpty');
+  const table = document.getElementById('progTable');
+
+  document.getElementById('progCount').textContent =
+    PROGRAMS.length ? `Показано ${list.length} из ${PROGRAMS.length} программ` : 'Нет загруженных программ';
+
+  if (!list.length) {
+    tbody.innerHTML=''; table.style.display='none'; empty.style.display='block'; return;
+  }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = list.map(p => {
+    const priceNum = parseFloat(p.price);
+    const priceStr = p.price
+      ? (isNaN(priceNum) ? p.price : priceNum.toLocaleString('ru-RU',{minimumFractionDigits:0})+'&nbsp;₽')
+      : '—';
+    return `<tr>
+      <td class="prog-code">${p.code||'—'}</td>
+      <td>${p.short ? `<span class="prog-short-badge">${p.short}</span>` : '—'}</td>
+      <td class="prog-title-cell">
+        <div class="prog-title-text">${p.title||'—'}</div>
+      </td>
+      <td><span style="font-size:13px;color:var(--text-secondary)">${p.dept||'—'}</span></td>
+      <td class="prog-price">${priceStr}</td>
+      <td>${p.category ? `<span class="badge badge-blue">${p.category}</span>` : '—'}</td>
+      <td>${p.moo ? `<span class="badge badge-gray">${p.moo}</span>` : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Инициализация раздела Программы ── */
+function initPrograms() {
+  /* Восстановить данные из sessionStorage */
+  try {
+    const saved = sessionStorage.getItem('lms_programs');
+    if (saved) {
+      PROGRAMS = JSON.parse(saved);
+      document.getElementById('progClearBtn').style.display = 'flex';
+    }
+  } catch {}
+  buildProgramFilters();
+  renderPrograms();
+}
+
+/* ── Init ── */
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+if (ME.role === 'admin') {
+  showSection('students');
+} else if (ME.role === 'superadmin') {
+  showSection('persons');
+} else if (ME.role === 'teacher') {
+  showSection('disciplines');
+} else {
+  renderBooks();
+}
+
+renderSchedule();
+renderResults();
+renderLibrary();
+
+const hash=location.hash.replace('#','');
+if (['schedule','results','library','disciplines','students','programs','persons','roles','settings'].includes(hash)) showSection(hash);
+</script>
+</body>
+</html>

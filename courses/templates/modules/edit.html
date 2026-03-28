@@ -1,0 +1,565 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}{{ module.title }} — Конструктор{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/els-learn.css' %}">
+<style>
+/* ═══ EDITOR OVERRIDES ═══ */
+
+/* Banner editable title — white style */
+.banner-title-input {
+  font-size:22px; font-weight:900; line-height:1.3; color:var(--text-primary);
+  background:transparent; border:1.5px solid transparent; border-radius:4px;
+  padding:2px 8px; width:100%; max-width:600px;
+  font-family:inherit; outline:none;
+}
+.banner-title-input:hover { border-color:var(--border); }
+.banner-title-input:focus { border-color:var(--accent); background:#fff; }
+.banner-title-input::placeholder { color:var(--text-muted); }
+
+/* Editable step title */
+.step-title-input {
+  font-size:15px; font-weight:700; width:100%; border:1.5px solid transparent;
+  border-radius:4px; padding:4px 8px; background:transparent;
+  font-family:inherit; outline:none; color:var(--text-primary);
+}
+.step-title-input:hover { border-color:var(--border); }
+.step-title-input:focus { border-color:var(--accent); background:#fff; }
+
+/* Editable fields in step cards */
+.edit-field { margin-top:6px; }
+.edit-field label { display:block; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; letter-spacing:.03em; }
+.edit-input, .edit-textarea {
+  width:100%; padding:6px 10px; border:1.5px solid var(--border); border-radius:4px;
+  font-size:13px; font-family:inherit; outline:none; color:var(--text-primary);
+  background:var(--answer-bg, #f8fafd); transition:border-color .12s;
+}
+.edit-input:focus, .edit-textarea:focus { border-color:var(--accent); background:#fff; }
+.edit-textarea { resize:vertical; min-height:44px; }
+.edit-hint { font-size:11px; color:var(--text-muted); margin-top:3px; font-style:italic; }
+
+/* Step card action buttons */
+.step-actions-edit { display:flex; align-items:center; gap:4px; }
+.step-btn-sm {
+  width:26px; height:26px; border:1px solid var(--border); border-radius:4px;
+  background:var(--white, #fff); color:var(--text-muted); font-size:12px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .12s;
+}
+.step-btn-sm:hover { background:var(--accent-light); color:var(--accent); border-color:var(--accent-mid); }
+.step-btn-sm.danger:hover { background:var(--status-red-bg); color:var(--status-red); border-color:#e8a0a3; }
+
+/* Inline settings row */
+.settings-row { display:flex; gap:12px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+.settings-row label { font-size:11px; font-weight:600; color:var(--text-muted); white-space:nowrap; }
+.settings-row input[type=number] { width:70px; padding:4px 6px; border:1px solid var(--border); border-radius:4px; font-size:12px; outline:none; }
+.settings-row input[type=number]:focus { border-color:var(--accent); }
+
+/* Add step zone */
+.add-step-zone {
+  border:2px dashed var(--border); border-radius:var(--radius, 8px); padding:20px; text-align:center;
+  margin-top:16px; transition:border-color .15s;
+}
+.add-step-zone:hover { border-color:var(--accent-mid); }
+.add-step-zone-title { font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:12px; }
+.add-step-buttons { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.add-type-btn {
+  display:inline-flex; align-items:center; gap:5px; padding:7px 14px; border-radius:20px;
+  font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid; transition:all .15s;
+  text-transform:uppercase; letter-spacing:.03em;
+}
+.add-type-btn:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.1); }
+.add-type-btn.online    { background:var(--accent-light); color:var(--accent); border-color:var(--accent-mid); }
+.add-type-btn.practice  { background:#fff4ce; color:#7a5000; border-color:#e6c96d; }
+.add-type-btn.upload    { background:#ede8f8; color:#5c3fb0; border-color:#c4b3f0; }
+.add-type-btn.test      { background:var(--status-yellow-bg); color:var(--status-yellow); border-color:#f0c040; }
+.add-type-btn.final     { background:var(--status-red-bg); color:var(--status-red); border-color:#e8a0a3; }
+
+/* Toast */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--status-green); color:#fff; padding:10px 20px; border-radius:6px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transition:opacity .3s; pointer-events:none; }
+.toast.show { opacity:1; }
+
+/* Quiz modal */
+.quiz-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; overflow-y:auto; padding:20px; }
+.quiz-overlay.show { display:block; }
+.quiz-box { background:#fff; border-radius:var(--radius, 8px); max-width:900px; margin:0 auto; padding:24px; }
+
+/* Question cards in editor — styled like quest.html */
+.eq-card { background:var(--card-bg, #fff); border:1px solid var(--border); border-radius:var(--radius, 8px); box-shadow:var(--shadow-card); overflow:hidden; margin-bottom:12px; position:relative; }
+.eq-header { padding:14px 16px 0; }
+.eq-meta { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+.eq-num { font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-light); padding:2px 8px; border-radius:10px; }
+.eq-type-sel { padding:2px 6px; border:1px solid var(--border); border-radius:10px; font-size:11px; background:var(--sidebar-bg); outline:none; }
+.eq-points { margin-left:auto; display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-muted); }
+.eq-points input { width:45px; padding:2px 4px; border:1px solid var(--border); border-radius:4px; font-size:11px; text-align:center; }
+.eq-remove { position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:18px; }
+.eq-remove:hover { color:var(--status-red); }
+.eq-body { padding:0 16px 14px; }
+.eq-text-area { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:4px; font-size:14px; font-family:inherit; min-height:50px; resize:vertical; outline:none; }
+.eq-text-area:focus { border-color:var(--accent); }
+.eq-answers { margin-top:10px; }
+.eq-answers-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:6px; }
+.eq-ans-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.eq-ans-row input[type=text] { flex:1; padding:7px 10px; border:1.5px solid var(--border); border-radius:4px; font-size:13px; outline:none; }
+.eq-ans-row input[type=text]:focus { border-color:var(--accent); }
+.eq-ans-row input[type=radio], .eq-ans-row input[type=checkbox] { flex-shrink:0; width:16px; height:16px; accent-color:var(--accent); }
+.eq-ans-remove { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:15px; }
+.eq-ans-remove:hover { color:var(--status-red); }
+.eq-add-ans { font-size:12px; color:var(--accent); background:none; border:none; cursor:pointer; font-weight:600; margin-top:4px; }
+.eq-explain { margin-top:8px; }
+.eq-explain textarea { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:4px; font-size:12px; min-height:32px; resize:vertical; outline:none; font-family:inherit; }
+
+.quiz-top-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
+.quiz-top-bar h2 { font-size:18px; font-weight:900; margin:0; }
+.quiz-actions { display:flex; gap:8px; align-items:center; }
+.quiz-actions button, .quiz-actions label { padding:8px 16px; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:4px; }
+
+/* Dirty indicator */
+.dirty-dot { display:none; width:8px; height:8px; border-radius:50%; background:var(--status-red); }
+.dirty .dirty-dot { display:inline-block; }
+
+/* Description edit */
+.desc-textarea {
+  width:100%; padding:8px 10px; border:1.5px solid transparent; border-radius:4px;
+  font-size:13px; font-family:inherit; color:var(--text-secondary); line-height:1.5;
+  background:transparent; outline:none; resize:vertical; min-height:36px;
+}
+.desc-textarea:hover { border-color:var(--border); }
+.desc-textarea:focus { border-color:var(--accent); background:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:800px; margin:0 auto; padding:20px 20px 0;">
+
+  <!-- Ссылка назад -->
+  <a href="{% url 'module_list' %}" style="color:var(--accent); font-size:13px; display:inline-flex; align-items:center; gap:5px; margin-bottom:16px; text-decoration:none;">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+      <path d="M10 3L5 8l5 5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Назад к модулям
+  </a>
+
+  <!-- Карточка модуля — идентична preview -->
+  <div style="background:var(--card-bg,#fff); border:1px solid var(--border,#e0eaf5); border-radius:8px; box-shadow:0 2px 12px rgba(15,98,174,0.08); padding:20px; margin-bottom:20px;">
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px; align-items:center;">
+      <span class="dirty-dot" id="dirtyDot" title="Есть несохранённые изменения"></span>
+      <span id="statsLine" style="font-size:12px; color:var(--text-muted); margin-right:auto;">0 этапов</span>
+      <button onclick="saveAll()" style="padding:8px 20px; font-size:13px; font-weight:700; background:var(--accent); color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(15,98,174,0.3);">Сохранить</button>
+      <button onclick="openPreview()" style="padding:8px 20px; font-size:13px; font-weight:700; background:var(--status-green); color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(16,124,16,0.3);">Проверить</button>
+    </div>
+
+    <input type="text" id="moduleTitle" value="{{ module.title }}"
+      style="font-size:22px; font-weight:900; color:var(--text-primary); width:100%;
+      border:1.5px solid transparent; border-radius:6px; padding:4px 8px; background:transparent;
+      font-family:inherit; outline:none; transition:all .15s;"
+      onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'"
+      onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+      oninput="markDirty()"
+      placeholder="Название модуля">
+
+    <div style="font-size:14px; color:var(--accent); font-weight:600; margin:6px 0 8px; padding-left:8px;">{{ module.program.title }}</div>
+
+    <textarea id="moduleDesc" placeholder="Описание модуля..."
+      style="font-size:14px; color:var(--text-secondary); width:100%;
+      border:1.5px solid transparent; border-radius:6px; padding:4px 8px; background:transparent;
+      font-family:inherit; outline:none; resize:vertical; min-height:40px; line-height:1.6; transition:all .15s;"
+      onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'"
+      onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+      oninput="markDirty()">{{ module.description }}</textarea>
+  </div>
+</div>
+
+<div style="max-width:800px; margin:0 auto; padding:0 20px 40px;">
+  <div class="steps-section">
+    <div class="steps-heading" id="stepsHeading">Этапы модуля</div>
+    <div id="stepsContainer"><div style="text-align:center;color:var(--text-muted);padding:30px;font-size:13px;">Загрузка...</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- QUIZ EDITOR OVERLAY -->
+<div class="quiz-overlay" id="quizOverlay" onclick="if(event.target===this)closeQuiz()">
+  <div class="quiz-box">
+    <div class="quiz-top-bar">
+      <h2 id="quizTitle">Редактирование теста</h2>
+      <div class="quiz-actions">
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+        <label onclick="document.getElementById('excelFileInput').click()" style="background:var(--status-green);color:#fff;">📥 Импорт Excel</label>
+        <a href="#" id="quizPreviewLink" target="_blank" style="background:var(--accent);color:#fff;display:none;text-decoration:none;">👁 Предпросмотр</a>
+        <button onclick="closeQuiz()" style="background:#f0f0f0;color:var(--text-secondary);">Отмена</button>
+        <button onclick="saveQuiz()" style="background:var(--accent);color:#fff;">Сохранить тест</button>
+      </div>
+    </div>
+    <div id="quizQuestions"></div>
+    <div style="margin-top:12px;">
+      <button onclick="addQuestion()" style="padding:10px 20px;background:var(--accent-light);color:var(--accent);border:1.5px solid var(--accent-mid);border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">+ Добавить вопрос</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MODULE_PK = {{ module.pk }};
+const CSRF = '{{ csrf_token }}';
+const ICO = {
+  online:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg>',
+  practice:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="6" r="3"/><path d="M3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" stroke-linecap="round"/></svg>',
+  upload:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 10V2M5 5l3-3 3 3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke-linecap="round"/></svg>',
+  test:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const TYPE_MAP = {material:'online',practice:'practice',upload:'upload',quiz:'test',final_exam:'test',slide:'slide'};
+const TYPE_LABELS = {material:'Онлайн',practice:'Практика',upload:'Загрузка',quiz:'Тест',final_exam:'Аттестация',slide:'Слайд'};
+
+let steps=[], dirty=false;
+let currentQuizStepIdx=null, quizQuestions=[], quizStepId=null;
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function markDirty(){dirty=true;document.getElementById('dirtyDot').style.display='inline-block';}
+function clearDirty(){dirty=false;document.getElementById('dirtyDot').style.display='none';}
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+
+/* ═══ LOAD ═══ */
+async function loadSteps(){
+  const r=await fetch(`/api/modules/${MODULE_PK}/steps/`);
+  const d=await r.json();
+  steps=d.steps;
+  renderSteps();
+}
+
+/* ═══ RENDER ═══ */
+function renderSteps(){
+  const c=document.getElementById('stepsContainer');
+  const normals=steps.filter(s=>s.type==='material');
+  const practices=steps.filter(s=>s.type==='practice'||s.type==='upload');
+  const tests=steps.filter(s=>s.type==='quiz'||s.type==='final_exam');
+  const totalQ=steps.reduce((n,s)=>n+(s.questions_count||0),0);
+
+  document.getElementById('statsLine').textContent=`${steps.length} этапов · ${totalQ} вопросов в тестах`;
+
+  if(!steps.length){
+    c.innerHTML=`<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:13px;">Нет этапов. Добавьте первый этап ниже.</div>`;
+  } else {
+    let html='';
+    let prevGroup='';
+    steps.forEach((s,i)=>{
+      const grp=(s.type==='practice'||s.type==='upload')?'practice':(s.type==='quiz'||s.type==='final_exam')?'test':'normal';
+      if(grp==='practice'&&prevGroup!=='practice'){
+        html+=`<div class="practice-divider"><div class="practice-divider-line"></div><div class="practice-divider-label">📋 Практические занятия и задания</div><div class="practice-divider-line"></div></div>`;
+      }
+      if(grp==='test'&&prevGroup!=='test'){
+        html+=`<div class="practice-divider"><div class="practice-divider-line"></div><div class="practice-divider-label">🎓 Аттестация</div><div class="practice-divider-line"></div></div>`;
+      }
+      prevGroup=grp;
+      html+=buildCard(s,i);
+    });
+    c.innerHTML=html;
+  }
+
+  // Add step zone
+  c.innerHTML+=`
+  <div class="add-step-zone">
+    <div class="add-step-zone-title">Добавить этап</div>
+    <div class="add-step-buttons">
+      <button class="add-type-btn online" onclick="addStep('material')">${ICO.online} Материал</button>
+      <button class="add-type-btn practice" onclick="addStep('practice')">${ICO.practice} Практика</button>
+      <button class="add-type-btn upload" onclick="addStep('upload')">${ICO.upload} Загрузка</button>
+      <button class="add-type-btn test" onclick="addStep('quiz')">${ICO.test} Тест</button>
+      <button class="add-type-btn final" onclick="addStep('final_exam')">${ICO.test} Аттестация</button>
+      <button class="add-type-btn" style="background:#112240;color:#e8a838;border-color:#1a3a5c;" onclick="addStep('slide')">📑 Слайд</button>
+    </div>
+  </div>`;
+}
+
+function buildCard(s,i){
+  const badge=TYPE_MAP[s.type]||'online';
+  let fields='';
+
+  if(s.type==='material'){
+    fields=`<div class="edit-field"><label>URL материала</label>
+      <div style="display:flex;gap:6px;"><input class="edit-input" value="${esc(s.url||'')}" onchange="steps[${i}].url=this.value;markDirty()" placeholder="https://...">${s.url?`<button class="step-btn-sm" onclick="window.open('${esc(s.url)}','_blank')" title="Открыть">↗</button>`:''}</div></div>`;
+  } else if(s.type==='practice'){
+    fields=`<div class="edit-field"><label>Описание задания</label><textarea class="edit-textarea" onchange="steps[${i}].description=this.value;markDirty()" placeholder="Описание задания...">${esc(s.description||'')}</textarea><div class="edit-hint">Преподаватель проставляет зачёт</div></div>`;
+  } else if(s.type==='upload'){
+    fields=`<div class="edit-field"><label>Что нужно загрузить</label><textarea class="edit-textarea" onchange="steps[${i}].description=this.value;markDirty()" placeholder="Что нужно загрузить...">${esc(s.description||'')}</textarea><div class="edit-hint">Слушатель загружает файл, преподаватель оценивает</div></div>`;
+  } else if(s.type==='quiz'){
+    fields=`<div class="step-bottom-row" style="margin-top:8px;">
+      <div class="step-subtitle" style="font-size:12px;">Вопросов: <strong>${s.questions_count||0}</strong></div>
+      <div class="step-actions" style="display:flex;gap:6px;">
+        <button class="btn-step open" style="font-size:12px;padding:6px 14px;" onclick="openQuiz(${i})">${ICO.test} Редактировать тест</button>
+      </div>
+    </div>
+    <div class="settings-row"><label>Время (мин):</label><input type="number" value="${s.time_limit_minutes||''}" onchange="steps[${i}].time_limit_minutes=+this.value||null;markDirty()"><label>Проходной (%):</label><input type="number" value="${s.pass_score||''}" onchange="steps[${i}].pass_score=+this.value||null;markDirty()"></div>`;
+  } else if(s.type==='final_exam'){
+    fields=renderExamConfig(s,i);
+  } else if(s.type==='slide'){
+    const slideInfo = getSlideInfo(s.slide_content);
+    fields=`<div class="edit-field">
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+        <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#112240;color:#e8a838;border:1.5px solid #1a3a5c;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#1a3a5c'" onmouseout="this.style.background='#112240'">
+          📥 Импорт из HTML файла
+          <input type="file" accept=".html" style="display:none" onchange="parseSlideHtml(this,${i})">
+        </label>
+        <button class="step-btn-sm" onclick="insertSlideJsonTemplate(${i})" title="Вставить шаблон JSON" style="width:auto;padding:4px 10px;font-size:11px;">📋 Шаблон</button>
+        ${s.id?`<button class="step-btn-sm" onclick="window.open('/modules/step/${s.id}/slides/','_blank')" title="Предпросмотр слайдов" style="width:auto;padding:4px 10px;font-size:11px;">👁 Превью</button>`:''}
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
+        Слайдов: <strong>${slideInfo.slides}</strong> · Вопросов: <strong>${slideInfo.quizzes}</strong>
+      </div>
+      <details style="margin-top:4px;">
+        <summary style="font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none;">Показать JSON</summary>
+        <textarea class="edit-textarea" data-slide-json="${i}" id="slideContent${i}" style="font-family:'JetBrains Mono',monospace;font-size:11px;height:150px;background:#0a1628;color:#e2e8f0;border:1px solid #1a3a5c;border-radius:8px;padding:12px;margin-top:4px;" onchange="steps[${i}].slide_content=this.value;markDirty()" placeholder='JSON массив слайдов...'>${esc(s.slide_content||'')}</textarea>
+      </details>
+    </div>`;
+  }
+
+  return `<div class="step-card" style="position:relative;">
+    <div class="step-card-inner">
+      <div class="step-top-row">
+        <div class="step-type-badge ${badge}">${ICO[badge]||''} ${TYPE_LABELS[s.type]||s.type}</div>
+        <div class="step-author-num" style="display:flex;align-items:center;gap:4px;">
+          <span class="step-num">Шаг ${i+1}</span>
+          <div class="step-actions-edit">
+            ${i>0?`<button class="step-btn-sm" onclick="moveStep(${i},-1)" title="Вверх">▲</button>`:''}
+            ${i<steps.length-1?`<button class="step-btn-sm" onclick="moveStep(${i},1)" title="Вниз">▼</button>`:''}
+            <button class="step-btn-sm danger" onclick="removeStep(${i})" title="Удалить">✕</button>
+          </div>
+        </div>
+      </div>
+      <input class="step-title-input" value="${esc(s.title)}" onchange="steps[${i}].title=this.value;markDirty()" placeholder="Название этапа">
+      ${fields}
+    </div>
+  </div>`;
+}
+
+function renderExamConfig(s,i){
+  const quizSteps=steps.filter(x=>x.type==='quiz'&&x.id);
+  if(!quizSteps.length) return `<div class="edit-field"><div class="edit-hint">Сначала создайте и сохраните тест-этапы</div></div>`;
+  const cfg=s.exam_config||{};
+  let html=`<div class="edit-field"><label>Сколько вопросов из каждого теста</label>`;
+  quizSteps.forEach(qs=>{
+    const key=String(qs.id), val=cfg[key]||'';
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;">
+      <span style="flex:1;color:var(--text-secondary);">${esc(qs.title)} (${qs.questions_count||0} вопр.)</span>
+      <input type="number" value="${val}" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:3px;font-size:12px;" onchange="if(!steps[${i}].exam_config)steps[${i}].exam_config={};steps[${i}].exam_config['${key}']=+this.value||0;markDirty()">
+    </div>`;
+  });
+  html+=`</div><div class="settings-row"><label>Время (мин):</label><input type="number" value="${s.time_limit_minutes||''}" onchange="steps[${i}].time_limit_minutes=+this.value||null;markDirty()"><label>Проходной (%):</label><input type="number" value="${s.pass_score||''}" onchange="steps[${i}].pass_score=+this.value||null;markDirty()"></div>`;
+  return html;
+}
+
+function addStep(type){
+  steps.push({id:null,order:steps.length,type,title:'',description:'',url:'',slide_content:'',time_limit_minutes:null,pass_score:null,exam_config:null,questions_count:0,is_active:true});
+  markDirty(); renderSteps();
+}
+function removeStep(i){if(confirm('Удалить этап?')){steps.splice(i,1);markDirty();renderSteps();}}
+function moveStep(i,dir){
+  const j=i+dir;if(j<0||j>=steps.length)return;
+  [steps[i],steps[j]]=[steps[j],steps[i]];
+  markDirty();renderSteps();
+}
+
+/* ═══ SAVE ═══ */
+async function saveAll(){
+  const body={
+    module_title:document.getElementById('moduleTitle').value,
+    module_description:document.getElementById('moduleDesc').value,
+    steps:steps.map((s,i)=>({id:s.id,order:i,type:s.type,title:s.title,description:s.description||'',url:s.url||'',slide_content:s.slide_content||'',time_limit_minutes:s.time_limit_minutes,pass_score:s.pass_score,exam_config:s.exam_config,is_active:s.is_active}))
+  };
+  const r=await fetch(`/api/modules/${MODULE_PK}/steps/save/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.ok){toast('Сохранено');clearDirty();loadSteps();}else toast('Ошибка: '+(d.error||''));
+}
+
+/* ═══ QUIZ EDITOR ═══ */
+async function openQuiz(stepIdx){
+  currentQuizStepIdx=stepIdx;
+  const s=steps[stepIdx];
+  quizStepId=s.id;
+  document.getElementById('quizTitle').textContent='Тест: '+(s.title||'Новый тест');
+  if(quizStepId){
+    const r=await fetch(`/api/steps/${quizStepId}/questions/`);
+    const d=await r.json();
+    quizQuestions=d.questions;
+  } else { quizQuestions=[]; }
+  const pl=document.getElementById('quizPreviewLink');
+  if(quizStepId){pl.href=`/modules/step/${quizStepId}/quiz/preview/`;pl.style.display='inline-flex';}else{pl.style.display='none';}
+  renderQuizQuestions();
+  document.getElementById('quizOverlay').classList.add('show');
+}
+function closeQuiz(){document.getElementById('quizOverlay').classList.remove('show');}
+
+function renderQuizQuestions(){
+  const c=document.getElementById('quizQuestions');
+  if(!quizQuestions.length){c.innerHTML=`<div style="text-align:center;color:var(--text-muted);padding:20px;">Нет вопросов.</div>`;return;}
+  c.innerHTML=quizQuestions.map((q,i)=>{
+    const isMatch=q.type==='match';
+    const isSingle=q.type==='single';
+    let answersHtml='';
+    if(!isMatch){
+      answersHtml=(q.answers||[]).map((a,ai)=>{
+        const checked=(q.correct||[]).includes(ai)?'checked':'';
+        const inputType=isSingle?'radio':'checkbox';
+        const nameAttr=isSingle?`name="q${i}_c"`:'';
+        return `<div class="eq-ans-row"><input type="${inputType}" ${nameAttr} ${checked} onchange="updateCorrect(${i},${ai},this)"><input type="text" value="${esc(a)}" onchange="quizQuestions[${i}].answers[${ai}]=this.value"><button class="eq-ans-remove" onclick="removeAnswer(${i},${ai})">✕</button></div>`;
+      }).join('');
+      answersHtml+=`<button class="eq-add-ans" onclick="addAnswer(${i})">+ Добавить вариант</button>`;
+    } else {
+      answersHtml=`<div class="edit-field"><label>Термины (по одному на строку)</label><textarea class="edit-textarea" onchange="quizQuestions[${i}].terms=this.value.split('\\n').filter(Boolean)">${(q.terms||[]).join('\n')}</textarea></div>`;
+      answersHtml+=`<div class="edit-field"><label>Определения (по одному на строку)</label><textarea class="edit-textarea" onchange="quizQuestions[${i}].answers=this.value.split('\\n').filter(Boolean)">${(q.answers||[]).join('\n')}</textarea></div>`;
+    }
+    return `<div class="eq-card">
+      <button class="eq-remove" onclick="removeQuestion(${i})">✕</button>
+      <div class="eq-header"><div class="eq-meta">
+        <span class="eq-num">Вопрос ${i+1}</span>
+        <select class="eq-type-sel" onchange="quizQuestions[${i}].type=this.value;renderQuizQuestions()">
+          <option value="single" ${q.type==='single'?'selected':''}>Один ответ</option>
+          <option value="multi" ${q.type==='multi'?'selected':''}>Несколько</option>
+          <option value="order" ${q.type==='order'?'selected':''}>Последовательность</option>
+          <option value="match" ${q.type==='match'?'selected':''}>Сопоставление</option>
+        </select>
+        <div class="eq-points"><span>Баллов:</span><input type="number" value="${q.points||1}" onchange="quizQuestions[${i}].points=+this.value||1"></div>
+      </div></div>
+      <div class="eq-body">
+        <textarea class="eq-text-area" onchange="quizQuestions[${i}].text=this.value" placeholder="Текст вопроса...">${esc(q.text||'')}</textarea>
+        <div class="eq-answers"><div class="eq-answers-label">Варианты ответов</div>${answersHtml}</div>
+        <div class="eq-explain"><label style="font-size:11px;font-weight:600;color:var(--text-muted);">Пояснение</label><textarea onchange="quizQuestions[${i}].explanation=this.value" placeholder="Пояснение к ответу...">${esc(q.explanation||'')}</textarea></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addQuestion(){quizQuestions.push({id:null,order:quizQuestions.length,type:'single',text:'',points:1,image_url:'',explanation:'',answers:['',''],correct:[0],terms:null});renderQuizQuestions();}
+function removeQuestion(i){quizQuestions.splice(i,1);renderQuizQuestions();}
+function addAnswer(qi){quizQuestions[qi].answers.push('');renderQuizQuestions();}
+function removeAnswer(qi,ai){quizQuestions[qi].answers.splice(ai,1);quizQuestions[qi].correct=quizQuestions[qi].correct.filter(c=>c!==ai).map(c=>c>ai?c-1:c);renderQuizQuestions();}
+function updateCorrect(qi,ai,el){const q=quizQuestions[qi];if(q.type==='single'){q.correct=[ai];}else{if(el.checked){if(!q.correct.includes(ai))q.correct.push(ai);}else{q.correct=q.correct.filter(c=>c!==ai);}}}
+
+async function saveQuiz(){
+  if(!quizStepId){toast('Сначала сохраните модуль');closeQuiz();return;}
+  const body={questions:quizQuestions.map((q,i)=>({id:q.id,order:i,type:q.type,text:q.text,points:q.points,image_url:q.image_url||'',explanation:q.explanation||'',answers:q.answers||[],correct:q.correct||[],terms:q.terms}))};
+  const r=await fetch(`/api/steps/${quizStepId}/questions/save/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.ok){toast(`Сохранено (${d.count} вопросов)`);steps[currentQuizStepIdx].questions_count=d.count;closeQuiz();renderSteps();}
+  else toast('Ошибка: '+(d.error||''));
+}
+
+async function importExcel(input){
+  if(!input.files.length)return;
+  if(!quizStepId){toast('Сначала сохраните модуль');input.value='';return;}
+  const fd=new FormData();fd.append('file',input.files[0]);
+  const r=await fetch(`/api/steps/${quizStepId}/questions/import/`,{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd});
+  const d=await r.json();input.value='';
+  if(d.ok){toast(`Импортировано ${d.imported} вопросов`);const r2=await fetch(`/api/steps/${quizStepId}/questions/`);const d2=await r2.json();quizQuestions=d2.questions;renderQuizQuestions();}
+  else toast('Ошибка: '+(d.error||''));
+}
+
+/* ═══ SLIDE HELPERS ═══ */
+const SLIDE_JSON_TEMPLATE = JSON.stringify([
+  {
+    title: "Слайд 1",
+    content: '<div class="slide-tag">Тема · раздел</div>\n<h1 class="slide-heading">Заголовок <span class="accent">слайда</span></h1>\n<p class="slide-text">Описательный текст слайда. Поддерживается <strong>жирный</strong> текст.</p>\n<div class="card-grid">\n  <div class="card"><div class="card-icon">📋</div><h3>Карточка</h3><p>Описание</p></div>\n  <div class="card"><div class="card-icon">🛡️</div><h3>Карточка 2</h3><p>Описание</p></div>\n</div>',
+    quiz: {question: "Пример вопроса?", options: ["Вариант А", "Вариант Б", "Вариант В"], correct: 0, feedback: "Правильный ответ!"}
+  }
+], null, 2);
+
+function getSlideInfo(content) {
+  try {
+    const arr = JSON.parse(content || '[]');
+    return {slides: arr.length, quizzes: arr.filter(s=>s.quiz).length};
+  } catch(e) { return {slides: 0, quizzes: 0}; }
+}
+
+function insertSlideJsonTemplate(i){
+  const ta=document.getElementById('slideContent'+i);
+  if(ta&&(!ta.value||confirm('Заменить текущий контент шаблоном?'))){
+    ta.value=SLIDE_JSON_TEMPLATE; steps[i].slide_content=SLIDE_JSON_TEMPLATE; markDirty(); renderSteps();
+  }
+}
+
+function parseSlideHtml(input, stepIdx){
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const html = e.target.result;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 1. Извлекаем quizzes из script
+      let quizzes = [];
+      const scripts = doc.querySelectorAll('script');
+      for (const script of scripts) {
+        const text = script.textContent;
+        const startMarker = 'const quizzes = [';
+        const startIdx = text.indexOf(startMarker);
+        if (startIdx === -1) continue;
+        let bracketCount = 0;
+        const arrStart = startIdx + startMarker.length - 1;
+        let arrEnd = -1;
+        for (let k = arrStart; k < text.length; k++) {
+          if (text[k] === '[') bracketCount++;
+          if (text[k] === ']') { bracketCount--; if (bracketCount === 0) { arrEnd = k + 1; break; } }
+        }
+        if (arrEnd > arrStart) {
+          const arrStr = text.substring(arrStart, arrEnd);
+          try { quizzes = (new Function('return ' + arrStr))(); } catch(e2) { console.error('Quiz parse error', e2); }
+        }
+        break;
+      }
+
+      // 2. Извлекаем слайды
+      const slideEls = doc.querySelectorAll('.slide[data-index]');
+      const slidesData = [];
+      let quizIdx = 0;
+      slideEls.forEach(function(slideEl) {
+        const inner = slideEl.querySelector('.slide-inner');
+        if (!inner) return;
+        // Пропускаем финальный слайд
+        if (inner.querySelector('.completion-circle') || inner.querySelector('.completion-text')) return;
+        // Клонируем и убираем кнопку
+        const clone = inner.cloneNode(true);
+        const btn = clone.querySelector('.confirm-btn');
+        const hasQuizBtn = btn && btn.getAttribute('onclick') && btn.getAttribute('onclick').indexOf('showQuiz') !== -1;
+        if (btn) btn.remove();
+        const idx = slidesData.length;
+        slidesData.push({
+          title: 'Слайд ' + (idx + 1),
+          content: clone.innerHTML.trim(),
+          quiz: hasQuizBtn && quizzes[quizIdx] ? quizzes[quizIdx] : null,
+        });
+        if (hasQuizBtn) quizIdx++;
+      });
+
+      // 3. Записываем в steps и textarea
+      const jsonStr = JSON.stringify(slidesData, null, 2);
+      steps[stepIdx].slide_content = jsonStr;
+      markDirty();
+      renderSteps();
+      // После рендера textarea может быть внутри <details> — раскроем и заполним
+      const ta = document.getElementById('slideContent'+stepIdx);
+      if (ta) ta.value = jsonStr;
+
+      const quizCount = slidesData.filter(function(s){return s.quiz;}).length;
+      toast('Импортировано: ' + slidesData.length + ' слайдов, ' + quizCount + ' вопросов');
+
+    } catch(err) {
+      alert('Ошибка при импорте: ' + err.message);
+      console.error(err);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function openPreview(){
+  window.open('/modules/'+MODULE_PK+'/preview/', '_blank');
+}
+
+/* ═══ INIT ═══ */
+loadSteps();
+</script>
+{% endblock %}
