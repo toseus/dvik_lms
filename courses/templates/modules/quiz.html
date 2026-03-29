@@ -27,6 +27,9 @@
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       В модуль
     </button>
+    <button id="skipTestBtn" onclick="skipTest()" style="display:none;align-items:center;gap:6px;padding:6px 14px;background:rgba(240,192,64,0.2);border:1px solid #f0c040;border-radius:5px;color:#f0c040;font-family:'Golos Text',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">
+      ⚡ Пропустить
+    </button>
   </div>
 </header>
 
@@ -179,9 +182,13 @@
 <script>
 const STEP_PK = {{ step.pk }};
 const MODULE_ID = {{ step.module.pk }};
+const STEP_TYPE = '{{ step.type }}';
+const IS_PREVIEW = {{ preview|yesno:"true,false" }};
 const TIME_LIMIT = {{ step.time_limit_minutes|default:"0" }};
 const PASS_SCORE = {{ step.pass_score|default:"0" }};
 const RETURN_URL = '{% url "module_preview" step.module.pk %}';
+const EDIT_URL = '{% url "module_edit" step.module.pk %}';
+const USER_ROLE = '{{ request.user.role|default:"" }}';
 </script>
 <script src="{% static 'js/els-quest.js' %}"></script>
 </body>

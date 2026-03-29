@@ -35,7 +35,7 @@
 .btn-primary.btn-compact { background: var(--accent); color: #fff; border: none; }
 .btn-outline.btn-compact { background: transparent; color: var(--text-secondary); border: 1.5px solid var(--border); text-decoration: none; }
 
-.td-code  { font-family: monospace; font-weight: 600; white-space: nowrap; width:60px; }
+.td-code  { font-family: monospace; font-weight: 600; white-space: nowrap; width:36px; }
 .td-num   { text-align: right; white-space: nowrap; }
 .td-bool  { text-align: center; }
 
@@ -80,7 +80,7 @@
     <thead>
       <tr>
         <th><a class="sort-link" href="?sort=id&dir={% if sort == 'id' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">ID {% if sort == 'id' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
-        <th style="width:60px;"><a class="sort-link" href="?sort=code&dir={% if sort == 'code' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Сокр {% if sort == 'code' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
+        <th style="width:36px;"><a class="sort-link" href="?sort=code&dir={% if sort == 'code' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Сокр {% if sort == 'code' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
         <th><a class="sort-link" href="?sort=title&dir={% if sort == 'title' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Программа {% if sort == 'title' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
         <th><a class="sort-link" href="?sort=category&dir={% if sort == 'category' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Категория {% if sort == 'category' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
         <th><a class="sort-link" href="?sort=direction&dir={% if sort == 'direction' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Направление {% if sort == 'direction' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
@@ -88,6 +88,7 @@
         <th><a class="sort-link" href="?sort=hours&dir={% if sort == 'hours' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Часов {% if sort == 'hours' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
         <th><a class="sort-link" href="?sort=price&dir={% if sort == 'price' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Стоимость {% if sort == 'price' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
         <th><a class="sort-link" href="?sort=prog_group&dir={% if sort == 'prog_group' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if current_cat %}&cat={{ current_cat|urlencode }}{% endif %}{% if current_dept %}&dept={{ current_dept|urlencode }}{% endif %}">Группа прайса {% if sort == 'prog_group' %}{% if dir == 'desc' %}&#9660;{% else %}&#9650;{% endif %}{% endif %}</a></th>
+        <th>Документы</th>
         <th>Тип документа</th>
         <th class="td-bool">157 ДВИК</th>
         <th class="td-bool">157 ВМК</th>
@@ -95,10 +96,10 @@
     </thead>
     <tbody>
       {% for p in programs %}
-      <tr>
+      <tr onclick="location.href='{% url 'program_detail' p.pk %}'" style="cursor:pointer;">
         <td style="color:var(--text-muted)">{{ p.pk }}</td>
         <td class="td-code">{{ p.code|default:'—' }}</td>
-        <td title="{{ p.title }}" style="max-width:300px;">
+        <td title="{{ p.title }}" style="max-width:450px;">
           <div style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.4;max-height:4.2em;">{{ p.title }}</div>
         </td>
         <td>{{ p.category|default:'—' }}</td>
@@ -107,6 +108,7 @@
         <td class="td-num">{{ p.period_hours|default:'—' }}</td>
         <td class="td-num">{% if p.new_price %}{{ p.new_price|floatformat:0 }} &#8381;{% else %}—{% endif %}</td>
         <td style="font-size:12px">{{ p.prog_group|default:'—' }}</td>
+        <td class="td-num">{% if p.docs_total > 0 %}<span style="color:{% if p.docs_uploaded >= p.docs_total %}#27ae60{% else %}#e67e22{% endif %}">{{ p.docs_uploaded }} / {{ p.docs_total }}</span>{% else %}—{% endif %}</td>
         <td style="font-size:12px">{{ p.stat_type|default:'—' }}</td>
         <td class="td-bool">{% if p.dvik157 %}<span style="color:var(--status-green);font-weight:700">&#10003;</span>{% else %}—{% endif %}</td>
         <td class="td-bool">{% if p.vmc157 %}<span style="color:var(--status-green);font-weight:700">&#10003;</span>{% else %}—{% endif %}</td>

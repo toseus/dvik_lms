@@ -77,6 +77,19 @@ class Person(models.Model):
     email = models.EmailField(blank=True, verbose_name='Email')
     notes = models.TextField(blank=True, verbose_name='Примечания')
 
+    # Должность АИС
+    ais_position = models.CharField(max_length=200, blank=True, default='', verbose_name='Должность АИС диплом')
+
+    # Образование — документ
+    edu_document = models.CharField(max_length=300, blank=True, default='', verbose_name='Документ об образовании')
+    edu_reg_number = models.CharField(max_length=100, blank=True, default='', verbose_name='Рег. номер документа об образовании')
+    edu_year = models.IntegerField(null=True, blank=True, verbose_name='Год выдачи документа об образовании')
+
+    # ИТФ
+    is_itf = models.BooleanField(default=False, verbose_name='Слушатель ИТФ')
+    itf_specialty = models.CharField(max_length=200, blank=True, default='', verbose_name='Специальность ИТФ')
+    itf_course = models.IntegerField(null=True, blank=True, verbose_name='Курс ИТФ')
+
     # Код для входа — 6 цифр, вводится вручную при создании
     code = models.CharField(max_length=20, blank=True, verbose_name='Код доступа', help_text='Используется как пароль для входа в систему')
 
@@ -355,13 +368,13 @@ class Contract(models.Model):
 
 class Order(models.Model):
     """Заявка слушателя"""
-    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='orders', verbose_name='Слушатель')
-    date = models.DateField(verbose_name='Дата заявки')
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, null=True, blank=True, related_name='orders', verbose_name='Слушатель')
+    date = models.DateField(null=True, blank=True, verbose_name='Дата заявки')
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Сумма')
     payer = models.CharField(max_length=200, blank=True, verbose_name='Плательщик')
     partner = models.CharField(max_length=100, blank=True, verbose_name='Сетевой партнёр')
     author = models.CharField(max_length=200, blank=True, verbose_name='Автор')
-    # Новые поля
+    # Связи
     signer = models.ForeignKey('Signer', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders', verbose_name='Подписант')
     payer_company = models.ForeignKey('Company', on_delete=models.SET_NULL, null=True, blank=True, related_name='paid_orders', verbose_name='Плательщик (организация)')
     payer_is_person = models.BooleanField(default=False, verbose_name='Плательщик — сам слушатель')
@@ -369,6 +382,14 @@ class Order(models.Model):
     space = models.ForeignKey('Space', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders', verbose_name='Организация')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_orders', verbose_name='Кто создал')
     created_at = models.DateTimeField(auto_now_add=True)
+    # Поля из Access
+    payer_type = models.CharField(max_length=20, blank=True, default='', choices=[('', '\u2014'), ('fl', '\u0424\u041B'), ('ul', '\u042E\u041B')], verbose_name='Тип плательщика')
+    notes = models.TextField(blank=True, default='', verbose_name='Примечание')
+    author_person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL, related_name='authored_orders', verbose_name='Автор (физлицо)')
+    signer_person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL, related_name='signed_orders', verbose_name='Подписант (физлицо)')
+    student_signed_date = models.CharField(max_length=40, blank=True, default='', verbose_name='Дата подписания слушателем')
+    signed_by_manager = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL, related_name='confirmed_orders', verbose_name='Менеджер подтверждения')
+    created_at_legacy = models.CharField(max_length=40, blank=True, default='', verbose_name='Дата создания (Access)')
 
     class Meta:
         verbose_name = 'Заявка'
@@ -387,12 +408,23 @@ class Program(models.Model):
         NO_ISSUE = 'ne', 'Не выдавать'
         CANCELLED = 'otm', 'Отменён'
 
+    # === Основные связи ===
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='programs', verbose_name='Заявка')
+    person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='trainings', verbose_name='Слушатель')
+    training_program = models.ForeignKey('TrainingProgram', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='trainings', verbose_name='Программа обучения')
+    payer_company = models.ForeignKey('Company', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='trainings', verbose_name='Плательщик')
+    group_id_legacy = models.IntegerField(null=True, blank=True, verbose_name='ID группы (Access)')
+    department_id_legacy = models.IntegerField(null=True, blank=True, verbose_name='ID подразделения (Access)')
+
+    # === Основные поля ===
     category = models.CharField(max_length=50, blank=True, verbose_name='Категория')
     prog_type = models.CharField(max_length=50, blank=True, verbose_name='Тип')
-    code = models.CharField(max_length=200, verbose_name='Код/название программы')
-    date_start = models.DateField(verbose_name='Дата начала')
-    date_end = models.DateField(verbose_name='Дата окончания')
+    code = models.CharField(max_length=200, blank=True, default='', verbose_name='Код/название программы')
+    date_start = models.DateField(null=True, blank=True, verbose_name='Дата начала')
+    date_end = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
     discount = models.CharField(max_length=50, blank=True, verbose_name='Скидка')
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='К оплате')
     cert_number = models.CharField(max_length=100, blank=True, verbose_name='№ сертификата')
@@ -401,6 +433,69 @@ class Program(models.Model):
     issue_status = models.CharField(max_length=3, choices=IssueStatus.choices, default=IssueStatus.NO_ISSUE,
                                     verbose_name='Статус выдачи')
     notes = models.TextField(blank=True, verbose_name='Примечания')
+
+    # === Даты ===
+    created_at_legacy = models.DateTimeField(null=True, blank=True, verbose_name='Дата создания (Access)')
+    payment_date = models.DateField(null=True, blank=True, verbose_name='Дата оплаты')
+    issue_date = models.DateField(null=True, blank=True, verbose_name='Дата выдачи документа')
+    expire_date = models.DateField(null=True, blank=True, verbose_name='Срок действия')
+    report_date = models.DateField(null=True, blank=True, verbose_name='Дата явки')
+    print_date = models.DateField(null=True, blank=True, verbose_name='Дата печати')
+    issued_date = models.DateField(null=True, blank=True, verbose_name='Дата фактической выдачи')
+    first_report_date = models.DateField(null=True, blank=True, verbose_name='Дата первой явки')
+    frdo_status_date = models.DateField(null=True, blank=True, verbose_name='Дата статуса ФРДО')
+    eva_access_date = models.DateField(null=True, blank=True, verbose_name='Дата доступа EVA')
+
+    # === Финансы ===
+    discount_percent = models.FloatField(default=0, verbose_name='Скидка %')
+    old_discount_percent = models.FloatField(null=True, blank=True, verbose_name='Старая скидка %')
+    bonus = models.FloatField(default=0, verbose_name='Бонус')
+    old_bonus = models.FloatField(null=True, blank=True, verbose_name='Старый бонус')
+    contract_cost = models.FloatField(null=True, blank=True, verbose_name='Стоимость по договору')
+    cost_net = models.FloatField(null=True, blank=True, verbose_name='Чистая стоимость')
+
+    # === Документы ===
+    cert_number_org = models.CharField(max_length=255, blank=True, default='', verbose_name='№ серт. организации')
+    cert_number_endorsement = models.CharField(max_length=255, blank=True, default='', verbose_name='№ серт. андорсмент')
+    blank_id = models.CharField(max_length=255, blank=True, default='', verbose_name='ID бланка')
+    issue_type = models.CharField(max_length=255, blank=True, default='', verbose_name='Тип выдачи')
+    scrap_confirm = models.CharField(max_length=255, blank=True, default='', verbose_name='Подтверждение списания')
+
+    # === Оценки ===
+    eval_entrance = models.CharField(max_length=255, blank=True, default='', verbose_name='Входная оценка')
+    entrance_result = models.IntegerField(null=True, blank=True, verbose_name='Результат входного контроля')
+    exam_result = models.IntegerField(null=True, blank=True, verbose_name='Результат экзамена')
+    exam_passed = models.BooleanField(default=False, verbose_name='Экзамен сдан')
+    upd_exam_id = models.CharField(max_length=255, blank=True, default='', verbose_name='ID обновлённого экзамена')
+    learning_quality = models.IntegerField(null=True, blank=True, verbose_name='Качество обучения')
+
+    # === Статусы ===
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+    is_draft = models.BooleanField(default=False, verbose_name='Черновик')
+    learning_status = models.CharField(max_length=255, blank=True, default='', verbose_name='Статус обучения')
+    registration_status = models.CharField(max_length=255, blank=True, default='', verbose_name='Статус регистрации')
+    learning_here = models.CharField(max_length=255, blank=True, default='', verbose_name='Обучается здесь')
+    step_progress = models.IntegerField(null=True, blank=True, verbose_name='Прогресс этапов')
+    step_result = models.IntegerField(null=True, blank=True, verbose_name='Результат этапов')
+    service_quantity = models.IntegerField(null=True, blank=True, verbose_name='Кол-во услуг')
+
+    # === Ответственные ===
+    created_by_person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='created_trainings', verbose_name='Создал (Person)')
+    payment_manager = models.CharField(max_length=255, blank=True, default='', verbose_name='Менеджер оплаты')
+    print_manager = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='printed_trainings', verbose_name='Менеджер печати')
+    issue_manager = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='issued_trainings', verbose_name='Менеджер выдачи')
+    eva_access_manager = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='eva_trainings', verbose_name='Менеджер EVA')
+
+    # === ФРДО ===
+    frdo_confirmed = models.BooleanField(default=False, verbose_name='ФРДО подтверждено')
+    frdo_type = models.CharField(max_length=255, blank=True, default='', verbose_name='Тип ФРДО')
+
+    # === Прочее ===
+    original_training_id = models.IntegerField(null=True, blank=True, verbose_name='ID оригинальной подготовки')
 
     class Meta:
         verbose_name = 'Подготовка'
@@ -496,14 +591,17 @@ class TrainingProgram(models.Model):
     code = models.CharField(max_length=100, blank=True, verbose_name='Сокращение')
     title = models.TextField(verbose_name='Название программы')
     title_eng = models.TextField(blank=True, verbose_name='Название (англ)')
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Стоимость')
-    new_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Стоимость текущая')
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Стоимость')
+    new_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Стоимость текущая')
+    old_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Старая стоимость')
+    new_price_date = models.DateField(null=True, blank=True, verbose_name='Дата изменения цены')
     department = models.CharField(max_length=100, blank=True, verbose_name='Подразделение')
     category = models.CharField(max_length=100, blank=True, verbose_name='Категория')
     direction = models.CharField(max_length=200, blank=True, verbose_name='Направление')
     status = models.CharField(max_length=50, blank=True, verbose_name='Статус')
     period_hours = models.PositiveIntegerField(null=True, blank=True, verbose_name='Часов')
     period_days = models.PositiveIntegerField(null=True, blank=True, verbose_name='Дней')
+    period_weeks = models.PositiveIntegerField(null=True, blank=True, verbose_name='Недель')
     stat_type = models.CharField(max_length=50, blank=True, verbose_name='Тип документа')
     specialty = models.CharField(max_length=200, blank=True, verbose_name='Специальность')
     training_form = models.CharField(max_length=100, blank=True, verbose_name='Форма обучения')
@@ -514,6 +612,69 @@ class TrainingProgram(models.Model):
     vmc157 = models.BooleanField(default=False, verbose_name='157 ВМК')
     contract_type = models.CharField(max_length=100, blank=True, verbose_name='Тип контракта')
     notes = models.TextField(blank=True, verbose_name='Примечания')
+    archive_date = models.DateField(null=True, blank=True, verbose_name='Дата архивации')
+    edit_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата редактирования')
+    # Тексты сертификатов
+    sert_text1 = models.TextField(blank=True, verbose_name='Текст сертификата 1')
+    sert_text1_eng = models.TextField(blank=True, verbose_name='Текст сертификата 1 (англ)')
+    sert_text2 = models.TextField(blank=True, verbose_name='Текст сертификата 2')
+    sert_text2_eng = models.TextField(blank=True, verbose_name='Текст сертификата 2 (англ)')
+    sert_text3 = models.TextField(blank=True, verbose_name='Текст сертификата 3')
+    sert_text3_eng = models.TextField(blank=True, verbose_name='Текст сертификата 3 (англ)')
+    sert_text4 = models.CharField(max_length=500, blank=True, verbose_name='Текст сертификата 4')
+    sert_text4_eng = models.CharField(max_length=500, blank=True, verbose_name='Текст сертификата 4 (англ)')
+    # Подпрограмма и подписание
+    sub_prog = models.CharField(max_length=500, blank=True, verbose_name='Подпрограмма')
+    sub_prog_eng = models.CharField(max_length=500, blank=True, verbose_name='Подпрограмма (англ)')
+    signing_head = models.CharField(max_length=300, blank=True, verbose_name='Подписант')
+    signing_head_eng = models.CharField(max_length=300, blank=True, verbose_name='Подписант (англ)')
+    # Бланки и ДПО
+    blank_type = models.CharField(max_length=255, blank=True, verbose_name='Тип бланка')
+    blank_reg_type = models.CharField(max_length=10, blank=True, verbose_name='Тип регистрации бланка')
+    dpo = models.CharField(max_length=255, blank=True, verbose_name='ДПО')
+    # Идентификаторы
+    id_blank = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID бланка')
+    id_sign = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID подписанта')
+    id_dep = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID подразделения')
+    id_org = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID организации')
+    # Лимиты
+    group_limit = models.PositiveIntegerField(null=True, blank=True, verbose_name='Лимит группы')
+    quant_required = models.PositiveIntegerField(null=True, blank=True, verbose_name='Требуемое количество')
+    bonus_rate = models.PositiveIntegerField(null=True, blank=True, verbose_name='Бонусная ставка')
+    # АИС
+    ais_sert = models.PositiveIntegerField(null=True, blank=True, verbose_name='АИС сертификат')
+    ais_rank = models.PositiveIntegerField(null=True, blank=True, verbose_name='АИС ранг')
+    ais_uid_doc_type = models.CharField(max_length=255, blank=True, verbose_name='АИС тип документа')
+    # ФРДО
+    frdo_po_prof = models.CharField(max_length=255, blank=True, verbose_name='ФРДО ПО профессия')
+    frdo_po_type_edu = models.CharField(max_length=255, blank=True, verbose_name='ФРДО ПО тип образования')
+    frdo_prog_type = models.CharField(max_length=255, blank=True, verbose_name='ФРДО тип программы')
+    frdo_doc_type = models.CharField(max_length=255, blank=True, verbose_name='ФРДО тип документа')
+    edu_doc_frdo = models.CharField(max_length=255, blank=True, verbose_name='Образовательный документ ФРДО')
+    qual_rank_po = models.CharField(max_length=255, blank=True, verbose_name='Квалификация/разряд ПО')
+    # Прочее
+    main_title = models.CharField(max_length=255, blank=True, verbose_name='Основное название')
+    old_programm = models.TextField(blank=True, verbose_name='Старая программа')
+    inspection_sts = models.CharField(max_length=255, blank=True, verbose_name='Статус инспекции')
+    online_sts = models.CharField(max_length=255, blank=True, verbose_name='Статус онлайн')
+    auto_contract = models.CharField(max_length=255, blank=True, verbose_name='Авто-контракт')
+    umkd = models.CharField(max_length=255, blank=True, verbose_name='УМКД')
+    msun = models.FloatField(null=True, blank=True, verbose_name='МСУН')
+    sfera_prof = models.CharField(max_length=255, blank=True, verbose_name='Сфера профессии')
+    group_prof = models.CharField(max_length=255, blank=True, verbose_name='Группа профессии')
+    color_gr = models.CharField(max_length=50, blank=True, verbose_name='Цвет группы')
+    contract_first = models.PositiveIntegerField(null=True, blank=True, verbose_name='Первый контракт')
+    user_admin = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID админа')
+    instructor = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID инструктора')
+    rem_stu = models.CharField(max_length=500, blank=True, verbose_name='Примечание для слушателя')
+    eva_default = models.CharField(max_length=50, blank=True, verbose_name='Оценка по умолчанию')
+    permit_doc_gov = models.PositiveIntegerField(null=True, blank=True, verbose_name='Разрешительный документ')
+    examiner_default = models.PositiveIntegerField(null=True, blank=True, verbose_name='Экзаменатор по умолчанию')
+    tr_form_famrt = models.CharField(max_length=255, blank=True, verbose_name='Форма обучения ФАМРТ')
+    department_ref = models.ForeignKey('Department', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='programs', verbose_name='Подразделение (справочник)')
+    signer_person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='signed_programs', verbose_name='Подписант')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -543,6 +704,12 @@ class Message(models.Model):
     text = models.TextField(verbose_name='Текст сообщения')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата')
     is_read = models.BooleanField(default=False, verbose_name='Прочитано')
+    is_pinned = models.BooleanField(default=False, verbose_name='Закреплено (кейс)')
+    case_status = models.CharField(
+        max_length=20, blank=True, default='',
+        choices=[('', '\u2014'), ('active', '\u0412 \u0440\u0430\u0431\u043E\u0442\u0435'), ('archive', '\u0410\u0440\u0445\u0438\u0432')],
+        verbose_name='\u0421\u0442\u0430\u0442\u0443\u0441 \u043A\u0435\u0439\u0441\u0430'
+    )
 
     class Meta:
         verbose_name = 'Сообщение'
@@ -701,3 +868,230 @@ class QuizAttempt(models.Model):
 
     def __str__(self):
         return f'Попытка: {self.step_progress} ({"завершена" if self.is_completed else "в процессе"})'
+
+
+class ModuleResult(models.Model):
+    """Результат прохождения модуля слушателем."""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='module_results', verbose_name='Слушатель')
+    module = models.ForeignKey('LearningModule', on_delete=models.CASCADE, related_name='results', verbose_name='Модуль')
+    quiz_scores = models.JSONField(default=dict, verbose_name='Результаты промежуточных аттестаций',
+        help_text='{"step_id": 85, "step_id": 92}')
+    final_exam_step = models.ForeignKey('ModuleStep', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name='Этап итоговой аттестации')
+    final_exam_score = models.PositiveIntegerField(null=True, blank=True, verbose_name='Балл итоговой (%)')
+    final_exam_passed = models.BooleanField(default=False, verbose_name='Итоговая сдана')
+    final_exam_details = models.JSONField(default=list, verbose_name='Детали итоговой аттестации',
+        help_text='Полный протокол: вопросы, ответы слушателя, правильные ответы')
+    completed_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата завершения')
+    is_preview = models.BooleanField(default=False, verbose_name='Режим проверки')
+
+    class Meta:
+        verbose_name = 'Результат прохождения модуля'
+        verbose_name_plural = 'Результаты прохождения модулей'
+        ordering = ['-completed_at']
+
+    def __str__(self):
+        return f'{self.person} \u2192 {self.module.title} ({self.final_exam_score}%)'
+
+
+class ProgramDocument(models.Model):
+    """Документ, прикреплённый к программе обучения."""
+    program = models.ForeignKey('TrainingProgram', on_delete=models.CASCADE, related_name='documents', verbose_name='Программа')
+    title = models.CharField(max_length=300, verbose_name='Название документа')
+    file = models.FileField(upload_to='programs/docs/%Y/%m/', verbose_name='Файл')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Кто загрузил')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата внесения')
+    notes = models.TextField(blank=True, verbose_name='Примечания')
+
+    class Meta:
+        verbose_name = 'Документ программы'
+        verbose_name_plural = 'Документы программ'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.program.code})'
+
+    template = models.ForeignKey('ProgramDocumentTemplate', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='documents', verbose_name='Шаблон')
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name) if self.file else ''
+
+    @property
+    def file_size(self):
+        try:
+            return self.file.size
+        except:
+            return 0
+
+
+class ProgramDocumentTemplate(models.Model):
+    """Шаблон базового документа — автоматически создаётся во всех программах."""
+    title = models.CharField(max_length=300, verbose_name='Название документа')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Шаблон документа программы'
+        verbose_name_plural = 'Шаблоны документов программ'
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return self.title
+
+
+class Reference(models.Model):
+    """Общий справочник — значения для выпадающих списков."""
+    entry = models.CharField(max_length=500, verbose_name='Пункт справочника')
+    usage = models.CharField(max_length=200, verbose_name='Место использования',
+        help_text='category, direction, department, status, training_form, edu_level, stat_type, blank_type, dpo')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+
+    class Meta:
+        verbose_name = 'Пункт справочника'
+        verbose_name_plural = 'Справочник'
+        ordering = ['usage', 'sort_order', 'entry']
+        unique_together = ['entry', 'usage']
+
+    def __str__(self):
+        return f'{self.usage}: {self.entry}'
+
+
+class ProgramPlan(models.Model):
+    """Учебный план программы."""
+    program = models.ForeignKey(TrainingProgram, on_delete=models.CASCADE, related_name='plan_items', verbose_name='Программа')
+    title = models.CharField(max_length=500, verbose_name='Наименование дисциплины/раздела')
+    hours = models.IntegerField(default=0, verbose_name='Часов (аудиторных)')
+    hours_self = models.FloatField(default=0, verbose_name='Часов (самостоятельных)')
+    control_form = models.CharField(max_length=100, blank=True, default='', verbose_name='Форма контроля')
+    days = models.IntegerField(null=True, blank=True, verbose_name='Дней')
+    sort_order = models.IntegerField(default=0, verbose_name='Порядок')
+    notes = models.TextField(blank=True, default='', verbose_name='Примечание')
+
+    class Meta:
+        ordering = ['program', 'sort_order']
+        verbose_name = 'Учебный план'
+        verbose_name_plural = 'Учебный план'
+
+    def __str__(self):
+        return f'{self.program.code} — {self.title}'
+
+
+class Department(models.Model):
+    """Подразделение."""
+    name = models.CharField(max_length=255, verbose_name='Название подразделения')
+    is_active = models.BooleanField(default=True, verbose_name='Активно')
+    sort_order = models.IntegerField(default=0, verbose_name='Порядок сортировки')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Подразделение'
+        verbose_name_plural = 'Подразделения'
+
+    def __str__(self):
+        return self.name
+
+
+class WorkRole(models.Model):
+    """Рабочая роль (подписант, преподаватель, экзаменатор и т.д.)."""
+    name = models.CharField(max_length=100, verbose_name='Название роли')
+    code = models.CharField(max_length=50, unique=True, verbose_name='Код роли')
+    description = models.TextField(blank=True, default='', verbose_name='Описание')
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+    sort_order = models.IntegerField(default=0, verbose_name='Порядок')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Рабочая роль'
+        verbose_name_plural = 'Рабочие роли'
+
+    def __str__(self):
+        return self.name
+
+
+class PersonWorkRole(models.Model):
+    """Назначение рабочей роли физлицу."""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='work_roles', verbose_name='Физлицо')
+    role = models.ForeignKey(WorkRole, on_delete=models.CASCADE, related_name='persons', verbose_name='Роль')
+    assigned_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата назначения')
+    notes = models.TextField(blank=True, default='', verbose_name='Примечание')
+
+    class Meta:
+        unique_together = ['person', 'role']
+        verbose_name = 'Назначение роли'
+        verbose_name_plural = 'Назначения ролей'
+
+    def __str__(self):
+        return f'{self.person} — {self.role}'
+
+
+class PersonDocument(models.Model):
+    """Документ слушателя (скан, справка, диплом и т.д.)"""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='documents', verbose_name='Слушатель')
+    title = models.CharField(max_length=500, verbose_name='Название документа')
+    doc_type = models.CharField(max_length=50, blank=True, default='other', verbose_name='Тип',
+        choices=[('spravka', 'Справка'), ('diploma', 'Диплом'), ('other', 'Другое')])
+    file = models.FileField(upload_to='person_docs/%Y/%m/', blank=True, verbose_name='Файл')
+    rotation = models.IntegerField(default=0, verbose_name='Поворот (градусов)')
+    is_archived = models.BooleanField(default=False, verbose_name='В архиве')
+    archived_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='archived_docs', verbose_name='Архивировал')
+    archived_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата архивирования')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='uploaded_person_docs', verbose_name='Загрузил')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата загрузки')
+    notes = models.TextField(blank=True, default='', verbose_name='Примечание')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Документ слушателя'
+        verbose_name_plural = 'Документы слушателей'
+
+    def __str__(self):
+        return f'{self.person} — {self.title}'
+
+
+class SeaService(models.Model):
+    """Плавательный ценз"""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='sea_services', verbose_name='Слушатель')
+    vessel_name = models.CharField(max_length=200, verbose_name='Название судна')
+    date_from = models.DateField(verbose_name='Дата начала')
+    date_to = models.DateField(verbose_name='Дата окончания')
+    tonnage = models.IntegerField(default=0, verbose_name='Тоннаж (GT)')
+    power = models.IntegerField(default=0, verbose_name='Мощность (кВт)')
+    position = models.CharField(max_length=200, blank=True, default='', verbose_name='Должность на судне')
+    document = models.ForeignKey(PersonDocument, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='sea_services', verbose_name='Связанный документ')
+    notes = models.TextField(blank=True, default='', verbose_name='Примечание')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_from']
+        verbose_name = 'Плавательный ценз'
+        verbose_name_plural = 'Плавательный ценз'
+
+    def __str__(self):
+        return f'{self.person} — {self.vessel_name} ({self.date_from}–{self.date_to})'
+
+
+class ProgramTemplate(models.Model):
+    """Шаблон набора программ для быстрого добавления в заявку."""
+    name = models.CharField(max_length=200, verbose_name='Название шаблона')
+    programs = models.ManyToManyField(TrainingProgram, blank=True, related_name='templates', verbose_name='Программы')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, verbose_name='Создал')
+    space = models.ForeignKey('Space', null=True, blank=True, on_delete=models.SET_NULL, verbose_name='Пространство')
+    created_at = models.DateTimeField(auto_now_add=True)
+    sort_order = models.IntegerField(default=0, verbose_name='Порядок')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Шаблон набора программ'
+        verbose_name_plural = 'Шаблоны наборов программ'
+
+    def __str__(self):
+        return self.name

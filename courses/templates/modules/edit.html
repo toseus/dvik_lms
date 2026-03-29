@@ -188,7 +188,7 @@
       <div class="quiz-actions">
         <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
         <label onclick="document.getElementById('excelFileInput').click()" style="background:var(--status-green);color:#fff;">📥 Импорт Excel</label>
-        <a href="#" id="quizPreviewLink" target="_blank" style="background:var(--accent);color:#fff;display:none;text-decoration:none;">👁 Предпросмотр</a>
+        <a href="#" id="quizPreviewLink" target="_blank" style="background:var(--accent);color:#fff;display:none;text-decoration:none;padding:8px 16px;border-radius:5px;font-size:13px;font-weight:600;align-items:center;gap:4px;">👁 Предпросмотр</a>
         <button onclick="closeQuiz()" style="background:#f0f0f0;color:var(--text-secondary);">Отмена</button>
         <button onclick="saveQuiz()" style="background:var(--accent);color:#fff;">Сохранить тест</button>
       </div>
@@ -245,12 +245,12 @@ function renderSteps(){
     let html='';
     let prevGroup='';
     steps.forEach((s,i)=>{
-      const grp=(s.type==='practice'||s.type==='upload')?'practice':(s.type==='quiz'||s.type==='final_exam')?'test':'normal';
+      const grp=(s.type==='practice'||s.type==='upload')?'practice':(s.type==='final_exam')?'final':'normal';
       if(grp==='practice'&&prevGroup!=='practice'){
         html+=`<div class="practice-divider"><div class="practice-divider-line"></div><div class="practice-divider-label">📋 Практические занятия и задания</div><div class="practice-divider-line"></div></div>`;
       }
-      if(grp==='test'&&prevGroup!=='test'){
-        html+=`<div class="practice-divider"><div class="practice-divider-line"></div><div class="practice-divider-label">🎓 Аттестация</div><div class="practice-divider-line"></div></div>`;
+      if(grp==='final'&&prevGroup!=='final'){
+        html+=`<div class="practice-divider"><div class="practice-divider-line"></div><div class="practice-divider-label">🎓 Итоговая аттестация</div><div class="practice-divider-line"></div></div>`;
       }
       prevGroup=grp;
       html+=buildCard(s,i);

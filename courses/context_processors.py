@@ -1,12 +1,12 @@
 def program_filters(request):
     if request.user.is_authenticated:
-        from .models import TrainingProgram
+        from .models import TrainingProgram, Department
         qs = TrainingProgram.objects.filter(status='В работе')
         categories = qs.values_list('category', flat=True).distinct().order_by('category')
-        departments = qs.values_list('department', flat=True).distinct().order_by('department')
+        departments_list = Department.objects.filter(is_active=True)
         return {
             'program_categories': [c for c in categories if c],
-            'program_departments': [d for d in departments if d],
+            'departments_list': departments_list,
         }
     return {}
 

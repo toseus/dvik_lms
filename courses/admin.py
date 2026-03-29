@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
 
@@ -82,14 +82,67 @@ class ProgramInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['pk', 'person', 'date', 'amount', 'signer', 'payer_company', 'payer_is_person', 'contract', 'space']
-    search_fields = ['person__last_name', 'person__snils']
-    list_filter = ['space', 'payer_is_person']
+    list_display = ['pk', 'person', 'date', 'payer_type', 'payer_company', 'author_person', 'notes_short']
+    search_fields = ['person__last_name', 'notes', 'pk']
+    list_filter = ['payer_type', 'date']
+    raw_id_fields = ['person', 'payer_company', 'author_person', 'signer_person', 'signed_by_manager']
     inlines = [ProgramInline]
+
+    def notes_short(self, obj):
+        return (obj.notes or '')[:50]
+    notes_short.short_description = 'Примечание'
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
-    list_display = ['code', 'order', 'date_start', 'date_end', 'amount', 'issue_status']
+    list_display = [
+        'pk', 'order', 'person', 'training_program', 'date_start', 'date_end',
+        'amount', 'discount_percent', 'cert_number', 'reg_number',
+        'learning_status', 'is_draft',
+    ]
+    list_filter = ['is_draft', 'is_active', 'learning_status', 'exam_passed']
+    search_fields = [
+        'cert_number', 'reg_number', 'person__last_name',
+        'code', 'pk',
+    ]
+    raw_id_fields = [
+        'order', 'person', 'training_program', 'payer_company',
+        'created_by_person', 'print_manager', 'issue_manager', 'eva_access_manager',
+    ]
+    fieldsets = (
+        ('Основное', {'fields': (
+            'order', 'person', 'training_program', 'payer_company',
+            'code', 'category', 'prog_type',
+            'date_start', 'date_end', 'is_active', 'is_draft',
+        )}),
+        ('Финансы', {'fields': (
+            'amount', 'discount', 'discount_percent', 'bonus', 'contract_cost', 'cost_net',
+            'payment_date', 'payment_manager',
+        ), 'classes': ('collapse',)}),
+        ('Документы', {'fields': (
+            'cert_number', 'reg_number', 'cert_number_org', 'cert_number_endorsement',
+            'blank_id', 'issue_type', 'issue_status', 'issue_date', 'issued_date', 'expire_date',
+            'print_date', 'scrap_confirm',
+        ), 'classes': ('collapse',)}),
+        ('Оценки', {'fields': (
+            'eval_entrance', 'entrance_result', 'grade', 'exam_result', 'exam_passed',
+            'learning_quality', 'upd_exam_id',
+        ), 'classes': ('collapse',)}),
+        ('Статусы', {'fields': (
+            'learning_status', 'registration_status', 'learning_here',
+            'step_progress', 'step_result', 'service_quantity',
+        ), 'classes': ('collapse',)}),
+        ('Ответственные', {'fields': (
+            'created_by_person', 'print_manager', 'issue_manager', 'eva_access_manager',
+        ), 'classes': ('collapse',)}),
+        ('ФРДО', {'fields': (
+            'frdo_confirmed', 'frdo_type', 'frdo_status_date',
+        ), 'classes': ('collapse',)}),
+        ('Служебное', {'fields': (
+            'notes', 'report_date', 'first_report_date', 'eva_access_date',
+            'group_id_legacy', 'department_id_legacy', 'original_training_id',
+            'created_at_legacy', 'old_discount_percent', 'old_bonus',
+        ), 'classes': ('collapse',)}),
+    )
 
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
@@ -114,6 +167,12 @@ class CompanyAdmin(admin.ModelAdmin):
             'fields': ('notes',)
         }),
     )
+class PersonWorkRoleInline(admin.TabularInline):
+    model = PersonWorkRole
+    extra = 1
+    autocomplete_fields = ['role']
+
+
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
     list_display  = ['pk', 'last_name', 'first_name', 'middle_name', 'gender',
@@ -144,6 +203,7 @@ class PersonAdmin(admin.ModelAdmin):
             'fields': ('notes',)
         }),
     )
+    inlines = [PersonWorkRoleInline]
     actions = ['create_accounts', 'update_accounts']
 
     def account_status(self, obj):
@@ -208,15 +268,44 @@ class CustomUserAdmin(UserAdmin):
     get_space.short_description = 'Пространство'
 
 
+class ProgramDocumentInline(admin.TabularInline):
+    model = ProgramDocument
+    extra = 0
+    fields = ['title', 'file', 'created_at', 'uploaded_by']
+    readonly_fields = ['created_at']
+
+
 @admin.register(TrainingProgram)
 class TrainingProgramAdmin(admin.ModelAdmin):
     list_display = ['pk', 'code', 'title_short', 'category', 'direction', 'status', 'new_price', 'period_hours']
     list_filter = ['status', 'category', 'direction']
     search_fields = ['code', 'title', 'category']
+    inlines = [ProgramDocumentInline]
 
     def title_short(self, obj):
         return obj.title[:100] + ('...' if len(obj.title) > 100 else '')
     title_short.short_description = 'Программа'
+
+
+@admin.register(ProgramDocument)
+class ProgramDocumentAdmin(admin.ModelAdmin):
+    list_display = ['title', 'program', 'filename', 'created_at', 'uploaded_by']
+    search_fields = ['title', 'program__code', 'program__title']
+
+
+@admin.register(ProgramDocumentTemplate)
+class ProgramDocumentTemplateAdmin(admin.ModelAdmin):
+    list_display = ['title', 'sort_order', 'is_active']
+    list_editable = ['sort_order', 'is_active']
+
+
+@admin.register(Reference)
+class ReferenceAdmin(admin.ModelAdmin):
+    list_display = ['entry', 'usage', 'sort_order', 'is_active']
+    list_filter = ['usage', 'is_active']
+    search_fields = ['entry', 'usage']
+    list_editable = ['sort_order', 'is_active']
+    ordering = ['usage', 'sort_order']
 
 
 @admin.register(Message)
@@ -306,3 +395,55 @@ class StepProgressAdmin(admin.ModelAdmin):
 class QuizAttemptAdmin(admin.ModelAdmin):
     list_display = ['step_progress', 'is_completed', 'score', 'current_question_index']
     list_filter = ['is_completed']
+
+
+@admin.register(ModuleResult)
+class ModuleResultAdmin(admin.ModelAdmin):
+    list_display = ['person', 'module', 'final_exam_score', 'final_exam_passed', 'completed_at', 'is_preview']
+    list_filter = ['final_exam_passed', 'is_preview']
+    search_fields = ['person__last_name', 'module__title']
+    readonly_fields = ['quiz_scores', 'final_exam_details']
+
+
+@admin.register(ProgramPlan)
+class ProgramPlanAdmin(admin.ModelAdmin):
+    list_display = ['program', 'title', 'hours', 'hours_self', 'control_form', 'sort_order']
+    list_filter = ['program']
+    search_fields = ['title']
+    ordering = ['program', 'sort_order']
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active', 'sort_order']
+    list_editable = ['is_active', 'sort_order']
+    search_fields = ['name']
+
+
+@admin.register(WorkRole)
+class WorkRoleAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'is_active', 'sort_order']
+    list_editable = ['is_active', 'sort_order']
+    search_fields = ['name', 'code']
+
+
+@admin.register(PersonDocument)
+class PersonDocumentAdmin(admin.ModelAdmin):
+    list_display = ['person', 'title', 'doc_type', 'is_archived', 'uploaded_by', 'created_at']
+    list_filter = ['doc_type', 'is_archived']
+    search_fields = ['title', 'person__last_name']
+
+
+@admin.register(SeaService)
+class SeaServiceAdmin(admin.ModelAdmin):
+    list_display = ['person', 'vessel_name', 'date_from', 'date_to', 'tonnage', 'power']
+    list_filter = ['vessel_name']
+    search_fields = ['vessel_name', 'person__last_name']
+
+
+@admin.register(ProgramTemplate)
+class ProgramTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active', 'sort_order', 'created_by']
+    list_editable = ['is_active', 'sort_order']
+    filter_horizontal = ['programs']
+    search_fields = ['name']

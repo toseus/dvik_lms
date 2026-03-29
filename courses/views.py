@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -362,60 +362,173 @@ def student_list(request):
     })
 
 # ─────────────────────────────────────────────
-# Карточка слушателя (card.html — extends base.html)
+# Карточка слушателя (4-колоночный layout)
 # ─────────────────────────────────────────────
 @login_required
 def student_card(request, pk):
     person = get_object_or_404(
         Person.objects.select_related('user').prefetch_related(
             'orders__programs',
-            'enrollments__course',
-            'enrollments__completed_steps',
+            'messages__author',
+            'documents',
+            'sea_services',
         ),
         pk=pk
     )
 
-    # JSON для заявок
+    # Заявки с программами
     orders_data = []
     for o in person.orders.all():
+        programs_in_order = []
+        for p in o.programs.all():
+            programs_in_order.append({
+                'catId': p.pk,
+                'name': p.code,
+                'sub': p.category or '\u0411\u0426',
+                'price': float(p.amount) if p.amount else 0,
+                'dateFrom': p.date_start.isoformat() if p.date_start else '',
+                'dateTo': p.date_end.isoformat() if p.date_end else '',
+                'disc': 0,
+                'dt': '',
+                'docNum': p.cert_number or '',
+                'regNum': p.reg_number or '',
+                'issued': p.issue_status == 'da',
+                'issuedDate': '',
+            })
+        payer_name = o.payer or ''
+        if not payer_name and o.payer_company:
+            payer_name = str(o.payer_company)
+        if not payer_name and o.payer_is_person:
+            payer_name = f'{person.last_name} {person.first_name[:1]}.{person.middle_name[:1]}.' if person.middle_name else f'{person.last_name} {person.first_name[:1]}.'
+        total = sum(float(p.amount) for p in o.programs.all())
         orders_data.append({
             'id': o.pk,
+            'num': str(o.pk).zfill(5),
             'date': o.date.isoformat() if o.date else '',
-            'amount': str(o.amount),
-            'payer': o.payer,
-            'partner': o.partner,
-            'author': o.author,
+            'payer': payer_name or '\u2014',
+            'author': o.author or '\u2014',
+            'bonus': 0,
+            'status': 'draft',
+            'paid': False,
+            'debt': 0,
+            'programs': programs_in_order,
         })
 
-    # JSON для программ (подготовок)
-    progs_data = []
-    for o in person.orders.all():
-        for p in o.programs.all():
-            progs_data.append({
-                'order_id': o.pk,
-                'cat': p.category,
-                'tp': p.prog_type,
-                'code': p.code,
-                'fr': p.date_start.isoformat() if p.date_start else '',
-                'to': p.date_end.isoformat() if p.date_end else '',
-                'disc': p.discount,
-                'amt': str(p.amount),
-                'cert': p.cert_number,
-                'reg': p.reg_number,
-                'grade': p.grade,
-                'iss': p.issue_status,
-                'notes': p.notes,
-            })
+    # Документы слушателя
+    person_docs = []
+    for doc in person.documents.all():
+        person_docs.append({
+            'id': doc.pk,
+            'date': doc.created_at.strftime('%Y-%m-%d') if doc.created_at else '',
+            'name': doc.title,
+            'author': str(doc.uploaded_by) if doc.uploaded_by else '\u2014',
+            'archived': doc.is_archived,
+            'fileUrl': doc.file.url if doc.file else None,
+        })
 
-    import json
-    current_user_name = request.user.get_full_name() or request.user.username
+    # Ценз
+    cenz_data = []
+    for ss in person.sea_services.all():
+        cenz_data.append({
+            'id': ss.pk,
+            'dateFrom': ss.date_from.isoformat() if ss.date_from else '',
+            'dateTo': ss.date_to.isoformat() if ss.date_to else '',
+            'vessel': ss.vessel_name or '',
+            'tonnage': ss.tonnage or 0,
+            'power': ss.power or 0,
+        })
 
-    return render(request, 'persons/detail.html', {
+    # Комментарии
+    def _author_display(user_obj):
+        if not user_obj:
+            return '\u2014'
+        name = user_obj.get_full_name().strip()
+        if not name and hasattr(user_obj, 'person'):
+            try:
+                p = user_obj.person
+                name = f'{p.last_name} {p.first_name[:1]}.'.strip()
+            except Exception:
+                pass
+        return name or user_obj.username
+
+    msgs_data = []
+    for msg in person.messages.all():
+        is_own = msg.author == request.user
+        author_name = _author_display(msg.author)
+        ini_parts = author_name.replace('.', ' ').split()[:2]
+        ini = ''.join(w[0] for w in ini_parts if w) if ini_parts else '?'
+        msgs_data.append({
+            'id': msg.pk,
+            'who': author_name,
+            'ini': ini,
+            'c': 0 if is_own else (hash(author_name) % 4),
+            'text': msg.text,
+            'time': msg.created_at.strftime('%H:%M') if msg.created_at else '',
+            'own': is_own,
+            'pinned': msg.is_pinned,
+            'cs': msg.case_status or '',
+        })
+
+    # Справочник программ для модалки
+    all_programs = TrainingProgram.objects.filter(
+        status__in=['\u0412 \u0440\u0430\u0431\u043E\u0442\u0435', '\u0412 \u0440\u0430\u0431\u043E\u0442\u0435 \u0412\u041F\u041E']
+    ).exclude(title='(\u0431\u0435\u0437 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F)').values('pk', 'code', 'title', 'period_hours', 'new_price', 'price', 'category')[:500]
+    programs_catalog = [{
+        'id': p['pk'],
+        'code': p['code'] or '',
+        'name': p['title'] or '',
+        'h': p['period_hours'] or 0,
+        'p': float(p['new_price'] or p['price'] or 0),
+        'cat': p['category'] or '',
+    } for p in all_programs]
+
+    # Категории программ
+    program_categories = list(
+        TrainingProgram.objects.filter(
+            status__in=['\u0412 \u0440\u0430\u0431\u043E\u0442\u0435', '\u0412 \u0440\u0430\u0431\u043E\u0442\u0435 \u0412\u041F\u041E']
+        ).exclude(category__isnull=True).exclude(category='')
+        .values_list('category', flat=True).distinct().order_by('category')
+    )
+
+    # Шаблоны наборов программ
+    templates = ProgramTemplate.objects.filter(is_active=True).prefetch_related('programs')
+    templates_data = [{
+        'id': t.pk,
+        'name': t.name,
+        'programs': list(t.programs.values_list('pk', flat=True)),
+        'count': t.programs.count(),
+    } for t in templates]
+
+    # Справочники для select'ов
+    ais_positions = [
+        '\u041A\u0430\u043F\u0438\u0442\u0430\u043D', '\u0421\u0442\u0430\u0440\u0448\u0438\u0439 \u043F\u043E\u043C\u043E\u0449\u043D\u0438\u043A', '\u0412\u0442\u043E\u0440\u043E\u0439 \u043F\u043E\u043C\u043E\u0449\u043D\u0438\u043A', '\u0422\u0440\u0435\u0442\u0438\u0439 \u043F\u043E\u043C\u043E\u0449\u043D\u0438\u043A',
+        '\u0421\u0442\u0430\u0440\u0448\u0438\u0439 \u043C\u0435\u0445\u0430\u043D\u0438\u043A', '\u0412\u0442\u043E\u0440\u043E\u0439 \u043C\u0435\u0445\u0430\u043D\u0438\u043A', '\u0422\u0440\u0435\u0442\u0438\u0439 \u043C\u0435\u0445\u0430\u043D\u0438\u043A',
+        '\u042D\u043B\u0435\u043A\u0442\u0440\u043E\u043C\u0435\u0445\u0430\u043D\u0438\u043A', '\u0411\u043E\u0446\u043C\u0430\u043D', '\u041C\u0430\u0442\u0440\u043E\u0441',
+    ]
+    itf_specialties = [
+        '\u0421\u0443\u0434\u043E\u0432\u043E\u0436\u0434\u0435\u043D\u0438\u0435',
+        '\u042D\u043A\u0441\u043F\u043B\u0443\u0430\u0442\u0430\u0446\u0438\u044F \u0441\u0443\u0434\u043E\u0432\u044B\u0445 \u044D\u043D\u0435\u0440\u0433\u0435\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0445 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043E\u043A',
+        '\u042D\u043A\u0441\u043F\u043B\u0443\u0430\u0442\u0430\u0446\u0438\u044F \u0441\u0443\u0434\u043E\u0432\u043E\u0433\u043E \u044D\u043B\u0435\u043A\u0442\u0440\u043E\u043E\u0431\u043E\u0440\u0443\u0434\u043E\u0432\u0430\u043D\u0438\u044F \u0438 \u0441\u0440\u0435\u0434\u0441\u0442\u0432 \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u043A\u0438',
+        '\u042D\u043B\u0435\u043A\u0442\u0440\u043E\u044D\u043D\u0435\u0440\u0433\u0435\u0442\u0438\u043A\u0430 \u0438 \u044D\u043B\u0435\u043A\u0442\u0440\u043E\u0442\u0435\u0445\u043D\u0438\u043A\u0430',
+    ]
+
+    def _safe_json(data):
+        return json.dumps(data, ensure_ascii=False).replace('</script>', '<\\/script>')
+
+    context = {
         'person': person,
-        'orders_json': json.dumps(orders_data, ensure_ascii=False),
-        'progs_json': json.dumps(progs_data, ensure_ascii=False),
-        'current_user_name': current_user_name,
-    })
+        'ais_positions': ais_positions,
+        'itf_specialties': itf_specialties,
+        'person_json': _safe_json({'id': person.pk, 'dob': person.dob.isoformat() if person.dob else '', 'gender': person.gender or ''}),
+        'orders_json': _safe_json(orders_data),
+        'docs_json': _safe_json(person_docs),
+        'cenz_json': _safe_json(cenz_data),
+        'msgs_json': _safe_json(msgs_data),
+        'programs_json': _safe_json(programs_catalog),
+        'program_categories_json': _safe_json(program_categories),
+        'templates_json': _safe_json(templates_data),
+    }
+    return render(request, 'persons/detail.html', context)
 
 
 # ─────────────────────────────────────────────
@@ -433,12 +546,23 @@ def person_save(request, pk):
     allowed = [
         'last_name', 'first_name', 'middle_name',
         'last_name_en', 'first_name_en',
-        'snils', 'dob', 'city', 'position', 'workplace', 'notes',
-        'phone', 'email',
+        'snils', 'city', 'position', 'workplace', 'notes',
+        'phone', 'email', 'address', 'edu_level', 'gender',
+        'ais_position', 'edu_document', 'edu_reg_number',
+        'itf_specialty',
     ]
     for field in allowed:
         if field in data:
             setattr(person, field, data[field])
+    if 'dob' in data:
+        person.dob = data['dob'] or None
+    if 'edu_year' in data:
+        person.edu_year = int(data['edu_year']) if data['edu_year'] else None
+    if 'itf_course' in data:
+        person.itf_course = int(data['itf_course']) if data['itf_course'] else None
+    if 'is_itf' in data:
+        val = data['is_itf']
+        person.is_itf = val in (True, 'true', 'True', '1', 'on')
     person.save()
     return JsonResponse({'ok': True})
 
@@ -685,7 +809,7 @@ def _user_context(user):
 # ─────────────────────────────────────────────
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect('dashboard')
 
     error = None
     if request.method == 'POST':
@@ -694,7 +818,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect(request.GET.get('next', 'home'))
+            return redirect(request.GET.get('next', 'dashboard'))
         else:
             error = 'Неверный логин или пароль'
 
@@ -710,6 +834,11 @@ def logout_view(request):
 # ─────────────────────────────────────────────
 # Личный кабинет
 # ─────────────────────────────────────────────
+@login_required
+def dashboard(request):
+    return render(request, 'dashboard/dashboard.html')
+
+
 @login_required
 def home_view(request):
     ctx = _user_context(request.user)
@@ -1045,12 +1174,22 @@ def program_catalog(request):
     q = request.GET.get('q', '').strip()
     cat = request.GET.get('cat', '').strip()
     dept = request.GET.get('dept', '').strip()
-    programs = TrainingProgram.objects.filter(status='В работе')
+    from django.db.models import Count, Q as DQ
+    programs = TrainingProgram.objects.filter(status='В работе').annotate(
+        docs_total=Count('documents'),
+        docs_uploaded=Count('documents', filter=DQ(documents__file__gt=''))
+    )
 
     if cat:
         programs = programs.filter(category=cat)
     if dept:
-        programs = programs.filter(department=dept)
+        try:
+            dept_id = int(dept)
+            programs = programs.filter(department_ref_id=dept_id)
+        except (ValueError, TypeError):
+            programs = programs.filter(department=dept)
+
+    departments_list = Department.objects.filter(is_active=True)
 
     if q:
         from django.db.models import Q
@@ -1085,6 +1224,7 @@ def program_catalog(request):
         'total_count': paginator.count,
         'current_cat': cat,
         'current_dept': dept,
+        'departments_list': departments_list,
         'sort': sort,
         'dir': direction,
     })
@@ -1857,3 +1997,634 @@ def api_quiz_complete(request, step_pk):
     )
 
     return JsonResponse({'ok': True, 'score': score})
+
+
+# ══════════════════════════════════════════════════
+#   ИТОГОВАЯ АТТЕСТАЦИЯ
+# ══════════════════════════════════════════════════
+
+@login_required
+def api_final_exam_questions(request, step_pk):
+    """GET — собрать вопросы для итоговой аттестации из промежуточных тестов."""
+    import random
+
+    step = get_object_or_404(ModuleStep, pk=step_pk, type='final_exam')
+    exam_config = step.exam_config or {}
+
+    order_questions = []
+    match_questions = []
+    regular_questions = []
+
+    for quiz_step_id_str, count in exam_config.items():
+        qs = list(QuizQuestion.objects.filter(step_id=int(quiz_step_id_str)))
+        for q in qs:
+            q._source_step_id = int(quiz_step_id_str)
+        order_questions.extend([q for q in qs if q.type == 'order'])
+        match_questions.extend([q for q in qs if q.type == 'match'])
+        regular_questions.extend([q for q in qs if q.type in ('single', 'multi')])
+
+    selected = []
+
+    if order_questions:
+        chosen = random.choice(order_questions)
+        selected.append(chosen)
+        order_questions.remove(chosen)
+
+    if match_questions:
+        chosen = random.choice(match_questions)
+        selected.append(chosen)
+        match_questions.remove(chosen)
+
+    remaining_pool = order_questions + match_questions + regular_questions
+    random.shuffle(remaining_pool)
+
+    total_needed = sum(int(v) for v in exam_config.values())
+    still_needed = total_needed - len(selected)
+    if still_needed > 0:
+        selected.extend(remaining_pool[:still_needed])
+
+    random.shuffle(selected)
+
+    data = []
+    for q in selected:
+        data.append({
+            'id': q.pk,
+            'order': len(data),
+            'type': q.type,
+            'text': q.text,
+            'points': q.points,
+            'image_url': q.image_url,
+            'explanation': q.explanation,
+            'answers': q.answers,
+            'correct': q.correct,
+            'terms': q.terms,
+            'source_step_id': getattr(q, '_source_step_id', None),
+        })
+
+    return JsonResponse({
+        'questions': data,
+        'total': len(data),
+        'pass_score': step.pass_score or 70,
+        'time_limit': step.time_limit_minutes,
+        'step_title': step.title,
+    }, json_dumps_params={'ensure_ascii': False})
+
+
+@login_required
+@require_POST
+def api_final_exam_submit(request, step_pk):
+    """POST — сохранить результат итоговой аттестации."""
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    step = get_object_or_404(ModuleStep, pk=step_pk, type='final_exam')
+    is_preview = data.get('is_preview', False)
+
+    score = data.get('score', 0)
+    pass_score = step.pass_score or 70
+    passed = score >= pass_score
+
+    if not is_preview and hasattr(request.user, 'person'):
+        ModuleResult.objects.create(
+            person=request.user.person,
+            module=step.module,
+            quiz_scores=data.get('quiz_scores', {}),
+            final_exam_step=step,
+            final_exam_score=score,
+            final_exam_passed=passed,
+            final_exam_details=data.get('details', []),
+            is_preview=False,
+        )
+
+    return JsonResponse({
+        'ok': True,
+        'score': score,
+        'passed': passed,
+        'pass_score': pass_score,
+        'is_preview': is_preview,
+    })
+
+
+# ══════════════════════════════════════════════════
+#   КАРТОЧКА ПРОГРАММЫ ОБУЧЕНИЯ
+# ══════════════════════════════════════════════════
+
+@login_required
+def program_detail(request, pk):
+    program = get_object_or_404(
+        TrainingProgram.objects.prefetch_related('documents', 'modules'),
+        pk=pk
+    )
+    departments = Department.objects.filter(is_active=True)
+    signer_role = WorkRole.objects.filter(code='signer').first()
+    if signer_role:
+        available_signers = Person.objects.filter(
+            work_roles__role=signer_role
+        ).order_by('last_name', 'first_name')
+    else:
+        available_signers = Person.objects.none()
+    return render(request, 'programs/detail.html', {
+        'program': program,
+        'departments': departments,
+        'available_signers': available_signers,
+    })
+
+
+@login_required
+@require_POST
+def program_save(request, pk):
+    program = get_object_or_404(TrainingProgram, pk=pk)
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'bad json'}, status=400)
+
+    text_fields = [
+        'code', 'title', 'title_eng', 'department', 'category', 'direction',
+        'status', 'stat_type', 'specialty', 'training_form', 'edu_level',
+        'prog_group', 'contract_type', 'notes',
+        'sert_text1', 'sert_text1_eng', 'sert_text2', 'sert_text2_eng',
+        'sert_text3', 'sert_text3_eng', 'sert_text4', 'sert_text4_eng',
+        'sub_prog', 'sub_prog_eng', 'signing_head', 'signing_head_eng',
+        'blank_type', 'blank_reg_type', 'dpo',
+        'main_title', 'old_programm', 'inspection_sts', 'online_sts',
+        'auto_contract', 'umkd', 'sfera_prof', 'group_prof', 'color_gr',
+        'rem_stu', 'eva_default', 'tr_form_famrt', 'ais_uid_doc_type',
+        'frdo_po_prof', 'frdo_po_type_edu', 'frdo_prog_type', 'frdo_doc_type',
+        'edu_doc_frdo', 'qual_rank_po',
+    ]
+    decimal_fields = ['price', 'new_price', 'old_price']
+    int_fields = [
+        'period_hours', 'period_days', 'period_weeks',
+        'id_blank', 'id_sign', 'id_dep', 'id_org',
+        'group_limit', 'quant_required', 'bonus_rate',
+        'ais_sert', 'ais_rank', 'contract_first', 'user_admin',
+        'instructor', 'permit_doc_gov', 'examiner_default',
+    ]
+    float_fields = ['msun']
+    bool_fields = ['is_published', 'dvik157', 'vmc157']
+    date_fields = ['archive_date', 'new_price_date']
+
+    for field in text_fields:
+        if field in data:
+            setattr(program, field, data[field] or '')
+    for field in decimal_fields:
+        if field in data:
+            val = data[field]
+            if val:
+                from decimal import Decimal, InvalidOperation
+                try:
+                    val = Decimal(str(val))
+                except (InvalidOperation, ValueError):
+                    val = None
+            else:
+                val = None
+            setattr(program, field, val)
+    for field in int_fields:
+        if field in data:
+            val = data[field]
+            if val is not None and val != '':
+                try:
+                    val = int(val)
+                except (ValueError, TypeError):
+                    val = None
+            else:
+                val = None
+            setattr(program, field, val)
+    for field in float_fields:
+        if field in data:
+            val = data[field]
+            if val is not None and val != '':
+                try:
+                    val = float(val)
+                except (ValueError, TypeError):
+                    val = None
+            else:
+                val = None
+            setattr(program, field, val)
+    for field in bool_fields:
+        if field in data:
+            setattr(program, field, bool(data[field]))
+    for field in date_fields:
+        if field in data:
+            val = data[field]
+            setattr(program, field, val if val else None)
+    # FK поля
+    if 'department_ref' in data:
+        val = data['department_ref']
+        if val:
+            try:
+                program.department_ref = Department.objects.get(pk=int(val))
+            except (Department.DoesNotExist, ValueError, TypeError):
+                program.department_ref = None
+        else:
+            program.department_ref = None
+    if 'signer_person' in data:
+        val = data['signer_person']
+        if val:
+            try:
+                program.signer_person = Person.objects.get(pk=int(val))
+            except (Person.DoesNotExist, ValueError, TypeError):
+                program.signer_person = None
+        else:
+            program.signer_person = None
+    program.save()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def program_document_upload(request, pk):
+    program = get_object_or_404(TrainingProgram, pk=pk)
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'Файл не выбран'}, status=400)
+    title = request.POST.get('title', '').strip() or request.FILES['file'].name
+    doc = ProgramDocument.objects.create(
+        program=program, title=title, file=request.FILES['file'], uploaded_by=request.user,
+    )
+    return JsonResponse({
+        'ok': True,
+        'doc': {'id': doc.pk, 'title': doc.title, 'filename': doc.filename,
+                'url': doc.file.url, 'date': doc.created_at.strftime('%d.%m.%Y')},
+    })
+
+
+@login_required
+@require_POST
+def program_document_delete(request, doc_pk):
+    doc = get_object_or_404(ProgramDocument, pk=doc_pk)
+    doc.file.delete(save=False)
+    doc.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def create_template_docs(request, pk):
+    program = get_object_or_404(TrainingProgram, pk=pk)
+    try:
+        body = json.loads(request.body)
+        template_ids = body.get('template_ids', [])
+    except (json.JSONDecodeError, ValueError):
+        template_ids = []
+    if template_ids:
+        templates = ProgramDocumentTemplate.objects.filter(pk__in=template_ids, is_active=True)
+    else:
+        templates = ProgramDocumentTemplate.objects.filter(is_active=True)
+    created = 0
+    for tmpl in templates:
+        if not ProgramDocument.objects.filter(program=program, template=tmpl).exists():
+            ProgramDocument.objects.create(
+                program=program,
+                template=tmpl,
+                title=tmpl.title,
+                uploaded_by=request.user
+            )
+            created += 1
+    return JsonResponse({'created': created})
+
+
+@login_required
+def available_templates(request, pk):
+    program = get_object_or_404(TrainingProgram, pk=pk)
+    templates = ProgramDocumentTemplate.objects.filter(is_active=True).order_by('sort_order')
+    existing_template_ids = set(
+        ProgramDocument.objects.filter(program=program, template__isnull=False)
+        .values_list('template_id', flat=True)
+    )
+    data = []
+    for t in templates:
+        data.append({
+            'id': t.pk,
+            'title': t.title,
+            'already_exists': t.pk in existing_template_ids
+        })
+    return JsonResponse({'templates': data})
+
+
+# ─────────────────────────────────────────────
+# API: карточка слушателя
+# ─────────────────────────────────────────────
+
+@login_required
+@require_POST
+def api_person_order_create(request, pk):
+    """Создать новую заявку для слушателя."""
+    person = get_object_or_404(Person, pk=pk)
+    from datetime import date
+    order = Order.objects.create(
+        person=person,
+        date=date.today(),
+        author=request.user.get_full_name() or request.user.username,
+        created_by=request.user,
+    )
+    return JsonResponse({
+        'success': True,
+        'order': {
+            'id': order.pk,
+            'num': str(order.pk).zfill(5),
+            'date': order.date.isoformat(),
+            'payer': '',
+            'author': order.author,
+            'bonus': 0,
+            'status': 'draft',
+            'paid': False,
+            'debt': 0,
+            'programs': [],
+        }
+    })
+
+
+@login_required
+@require_POST
+def api_order_add_program(request, order_pk):
+    """Добавить программы в заявку."""
+    order = get_object_or_404(Order, pk=order_pk)
+    data = json.loads(request.body)
+    program_ids = data.get('program_ids', [])
+    added = []
+    for tp_id in program_ids:
+        tp = TrainingProgram.objects.filter(pk=tp_id).first()
+        if not tp:
+            continue
+        from datetime import timedelta
+        prog = Program.objects.create(
+            order=order,
+            code=tp.title or '',
+            category='',
+            date_start=order.date,
+            date_end=order.date + timedelta(days=14) if order.date else order.date,
+            amount=tp.new_price or tp.price or 0,
+        )
+        added.append({
+            'catId': prog.pk,
+            'name': prog.code,
+            'sub': prog.category or '\u0411\u0426',
+            'price': float(prog.amount),
+            'dateFrom': prog.date_start.isoformat() if prog.date_start else '',
+            'dateTo': prog.date_end.isoformat() if prog.date_end else '',
+            'disc': 0,
+            'dt': '',
+            'docNum': '',
+            'regNum': '',
+            'issued': False,
+            'issuedDate': '',
+        })
+    return JsonResponse({'success': True, 'programs': added})
+
+
+@login_required
+@require_POST
+def api_order_remove_programs(request, order_pk):
+    """Удалить программы из заявки по индексам."""
+    order = get_object_or_404(Order, pk=order_pk)
+    data = json.loads(request.body)
+    indices = data.get('indices', [])
+    programs = list(order.programs.order_by('date_start'))
+    to_delete = [programs[i].pk for i in indices if i < len(programs)]
+    Program.objects.filter(pk__in=to_delete).delete()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_person_document_upload(request, pk):
+    """Загрузка документа слушателя."""
+    person = get_object_or_404(Person, pk=pk)
+    file = request.FILES.get('file')
+    title = request.POST.get('title', 'Документ')
+    doc_type = request.POST.get('doc_type', 'other')
+    rotation = int(request.POST.get('rotation', 0))
+
+    doc = PersonDocument.objects.create(
+        person=person,
+        title=title,
+        doc_type=doc_type,
+        file=file,
+        rotation=rotation,
+        uploaded_by=request.user,
+    )
+
+    result = {
+        'success': True,
+        'document': {
+            'id': doc.pk,
+            'date': doc.created_at.strftime('%Y-%m-%d'),
+            'name': doc.title,
+            'author': str(request.user),
+            'archived': False,
+            'fileUrl': doc.file.url if doc.file else None,
+        },
+    }
+
+    # Если справка и нужно добавить ценз
+    vessel = request.POST.get('vessel', '')
+    date_from = request.POST.get('date_from', '')
+    date_to = request.POST.get('date_to', '')
+    if doc_type == 'spravka' and vessel and date_from and date_to:
+        from datetime import date as dt_date
+        ss = SeaService.objects.create(
+            person=person,
+            vessel_name=vessel,
+            date_from=date_from,
+            date_to=date_to,
+            tonnage=int(request.POST.get('tonnage', 0) or 0),
+            power=int(request.POST.get('power', 0) or 0),
+            document=doc,
+        )
+        result['sea_service'] = {
+            'id': ss.pk,
+            'dateFrom': ss.date_from.isoformat(),
+            'dateTo': ss.date_to.isoformat(),
+            'vessel': ss.vessel_name,
+            'tonnage': ss.tonnage,
+            'power': ss.power,
+        }
+
+    return JsonResponse(result)
+
+
+@login_required
+@require_POST
+def api_person_documents_archive(request, pk):
+    """Архивирование документов слушателя."""
+    person = get_object_or_404(Person, pk=pk)
+    data = json.loads(request.body)
+    doc_ids = data.get('doc_ids', [])
+    from django.utils import timezone
+    PersonDocument.objects.filter(
+        person=person, pk__in=doc_ids
+    ).update(
+        is_archived=True,
+        archived_by=request.user,
+        archived_at=timezone.now(),
+    )
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_document_restore(request, doc_pk):
+    """Восстановление документа из архива."""
+    doc = get_object_or_404(PersonDocument, pk=doc_pk)
+    doc.is_archived = False
+    doc.archived_by = None
+    doc.archived_at = None
+    doc.save()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_person_sea_service_create(request, pk):
+    """Добавить запись ценза."""
+    person = get_object_or_404(Person, pk=pk)
+    data = json.loads(request.body)
+    ss = SeaService.objects.create(
+        person=person,
+        vessel_name=data.get('vessel_name', ''),
+        date_from=data.get('date_from'),
+        date_to=data.get('date_to'),
+        tonnage=int(data.get('tonnage', 0) or 0),
+        power=int(data.get('power', 0) or 0),
+    )
+    return JsonResponse({
+        'success': True,
+        'sea_service': {
+            'id': ss.pk,
+            'dateFrom': ss.date_from.isoformat(),
+            'dateTo': ss.date_to.isoformat(),
+            'vessel': ss.vessel_name,
+            'tonnage': ss.tonnage,
+            'power': ss.power,
+        }
+    })
+
+
+@login_required
+def api_sea_service_delete(request, pk):
+    """Удалить запись ценза."""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    ss = get_object_or_404(SeaService, pk=pk)
+    ss.delete()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_person_message_send(request, pk):
+    """Отправка комментария."""
+    person = get_object_or_404(Person, pk=pk)
+    data = json.loads(request.body)
+    text = data.get('text', '').strip()
+    if not text:
+        return JsonResponse({'error': 'empty text'}, status=400)
+    msg = Message.objects.create(
+        person=person,
+        author=request.user,
+        text=text,
+    )
+    author_name = request.user.get_full_name().strip() or request.user.username
+    ini_parts = author_name.replace('.', ' ').split()[:2]
+    return JsonResponse({
+        'success': True,
+        'message': {
+            'id': msg.pk,
+            'who': author_name,
+            'ini': ''.join(w[0] for w in ini_parts if w),
+            'c': 0,
+            'text': msg.text,
+            'time': msg.created_at.strftime('%H:%M'),
+            'own': True,
+            'pinned': False,
+            'cs': '',
+        }
+    })
+
+
+@login_required
+@require_POST
+def api_message_pin(request, pk):
+    """Закрепить комментарий (создать кейс)."""
+    msg = get_object_or_404(Message, pk=pk)
+    msg.is_pinned = True
+    msg.case_status = 'active'
+    msg.save(update_fields=['is_pinned', 'case_status'])
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_message_unpin(request, pk):
+    """Открепить комментарий (убрать из кейсов)."""
+    msg = get_object_or_404(Message, pk=pk)
+    msg.is_pinned = False
+    msg.case_status = ''
+    msg.save(update_fields=['is_pinned', 'case_status'])
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_toggle_case_status(request, pk):
+    """Переключить статус кейса: В работе <-> Архив."""
+    msg = get_object_or_404(Message, pk=pk)
+    msg.case_status = 'archive' if msg.case_status == 'active' else 'active'
+    msg.save(update_fields=['case_status'])
+    return JsonResponse({'success': True, 'status': msg.case_status})
+
+
+# ─────────────────────────────────────────────
+# API: шаблоны наборов программ
+# ─────────────────────────────────────────────
+
+@login_required
+def api_program_templates_list(request):
+    """Список шаблонов наборов программ."""
+    templates = ProgramTemplate.objects.filter(is_active=True).prefetch_related('programs')
+    data = [{
+        'id': t.pk,
+        'name': t.name,
+        'programs': list(t.programs.values_list('pk', flat=True)),
+        'count': t.programs.count(),
+    } for t in templates]
+    return JsonResponse({'templates': data})
+
+
+@login_required
+@require_POST
+def api_create_program_template(request):
+    """Создать шаблон из выбранных программ."""
+    body = json.loads(request.body)
+    name = body.get('name', '').strip()
+    program_ids = body.get('program_ids', [])
+    if not name:
+        return JsonResponse({'error': '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0448\u0430\u0431\u043B\u043E\u043D\u0430'}, status=400)
+    tpl = ProgramTemplate.objects.create(
+        name=name,
+        created_by=request.user,
+        space=getattr(request.user, 'space', None),
+    )
+    if program_ids:
+        tpl.programs.set(program_ids)
+    return JsonResponse({
+        'success': True,
+        'template': {
+            'id': tpl.pk,
+            'name': tpl.name,
+            'programs': program_ids,
+            'count': len(program_ids),
+        }
+    })
+
+
+@login_required
+@require_POST
+def api_delete_program_template(request, pk):
+    """Удалить шаблон."""
+    tpl = get_object_or_404(ProgramTemplate, pk=pk)
+    tpl.delete()
+    return JsonResponse({'success': True})

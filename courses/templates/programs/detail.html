@@ -1,0 +1,458 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}{{ program.code }} — {{ program.title|truncatechars:40 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.collapse-section { border:1px solid var(--border); border-radius:8px; background:#fff; box-shadow:var(--shadow-card); margin-bottom:0; }
+.collapse-header { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; cursor:pointer; user-select:none; }
+.collapse-header h3 { font-size:14px; font-weight:700; margin:0; color:var(--text-primary); }
+.collapse-arrow { font-size:12px; color:var(--text-muted); transition:transform .2s; }
+.collapse-body { padding:0 20px 16px; display:none; }
+.collapse-section.open .collapse-body { display:block; }
+.collapse-section.open .collapse-arrow { transform:rotate(180deg); }
+.f-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.f-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); display:block; margin-bottom:4px; }
+.f-input { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:5px; font-size:13px; font-family:inherit; }
+.f-textarea { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:5px; font-size:13px; font-family:inherit; resize:vertical; min-height:60px; }
+.f-check { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+.card-panel { background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-card); padding:20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px; margin:0 auto; padding:20px;">
+
+  <a href="{% url 'program_catalog' %}" style="color:var(--accent); font-size:13px; display:inline-flex; align-items:center; gap:5px; margin-bottom:16px; text-decoration:none;">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 3L5 8l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Назад к программам
+  </a>
+
+  <div style="display:grid; grid-template-columns:1fr 272px; gap:20px; align-items:start;">
+
+    <!-- ЛЕВАЯ КОЛОНКА -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Основные данные -->
+      <div class="card-panel" style="padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <span style="background:var(--accent-light); color:var(--accent); padding:3px 10px; border-radius:10px; font-size:12px; font-weight:700;">{{ program.code }}</span>
+            <span style="margin-left:8px; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:600;
+              {% if program.status == 'В работе' %}background:var(--status-green-bg); color:var(--status-green);
+              {% elif program.status == 'В архиве' %}background:#e8edf3; color:var(--text-muted);
+              {% else %}background:var(--status-yellow-bg); color:var(--status-yellow);{% endif %}">{{ program.status|default:"—" }}</span>
+          </div>
+          <button onclick="saveProgram()" style="padding:8px 20px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(15,98,174,0.3);">Сохранить</button>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label class="f-label">Название программы</label>
+          <textarea id="f_title" style="width:100%; font-size:15px; font-weight:700; color:var(--text-primary); border:1.5px solid transparent; border-radius:6px; padding:6px 10px; background:transparent; font-family:inherit; resize:vertical; min-height:80px; line-height:1.4;" onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'" onblur="this.style.borderColor='transparent';this.style.background='transparent'">{{ program.title }}</textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label class="f-label">Название (англ)</label>
+          <textarea id="f_title_eng" style="width:100%; font-size:13px; color:var(--text-secondary); border:1.5px solid transparent; border-radius:6px; padding:6px 10px; background:transparent; font-family:inherit; resize:vertical; min-height:44px;" onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'" onblur="this.style.borderColor='transparent';this.style.background='transparent'">{{ program.title_eng }}</textarea>
+        </div>
+
+        <!-- Статус — только для чтения -->
+      </div>
+
+      <!-- Документы -->
+      <div class="card-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="font-size:16px; font-weight:700;">Документы</div>
+          <div style="display:flex; gap:6px;">
+            <button onclick="openTemplateModal()" style="padding:6px 14px; background:transparent; color:var(--accent); border:1.5px solid var(--accent); border-radius:5px; font-size:12px; font-weight:600; cursor:pointer;">Создать из шаблона</button>
+            <button onclick="document.getElementById('docUploadArea').style.display='flex'" style="padding:6px 14px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-size:12px; font-weight:600; cursor:pointer;">+ Добавить</button>
+          </div>
+        </div>
+        <div id="docUploadArea" style="display:none; gap:8px; margin-bottom:16px; padding:14px; background:var(--answer-bg,#f8fafd); border:1px solid var(--border); border-radius:6px; flex-wrap:wrap; align-items:end;">
+          <div style="flex:1; min-width:200px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Название</label>
+            <input id="docTitle" placeholder="Название документа" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:5px;font-size:13px;">
+          </div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Файл</label><input type="file" id="docFile" style="font-size:13px;"></div>
+          <button onclick="uploadDocument()" style="padding:8px 16px;background:var(--status-green);color:#fff;border:none;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;">Загрузить</button>
+          <button onclick="document.getElementById('docUploadArea').style.display='none'" style="padding:8px 12px;background:transparent;border:1px solid var(--border);border-radius:5px;font-size:13px;cursor:pointer;">Отмена</button>
+        </div>
+        <div id="docsTable">
+          {% for doc in program.documents.all %}
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);" id="doc-{{ doc.pk }}">
+            <div style="font-size:20px;">{% if doc.file %}📄{% else %}⚠️{% endif %}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;">{{ doc.title }}{% if doc.template %} <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(шаблон)</span>{% endif %}</div>
+              {% if doc.file %}<div style="font-size:11px;color:var(--text-muted);">{{ doc.filename }} · {{ doc.created_at|date:"d.m.Y" }}</div>
+              {% else %}<div style="font-size:11px;color:var(--status-yellow);">Файл не прикреплён</div>{% endif %}
+            </div>
+            {% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--accent);text-decoration:none;">Открыть</a>{% endif %}
+            {% if not doc.template %}<button onclick="deleteDocument({{ doc.pk }})" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--status-red);background:transparent;cursor:pointer;">✕</button>{% endif %}
+          </div>
+          {% empty %}
+          <div id="docsEmpty" style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Документов нет</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Сертификат / Документ -->
+      <div class="collapse-section">
+        <div class="collapse-header" onclick="toggleSection(this)">
+          <h3>Сертификат / Документ</h3>
+          <span class="collapse-arrow">▼</span>
+        </div>
+        <div class="collapse-body">
+          <div class="f-grid" style="margin-bottom:12px;">
+            <div><label class="f-label">Тип бланка</label><input id="f_blank_type" value="{{ program.blank_type }}" class="f-input"></div>
+            <div><label class="f-label">Тип регистрации бланка</label><input id="f_blank_reg_type" value="{{ program.blank_reg_type }}" class="f-input"></div>
+            <div><label class="f-label">ID бланка</label><input id="f_id_blank" type="number" value="{{ program.id_blank|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Подпрограмма</label><input id="f_sub_prog" value="{{ program.sub_prog }}" class="f-input"></div>
+            <div><label class="f-label">Подпрограмма (англ)</label><input id="f_sub_prog_eng" value="{{ program.sub_prog_eng }}" class="f-input"></div>
+            <div><label class="f-label">Подписант</label><input id="f_signing_head" value="{{ program.signing_head }}" class="f-input"></div>
+            <div><label class="f-label">Подписант (англ)</label><input id="f_signing_head_eng" value="{{ program.signing_head_eng }}" class="f-input"></div>
+            <div><label class="f-label">ID подписанта</label><input id="f_id_sign" type="number" value="{{ program.id_sign|default_if_none:'' }}" class="f-input"></div>
+          </div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 1</label><textarea id="f_sert_text1" class="f-textarea">{{ program.sert_text1 }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 1 (англ)</label><textarea id="f_sert_text1_eng" class="f-textarea">{{ program.sert_text1_eng }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 2</label><textarea id="f_sert_text2" class="f-textarea">{{ program.sert_text2 }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 2 (англ)</label><textarea id="f_sert_text2_eng" class="f-textarea">{{ program.sert_text2_eng }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 3</label><textarea id="f_sert_text3" class="f-textarea">{{ program.sert_text3 }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 3 (англ)</label><textarea id="f_sert_text3_eng" class="f-textarea">{{ program.sert_text3_eng }}</textarea></div>
+          <div style="margin-bottom:8px;"><label class="f-label">Текст сертификата 4</label><input id="f_sert_text4" value="{{ program.sert_text4 }}" class="f-input"></div>
+          <div><label class="f-label">Текст сертификата 4 (англ)</label><input id="f_sert_text4_eng" value="{{ program.sert_text4_eng }}" class="f-input"></div>
+        </div>
+      </div>
+
+      <!-- Статистика и классификация -->
+      <div class="collapse-section">
+        <div class="collapse-header" onclick="toggleSection(this)">
+          <h3>Статистика и классификация</h3>
+          <span class="collapse-arrow">▼</span>
+        </div>
+        <div class="collapse-body">
+          <div class="f-grid">
+            <div><label class="f-label">Тип документа</label><input id="f_stat_type" value="{{ program.stat_type }}" class="f-input"></div>
+            <div><label class="f-label">Специальность</label><input id="f_specialty" value="{{ program.specialty }}" class="f-input"></div>
+            <div><label class="f-label">Форма обучения</label><input id="f_training_form" value="{{ program.training_form }}" class="f-input"></div>
+            <div><label class="f-label">Уровень образования</label><input id="f_edu_level" value="{{ program.edu_level }}" class="f-input"></div>
+            <div><label class="f-label">Группа программ</label><input id="f_prog_group" value="{{ program.prog_group }}" class="f-input"></div>
+            <div><label class="f-label">Тип контракта</label><input id="f_contract_type" value="{{ program.contract_type }}" class="f-input"></div>
+            <div><label class="f-label">ДПО</label><input id="f_dpo" value="{{ program.dpo }}" class="f-input"></div>
+          </div>
+          <div style="display:flex; gap:20px; margin-top:12px;">
+            <label class="f-check"><input type="checkbox" id="f_dvik157" {% if program.dvik157 %}checked{% endif %}> 157 ДВИК</label>
+            <label class="f-check"><input type="checkbox" id="f_vmc157" {% if program.vmc157 %}checked{% endif %}> 157 ВМК</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ФРДО -->
+      <div class="collapse-section">
+        <div class="collapse-header" onclick="toggleSection(this)">
+          <h3>ФРДО</h3>
+          <span class="collapse-arrow">▼</span>
+        </div>
+        <div class="collapse-body">
+          <div class="f-grid">
+            <div><label class="f-label">ФРДО ПО профессия</label><input id="f_frdo_po_prof" value="{{ program.frdo_po_prof }}" class="f-input"></div>
+            <div><label class="f-label">ФРДО ПО тип образования</label><input id="f_frdo_po_type_edu" value="{{ program.frdo_po_type_edu }}" class="f-input"></div>
+            <div><label class="f-label">ФРДО тип программы</label><input id="f_frdo_prog_type" value="{{ program.frdo_prog_type }}" class="f-input"></div>
+            <div><label class="f-label">ФРДО тип документа</label><input id="f_frdo_doc_type" value="{{ program.frdo_doc_type }}" class="f-input"></div>
+            <div><label class="f-label">Образовательный документ ФРДО</label><input id="f_edu_doc_frdo" value="{{ program.edu_doc_frdo }}" class="f-input"></div>
+            <div><label class="f-label">Квалификация/разряд ПО</label><input id="f_qual_rank_po" value="{{ program.qual_rank_po }}" class="f-input"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Настройки -->
+      <div class="collapse-section">
+        <div class="collapse-header" onclick="toggleSection(this)">
+          <h3>Настройки</h3>
+          <span class="collapse-arrow">▼</span>
+        </div>
+        <div class="collapse-body">
+          <div class="f-grid" style="margin-bottom:12px;">
+            <div><label class="f-label">Требуемое количество</label><input id="f_quant_required" type="number" value="{{ program.quant_required|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Бонусная ставка</label><input id="f_bonus_rate" type="number" value="{{ program.bonus_rate|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Статус онлайн</label><input id="f_online_sts" value="{{ program.online_sts }}" class="f-input"></div>
+            <div><label class="f-label">Статус инспекции</label><input id="f_inspection_sts" value="{{ program.inspection_sts }}" class="f-input"></div>
+            <div><label class="f-label">Авто-контракт</label><input id="f_auto_contract" value="{{ program.auto_contract }}" class="f-input"></div>
+            <div><label class="f-label">МСУН</label><input id="f_msun" type="number" step="0.01" value="{{ program.msun|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">УМКД</label><input id="f_umkd" value="{{ program.umkd }}" class="f-input"></div>
+            <div><label class="f-label">Сфера профессии</label><input id="f_sfera_prof" value="{{ program.sfera_prof }}" class="f-input"></div>
+            <div><label class="f-label">Группа профессии</label><input id="f_group_prof" value="{{ program.group_prof }}" class="f-input"></div>
+            <div><label class="f-label">Цвет группы</label><input id="f_color_gr" value="{{ program.color_gr }}" class="f-input"></div>
+            <div><label class="f-label">Первый контракт</label><input id="f_contract_first" type="number" value="{{ program.contract_first|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">ID админа</label><input id="f_user_admin" type="number" value="{{ program.user_admin|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">ID инструктора</label><input id="f_instructor" type="number" value="{{ program.instructor|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">АИС сертификат</label><input id="f_ais_sert" type="number" value="{{ program.ais_sert|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">АИС ранг</label><input id="f_ais_rank" type="number" value="{{ program.ais_rank|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">АИС тип документа</label><input id="f_ais_uid_doc_type" value="{{ program.ais_uid_doc_type }}" class="f-input"></div>
+            <div><label class="f-label">Оценка по умолчанию</label><input id="f_eva_default" value="{{ program.eva_default }}" class="f-input"></div>
+            <div><label class="f-label">Разрешительный документ</label><input id="f_permit_doc_gov" type="number" value="{{ program.permit_doc_gov|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Экзаменатор по умолчанию</label><input id="f_examiner_default" type="number" value="{{ program.examiner_default|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Форма обучения ФАМРТ</label><input id="f_tr_form_famrt" value="{{ program.tr_form_famrt }}" class="f-input"></div>
+            <div><label class="f-label">Примечание для слушателя</label><input id="f_rem_stu" value="{{ program.rem_stu }}" class="f-input"></div>
+          </div>
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <label class="f-check"><input type="checkbox" id="f_is_published" {% if program.is_published %}checked{% endif %}> На сайте</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Служебное -->
+      <div class="collapse-section">
+        <div class="collapse-header" onclick="toggleSection(this)">
+          <h3>Служебное</h3>
+          <span class="collapse-arrow">▼</span>
+        </div>
+        <div class="collapse-body">
+          <div class="f-grid" style="margin-bottom:12px;">
+            <div><label class="f-label">Основное название</label><input id="f_main_title" value="{{ program.main_title }}" class="f-input"></div>
+            <div><label class="f-label">ID подразделения</label><input id="f_id_dep" type="number" value="{{ program.id_dep|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">ID организации</label><input id="f_id_org" type="number" value="{{ program.id_org|default_if_none:'' }}" class="f-input"></div>
+            <div><label class="f-label">Дата архивации</label><input id="f_archive_date" type="date" value="{{ program.archive_date|date:'Y-m-d' }}" class="f-input"></div>
+          </div>
+          <div style="margin-bottom:8px;"><label class="f-label">Старая программа</label><textarea id="f_old_programm" class="f-textarea">{{ program.old_programm }}</textarea></div>
+          <div><label class="f-label">Примечания</label><textarea id="f_notes" class="f-textarea">{{ program.notes }}</textarea></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ПРАВАЯ КОЛОНКА -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Стоимость -->
+      <div class="card-panel" style="padding:0;">
+        <div id="priceDisplayBlock" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:16px 20px; display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <div style="text-align:right;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#166534; margin-bottom:4px;">Стоимость подготовки</div>
+            <div style="font-size:28px; font-weight:900; color:#16a34a;">{% if program.new_price %}{{ program.new_price|floatformat:0 }} ₽{% else %}Не указана{% endif %}</div>
+            {% if program.price and program.price != program.new_price %}<div style="font-size:13px; color:var(--text-muted); text-decoration:line-through; margin-top:2px;">{{ program.price|floatformat:0 }} ₽</div>{% endif %}
+          </div>
+          <button onclick="togglePriceEdit()" style="padding:8px 16px; background:#16a34a; color:#fff; border:none; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.3);">✎ Изменить цену</button>
+        </div>
+        <div id="priceEditForm" style="display:none; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:16px 20px;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#166534; margin-bottom:8px;">Изменение стоимости</div>
+          <div style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+            <div><label style="font-size:11px; color:#166534; display:block; margin-bottom:4px;">Новая цена (₽)</label><input id="f_new_price" type="number" value="{{ program.new_price|default_if_none:'' }}" style="padding:8px 12px; border:1.5px solid #86efac; border-radius:5px; font-size:16px; font-weight:700; width:160px;"></div>
+            <button onclick="savePrice()" style="padding:8px 16px; background:#16a34a; color:#fff; border:none; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer;">Сохранить</button>
+            <button onclick="togglePriceEdit()" style="padding:8px 16px; background:transparent; border:1px solid var(--border); border-radius:5px; font-size:13px; cursor:pointer;">Отмена</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модули -->
+      <div class="card-panel">
+        <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Модули обучения</div>
+        <div id="modulesList">
+          {% for m in program.modules.all %}
+          <div style="border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">{{ m.title }}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">{{ m.steps.count }} этапов</div>
+            <div style="display:flex;gap:6px;">
+              <a href="{% url 'module_edit' m.pk %}" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--accent);text-decoration:none;">Редактировать</a>
+              <a href="{% url 'module_preview' m.pk %}" target="_blank" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--status-green);text-decoration:none;">Просмотр</a>
+            </div>
+          </div>
+          {% empty %}
+          <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Модулей нет</div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Создать новый модуль</div>
+          <div style="display:flex;gap:6px;">
+            <input id="newModuleTitle" placeholder="Название модуля" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+            <button onclick="createModule()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Создать</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Параметры программы -->
+      <div class="card-panel">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px;">Параметры программы</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div><label class="f-label">Подразделение</label><input id="f_department" value="{{ program.department }}" class="f-input"></div>
+          <div><label class="f-label">Категория</label><input id="f_category" value="{{ program.category }}" class="f-input"></div>
+          <div><label class="f-label">Направление</label><input id="f_direction" value="{{ program.direction }}" class="f-input"></div>
+          <div><label class="f-label">Часов</label><input id="f_period_hours" type="number" value="{{ program.period_hours|default_if_none:'' }}" class="f-input"></div>
+          <div><label class="f-label">Тип бланка</label><input id="f_blank_type_r" value="{{ program.blank_type }}" class="f-input" oninput="document.getElementById('f_blank_type').value=this.value"></div>
+          <div><label class="f-label">Лимит группы</label><input id="f_group_limit" type="number" value="{{ program.group_limit|default_if_none:'' }}" class="f-input"></div>
+          <div><label class="f-label">Подписант</label>
+            <select id="f_signer_person" class="f-input">
+              <option value="">— Не назначен —</option>
+              {% for s in available_signers %}
+              <option value="{{ s.pk }}" {% if program.signer_person_id == s.pk %}selected{% endif %}>{{ s.last_name }} {{ s.first_name }} {{ s.middle_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Информация -->
+      <div class="card-panel">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px;">Информация</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.8;">
+          <div><strong>ID:</strong> {{ program.pk }}</div>
+          <div><strong>Код:</strong> {{ program.code }}</div>
+          {% if program.price %}<div><strong>Базовая стоимость:</strong> {{ program.price|floatformat:0 }} ₽</div>{% endif %}
+          {% if program.period_days %}<div><strong>Дней:</strong> {{ program.period_days }}</div>{% endif %}
+          {% if program.period_weeks %}<div><strong>Недель:</strong> {{ program.period_weeks }}</div>{% endif %}
+          {% if program.created_at %}<div><strong>Создана:</strong> {{ program.created_at|date:"d.m.Y" }}</div>{% endif %}
+          {% if program.edit_date %}<div><strong>Изменена:</strong> {{ program.edit_date|date:"d.m.Y H:i" }}</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- Кнопка печати -->
+      <button type="button" onclick="alert('Функция печати документа об образовании в разработке')" title="Проверка печати документа об образовании" style="width:100%; padding:10px 16px; background:transparent; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; gap:8px;">
+        🖨️ Печать документа
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно шаблонов -->
+<div id="templateModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:10px; width:480px; max-width:90vw; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border);">
+      <h3 style="font-size:16px; font-weight:700; margin:0;">Добавить документы из шаблона</h3>
+      <button onclick="closeTemplateModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); padding:0 4px;">&times;</button>
+    </div>
+    <div id="templateList" style="padding:16px 20px; overflow-y:auto; flex:1; font-size:14px;"></div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; padding:14px 20px; border-top:1px solid var(--border);">
+      <button onclick="closeTemplateModal()" style="padding:8px 16px; background:transparent; border:1px solid var(--border); border-radius:5px; font-size:13px; cursor:pointer;">Отмена</button>
+      <button onclick="createSelectedDocs()" style="padding:8px 16px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer;">Добавить выбранные</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var PROGRAM_ID = {{ program.pk }};
+var CSRF = '{{ csrf_token }}';
+
+function toggleSection(header){
+  header.closest('.collapse-section').classList.toggle('open');
+}
+
+function saveProgram(){
+  var g=function(id){var e=document.getElementById(id);return e?(e.type==='checkbox'?e.checked:e.value.trim()):''};
+  var gn=function(id){var v=g(id);return v===''?null:v};
+  var data = {
+    title:g('f_title'), title_eng:g('f_title_eng'),
+    category:g('f_category'), direction:g('f_direction'), department:g('f_department'),
+    period_hours:gn('f_period_hours'), new_price:gn('f_new_price'),
+    // Статистика
+    stat_type:g('f_stat_type'), specialty:g('f_specialty'), training_form:g('f_training_form'),
+    edu_level:g('f_edu_level'), prog_group:g('f_prog_group'), contract_type:g('f_contract_type'),
+    dvik157:g('f_dvik157'), vmc157:g('f_vmc157'), is_published:g('f_is_published'),
+    dpo:g('f_dpo'),
+    // Сертификат
+    sert_text1:g('f_sert_text1'), sert_text1_eng:g('f_sert_text1_eng'),
+    sert_text2:g('f_sert_text2'), sert_text2_eng:g('f_sert_text2_eng'),
+    sert_text3:g('f_sert_text3'), sert_text3_eng:g('f_sert_text3_eng'),
+    sert_text4:g('f_sert_text4'), sert_text4_eng:g('f_sert_text4_eng'),
+    blank_type:g('f_blank_type'), blank_reg_type:g('f_blank_reg_type'),
+    id_blank:gn('f_id_blank'),
+    sub_prog:g('f_sub_prog'), sub_prog_eng:g('f_sub_prog_eng'),
+    signing_head:g('f_signing_head'), signing_head_eng:g('f_signing_head_eng'),
+    id_sign:gn('f_id_sign'),
+    // ФРДО
+    frdo_po_prof:g('f_frdo_po_prof'), frdo_po_type_edu:g('f_frdo_po_type_edu'),
+    frdo_prog_type:g('f_frdo_prog_type'), frdo_doc_type:g('f_frdo_doc_type'),
+    edu_doc_frdo:g('f_edu_doc_frdo'), qual_rank_po:g('f_qual_rank_po'),
+    // Настройки
+    group_limit:gn('f_group_limit'), quant_required:gn('f_quant_required'),
+    bonus_rate:gn('f_bonus_rate'), online_sts:g('f_online_sts'),
+    inspection_sts:g('f_inspection_sts'), auto_contract:g('f_auto_contract'),
+    msun:gn('f_msun'), umkd:g('f_umkd'),
+    sfera_prof:g('f_sfera_prof'), group_prof:g('f_group_prof'), color_gr:g('f_color_gr'),
+    contract_first:gn('f_contract_first'), user_admin:gn('f_user_admin'),
+    instructor:gn('f_instructor'),
+    ais_sert:gn('f_ais_sert'), ais_rank:gn('f_ais_rank'), ais_uid_doc_type:g('f_ais_uid_doc_type'),
+    eva_default:g('f_eva_default'), permit_doc_gov:gn('f_permit_doc_gov'),
+    examiner_default:gn('f_examiner_default'), tr_form_famrt:g('f_tr_form_famrt'),
+    rem_stu:g('f_rem_stu'),
+    // Служебное
+    main_title:g('f_main_title'), old_programm:g('f_old_programm'),
+    id_dep:gn('f_id_dep'), id_org:gn('f_id_org'),
+    archive_date:gn('f_archive_date'), notes:g('f_notes'),
+    // FK
+    signer_person:gn('f_signer_person'),
+  };
+  fetch('/programs/'+PROGRAM_ID+'/save/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(d){if(d.ok)showToast('Сохранено');else showToast('Ошибка',true);});
+}
+
+function uploadDocument(){
+  var fi=document.getElementById('docFile');if(!fi.files[0]){alert('Выберите файл');return;}
+  var fd=new FormData();fd.append('file',fi.files[0]);fd.append('title',document.getElementById('docTitle').value.trim()||fi.files[0].name);
+  fetch('/programs/'+PROGRAM_ID+'/documents/upload/',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(function(r){return r.json();}).then(function(d){if(d.ok)location.reload();});
+}
+
+function deleteDocument(id){
+  if(!confirm('Удалить документ?'))return;
+  fetch('/programs/documents/'+id+'/delete/',{method:'POST',headers:{'X-CSRFToken':CSRF}}).then(function(r){return r.json();}).then(function(d){if(d.ok){var el=document.getElementById('doc-'+id);if(el)el.remove();}});
+}
+
+function openTemplateModal(){
+  var modal=document.getElementById('templateModal');
+  modal.style.display='flex';
+  var list=document.getElementById('templateList');
+  list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Загрузка...</div>';
+  fetch('/api/programs/'+PROGRAM_ID+'/available-templates/').then(function(r){return r.json();}).then(function(d){
+    if(!d.templates||!d.templates.length){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Нет доступных шаблонов</div>';return;}
+    var html='';
+    d.templates.forEach(function(t){
+      if(t.already_exists){
+        html+='<label style="display:flex;align-items:center;gap:10px;padding:8px 0;opacity:0.5;cursor:default;"><input type="checkbox" checked disabled> <span>'+t.title+'</span> <span style="font-size:11px;color:var(--text-muted);margin-left:auto;">уже добавлен</span></label>';
+      } else {
+        html+='<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;"><input type="checkbox" class="tmpl-cb" value="'+t.id+'"> <span>'+t.title+'</span></label>';
+      }
+    });
+    list.innerHTML=html;
+  });
+}
+function closeTemplateModal(){document.getElementById('templateModal').style.display='none';}
+function createSelectedDocs(){
+  var ids=[];document.querySelectorAll('.tmpl-cb:checked').forEach(function(c){ids.push(parseInt(c.value));});
+  if(!ids.length){showToast('Выберите хотя бы один шаблон',true);return;}
+  fetch('/api/programs/'+PROGRAM_ID+'/create-template-docs/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify({template_ids:ids})}).then(function(r){return r.json();}).then(function(d){
+    closeTemplateModal();
+    if(d.created>0){showToast('Создано документов: '+d.created);setTimeout(function(){location.reload();},1000);}
+    else showToast('Все документы из шаблона уже добавлены');
+  });
+}
+
+function createModule(){
+  var t=document.getElementById('newModuleTitle').value.trim();if(!t){alert('Введите название');return;}
+  var fd=new FormData();fd.append('program_id',PROGRAM_ID);fd.append('title',t);
+  fetch('/modules/create/',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(function(){location.reload();});
+}
+
+function togglePriceEdit(){
+  var f=document.getElementById('priceEditForm'),d=document.getElementById('priceDisplayBlock');
+  if(f.style.display==='none'){f.style.display='block';d.style.display='none';}
+  else{f.style.display='none';d.style.display='flex';}
+}
+function savePrice(){
+  var v=document.getElementById('f_new_price').value;
+  fetch('/programs/'+PROGRAM_ID+'/save/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify({new_price:v||null})}).then(function(r){return r.json();}).then(function(d){if(d.ok)location.reload();});
+}
+
+// Auto-resize для textarea
+function autoResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+document.addEventListener('DOMContentLoaded',function(){
+  var te=document.getElementById('f_title_eng');
+  if(te){autoResize(te);te.addEventListener('input',function(){autoResize(te);});}
+  var tt=document.getElementById('f_title');
+  if(tt){autoResize(tt);tt.addEventListener('input',function(){autoResize(tt);});}
+});
+
+function showToast(msg,err){
+  var t=document.getElementById('pToast');
+  if(!t){t=document.createElement('div');t.id='pToast';t.style.cssText='position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity .3s;color:#fff;';document.body.appendChild(t);}
+  t.style.background=err?'var(--status-red)':'var(--status-green)';t.textContent=msg;t.style.opacity='1';setTimeout(function(){t.style.opacity='0';},3000);
+}
+</script>
+{% endblock %}

@@ -5,6 +5,7 @@ urlpatterns = [
     # Пользователи
     path('', views.login_view, name='login'),  # Только один раз!
     path('logout/', views.logout_view, name='logout'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     path('home/', views.home_view, name='home'),
 
     # Курсы
@@ -28,6 +29,12 @@ urlpatterns = [
 
     # Программы обучения
     path('programs/', views.program_catalog, name='program_catalog'),
+    path('programs/<int:pk>/', views.program_detail, name='program_detail'),
+    path('programs/<int:pk>/save/', views.program_save, name='program_save'),
+    path('programs/<int:pk>/documents/upload/', views.program_document_upload, name='program_document_upload'),
+    path('programs/documents/<int:doc_pk>/delete/', views.program_document_delete, name='program_document_delete'),
+    path('api/programs/<int:pk>/create-template-docs/', views.create_template_docs, name='create_template_docs'),
+    path('api/programs/<int:pk>/available-templates/', views.available_templates, name='available_templates'),
 
     # Модули обучения
     path('modules/', views.module_list, name='module_list'),
@@ -41,6 +48,8 @@ urlpatterns = [
     # API конструктора модулей
     path('api/modules/<int:pk>/steps/', views.api_module_steps, name='api_module_steps'),
     path('api/modules/<int:pk>/steps/save/', views.api_module_steps_save, name='api_module_steps_save'),
+    path('api/final-exam/<int:step_pk>/questions/', views.api_final_exam_questions, name='api_final_exam_questions'),
+    path('api/final-exam/<int:step_pk>/submit/', views.api_final_exam_submit, name='api_final_exam_submit'),
     path('api/steps/<int:pk>/questions/', views.api_step_questions, name='api_step_questions'),
     path('api/steps/<int:pk>/questions/save/', views.api_step_questions_save, name='api_step_questions_save'),
     path('api/steps/<int:pk>/questions/import/', views.api_import_questions, name='api_import_questions'),
@@ -79,6 +88,23 @@ urlpatterns = [
     path('courses/api/practice-items/', views.api_practice_items, name='api_practice_items'),
     path('courses/api/course/<int:course_id>/students/', views.api_course_students, name='api_course_students'),
     path('courses/api/students/', views.api_all_students, name='api_all_students'),
+
+    # API карточки слушателя
+    path('api/persons/<int:pk>/orders/create/', views.api_person_order_create, name='api_person_order_create'),
+    path('api/orders/<int:order_pk>/add-program/', views.api_order_add_program, name='api_order_add_program'),
+    path('api/orders/<int:order_pk>/remove-programs/', views.api_order_remove_programs, name='api_order_remove_programs'),
+    path('api/persons/<int:pk>/documents/upload/', views.api_person_document_upload, name='api_person_document_upload'),
+    path('api/persons/<int:pk>/documents/archive/', views.api_person_documents_archive, name='api_person_documents_archive'),
+    path('api/documents/<int:doc_pk>/restore/', views.api_document_restore, name='api_document_restore'),
+    path('api/persons/<int:pk>/sea-service/create/', views.api_person_sea_service_create, name='api_person_sea_service_create'),
+    path('api/sea-service/<int:pk>/delete/', views.api_sea_service_delete, name='api_sea_service_delete'),
+    path('api/persons/<int:pk>/messages/send/', views.api_person_message_send, name='api_person_message_send'),
+    path('api/messages/<int:pk>/pin/', views.api_message_pin, name='api_message_pin'),
+    path('api/messages/<int:pk>/unpin/', views.api_message_unpin, name='api_message_unpin'),
+    path('api/messages/<int:pk>/toggle-case-status/', views.api_toggle_case_status, name='api_toggle_case_status'),
+    path('api/program-templates/', views.api_program_templates_list, name='api_program_templates_list'),
+    path('api/program-templates/create/', views.api_create_program_template, name='api_create_program_template'),
+    path('api/program-templates/<int:pk>/delete/', views.api_delete_program_template, name='api_delete_program_template'),
 
     # API прогресса модулей
     path('api/progress/module/<int:module_pk>/', views.api_module_progress, name='api_module_progress'),

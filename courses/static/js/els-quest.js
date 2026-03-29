@@ -25,10 +25,18 @@ function loadQuizProgress() {
 }
 
 async function loadAndStart() {
-  const r = await fetch('/api/steps/'+STEP_PK+'/questions/');
+  // Для final_exam — другой API endpoint
+  var url = (typeof STEP_TYPE!=='undefined' && STEP_TYPE==='final_exam')
+    ? '/api/final-exam/'+STEP_PK+'/questions/'
+    : '/api/steps/'+STEP_PK+'/questions/';
+  const r = await fetch(url);
   const d = await r.json();
+
+  // final_exam API может вернуть pass_score и time_limit
+  if (d.pass_score && typeof PASS_SCORE !== 'undefined') window.PASS_SCORE_FINAL = d.pass_score;
+
   questions = d.questions.map(q => ({
-    text: q.text, type: q.type, points: q.points||1, weight: q.points||1,
+    id: q.id, text: q.text, type: q.type, points: q.points||1, weight: q.points||1,
     image: q.image_url||null, caption: null,
     description: q.explanation||null, answers: q.answers||[], correct: q.correct||[],
     terms: q.terms||null,
@@ -41,20 +49,48 @@ async function loadAndStart() {
   // Попытка восстановить прогресс
   var saved = loadQuizProgress();
   if (saved && saved.state.length === questions.length) {
-    // Восстанавливаем без перемешивания
     state = saved.state;
     currentQ = saved.currentQ || 0;
   } else {
-    // Новая попытка — перемешиваем
-    for(let i=questions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]];}
+    // final_exam уже перемешан на сервере, quiz — перемешиваем тут
+    if (typeof STEP_TYPE==='undefined' || STEP_TYPE!=='final_exam') {
+      for(let i=questions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]];}
+    }
     initQuizState();
   }
   renderAll();
   checkReturnBtn();
-  // Если все вопросы уже отвечены (восстановлен завершённый тест) — показать результат
+  // Кнопка "Пропустить" для суперадмина
+  if (typeof USER_ROLE!=='undefined' && USER_ROLE==='superadmin') {
+    var sb=document.getElementById('skipTestBtn'); if(sb) sb.style.display='inline-flex';
+  }
   if (state.every(function(s){return s.confirmed;})) {
     setTimeout(showResultScreen, 500);
   }
+}
+
+function skipTest(){
+  // Автоматически отвечаем на все вопросы (~80% правильных)
+  var total=questions.length, target=Math.round(total*0.8);
+  for(var i=0;i<total;i++){
+    var q=questions[i], s=state[i];
+    if(s.confirmed) continue;
+    s.confirmed=true;
+    if(i<target){
+      // Правильный
+      if(q.type==='single'||q.type==='multi'){s.selected=q.correct.slice();s.status='correct';}
+      else if(q.type==='order'){s.order=q.correct.slice();s.status='correct';}
+      else if(q.type==='match'){s.matchSlots=q.correct.slice();s.matchPool=[];s.status='correct';}
+    } else {
+      // Неправильный
+      if(q.type==='single'||q.type==='multi'){var w=q.answers.findIndex(function(_,idx){return !q.correct.includes(idx);});s.selected=[w>=0?w:0];s.status='wrong';}
+      else if(q.type==='order'){s.order=q.correct.slice().reverse();s.status='wrong';}
+      else if(q.type==='match'){s.matchSlots=q.correct.slice().reverse();s.matchPool=[];s.status='wrong';}
+    }
+  }
+  renderAll();
+  saveQuizProgress();
+  setTimeout(showResultScreen, 300);
 }
 
 // ══════════════════════════════════════
@@ -228,7 +264,8 @@ function renderQuestion() {
   } else { iw.style.display = 'none'; }
 
   const desc = document.getElementById('qDesc');
-  if (q.description) { desc.style.display=''; desc.textContent=q.description; }
+  var showDesc = q.description && !(typeof STEP_TYPE!=='undefined' && STEP_TYPE==='final_exam' && s.confirmed);
+  if (showDesc) { desc.style.display=''; desc.textContent=q.description; }
   else { desc.style.display='none'; }
 
   // Labels
@@ -900,46 +937,89 @@ function checkAllDone() {
 function getCSRF(){const m=document.cookie.match(/(?:^|;\s*)csrftoken_lms=([^;]*)/);return m?decodeURIComponent(m[1]):'';}
 
 function showResultScreen() {
-  const totalPts = questions.reduce((s,q) => s+q.points, 0);
-  const earnedPts = getTotalPoints();
-  const pct = totalPts > 0 ? Math.round(earnedPts/totalPts*100) : 0;
-  const passed = PASS_SCORE > 0 ? pct >= PASS_SCORE : true;
-  const color = passed ? 'var(--status-green, #107c10)' : 'var(--status-red, #d32f2f)';
-  const statusText = PASS_SCORE > 0
-    ? (passed ? '\u0417\u0430\u0447\u0442\u0435\u043d\u043e' : '\u041d\u0435 \u0437\u0430\u0447\u0442\u0435\u043d\u043e (\u043f\u0440\u043e\u0445\u043e\u0434\u043d\u043e\u0439: '+PASS_SCORE+'%)')
-    : '\u0422\u0435\u0441\u0442 \u043f\u0440\u043e\u0439\u0434\u0435\u043d';
+  var totalPts = questions.reduce(function(s,q){return s+q.points;}, 0);
+  var earnedPts = getTotalPoints();
+  var pct = totalPts > 0 ? Math.round(earnedPts/totalPts*100) : 0;
+  var ps = (typeof PASS_SCORE_FINAL!=='undefined') ? PASS_SCORE_FINAL : PASS_SCORE;
+  var passed = ps > 0 ? pct >= ps : true;
+  var c = getCounts();
+  var isFinal = (typeof STEP_TYPE!=='undefined' && STEP_TYPE==='final_exam');
+  var isPreview = (typeof IS_PREVIEW!=='undefined' && IS_PREVIEW);
 
-  const c = getCounts();
+  window._quizResult = {pct:pct, correct:c.correct, totalQ:questions.length, earnedPts:earnedPts, totalPts:totalPts, passed:passed};
 
-  // Post result to API
-  fetch('/api/progress/quiz/'+STEP_PK+'/complete/', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},
-    body:JSON.stringify({score:earnedPts, max_score:totalPts, answers:{}})
-  }).catch(()=>{});
-
+  // API calls
+  if (isFinal) {
+    // Собираем детали
+    var details = questions.map(function(q,i){
+      return {question_id:q.id||null, question_text:q.text, type:q.type, answers:q.answers, correct:q.correct,
+        selected:state[i]?state[i].selected:[], is_correct:state[i]?state[i].status==='correct':false,
+        points:q.points, earned:(state[i]&&state[i].status==='correct')?q.points:(state[i]&&state[i].status==='partial')?Math.floor(q.points/2):0};
+    });
+    var quizScores = {};
+    try { quizScores = JSON.parse(localStorage.getItem('module_scores_'+MODULE_ID)||'{}'); } catch(e){}
+    fetch('/api/final-exam/'+STEP_PK+'/submit/', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},
+      body:JSON.stringify({score:pct, passed:passed, quiz_scores:quizScores, details:details, is_preview:isPreview})
+    }).catch(function(){});
+  } else {
+    fetch('/api/progress/quiz/'+STEP_PK+'/complete/', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},
+      body:JSON.stringify({score:earnedPts, max_score:totalPts, answers:{}})
+    }).catch(function(){});
+  }
   fetch('/api/progress/step/'+STEP_PK+'/complete/', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()}
-  }).catch(()=>{});
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()}
+  }).catch(function(){});
 
-  // Запоминаем результат для finishQuiz
-  window._quizResult = { pct: pct, correct: c.correct, totalQ: questions.length, earnedPts: earnedPts, totalPts: totalPts };
+  // Рендер экрана результата
+  var color = passed ? 'var(--status-green,#107c10)' : 'var(--status-red,#d32f2f)';
+  var icon, title, statusLine, buttonsHtml;
 
-  const screen = document.getElementById('resultScreen');
-  const content = document.getElementById('resultContent');
+  if (isFinal && isPreview) {
+    icon = passed ? '\ud83c\udf93' : '\ud83d\udcdd';
+    title = passed ? '\u0418\u0442\u043e\u0433\u043e\u0432\u0430\u044f \u043f\u0440\u043e\u0439\u0434\u0435\u043d\u0430!' : '\u0418\u0442\u043e\u0433\u043e\u0432\u0430\u044f \u043d\u0435 \u0441\u0434\u0430\u043d\u0430';
+    statusLine = '\u0420\u0435\u0436\u0438\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438. \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442: '+pct+'% (\u043f\u043e\u0440\u043e\u0433: '+ps+'%)';
+    buttonsHtml = '<button onclick="resetAndGoEdit()" style="padding:12px 28px;font-size:14px;font-weight:700;background:var(--accent,#0f62ae);color:#fff;border:none;border-radius:8px;cursor:pointer;">\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0438 \u0432 \u043a\u043e\u043d\u0441\u0442\u0440\u0443\u043a\u0442\u043e\u0440</button>' +
+      '<button onclick="goEditNoReset()" style="padding:12px 28px;font-size:14px;font-weight:700;background:#f0f0f0;color:var(--text-secondary,#3d5269);border:none;border-radius:8px;cursor:pointer;">\u0412 \u043a\u043e\u043d\u0441\u0442\u0440\u0443\u043a\u0442\u043e\u0440 (\u0431\u0435\u0437 \u0441\u0431\u0440\u043e\u0441\u0430)</button>';
+  } else if (isFinal && !passed) {
+    icon = '\ud83d\udcdd';
+    title = '\u0418\u0442\u043e\u0433\u043e\u0432\u0430\u044f \u043d\u0435 \u0441\u0434\u0430\u043d\u0430';
+    statusLine = '\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442: '+pct+'% (\u043d\u0443\u0436\u043d\u043e: '+ps+'%)';
+    buttonsHtml = '<button onclick="retryExam()" style="padding:12px 28px;font-size:15px;font-weight:700;background:var(--accent,#0f62ae);color:#fff;border:none;border-radius:8px;cursor:pointer;margin-right:8px;">\u041f\u0435\u0440\u0435\u0441\u0434\u0430\u0442\u044c</button>' +
+      '<button onclick="finishQuiz()" style="padding:12px 28px;font-size:15px;font-weight:700;background:#f0f0f0;color:var(--text-secondary);border:none;border-radius:8px;cursor:pointer;">\u0412\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f \u043a \u043c\u043e\u0434\u0443\u043b\u044e</button>';
+  } else if (isFinal && passed) {
+    icon = '\ud83c\udfc6';
+    title = '\u041c\u043e\u0434\u0443\u043b\u044c \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d!';
+    statusLine = '\u041f\u043e\u0437\u0434\u0440\u0430\u0432\u043b\u044f\u0435\u043c! \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442: '+pct+'%';
+    buttonsHtml = '<button onclick="finishQuiz()" style="padding:12px 32px;font-size:16px;font-weight:700;background:var(--accent,#0f62ae);color:#fff;border:none;border-radius:8px;cursor:pointer;">\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044c</button>';
+  } else if (!isFinal && isPreview) {
+    // Quiz в режиме проверки
+    icon = '\ud83c\udf93';
+    title = '\u0422\u0435\u0441\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d!';
+    var stp = ps>0 ? (passed?'\u0417\u0430\u0447\u0442\u0435\u043d\u043e':'\u041d\u0435 \u0437\u0430\u0447\u0442\u0435\u043d\u043e (\u043f\u043e\u0440\u043e\u0433: '+ps+'%)') : '\u0422\u0435\u0441\u0442 \u043f\u0440\u043e\u0439\u0434\u0435\u043d';
+    statusLine = '\u0420\u0435\u0436\u0438\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438. '+stp;
+    buttonsHtml = '<button onclick="finishQuiz()" style="padding:12px 28px;font-size:14px;font-weight:700;background:var(--accent,#0f62ae);color:#fff;border:none;border-radius:8px;cursor:pointer;">\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c \u043c\u043e\u0434\u0443\u043b\u044c</button>' +
+      '<button onclick="goEditNoReset()" style="padding:12px 28px;font-size:14px;font-weight:700;background:#f0f0f0;color:var(--text-secondary,#3d5269);border:none;border-radius:8px;cursor:pointer;">\u0412 \u043a\u043e\u043d\u0441\u0442\u0440\u0443\u043a\u0442\u043e\u0440</button>';
+  } else {
+    // Quiz обычный
+    icon = '\ud83c\udf93';
+    title = '\u0422\u0435\u0441\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d!';
+    var st = ps>0 ? (passed?'\u0417\u0430\u0447\u0442\u0435\u043d\u043e':'\u041d\u0435 \u0437\u0430\u0447\u0442\u0435\u043d\u043e (\u043f\u043e\u0440\u043e\u0433: '+ps+'%)') : '\u0422\u0435\u0441\u0442 \u043f\u0440\u043e\u0439\u0434\u0435\u043d';
+    statusLine = st;
+    buttonsHtml = '<button onclick="finishQuiz()" style="padding:12px 32px;font-size:16px;font-weight:700;background:var(--accent,#0f62ae);color:#fff;border:none;border-radius:8px;cursor:pointer;">\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044c</button>';
+  }
+
+  var screen = document.getElementById('resultScreen');
+  var content = document.getElementById('resultContent');
   content.innerHTML =
-    '<div style="text-align:center; padding:40px 20px; background:#fff; border-radius:12px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">' +
-      '<div style="font-size:48px; margin-bottom:16px;">\ud83c\udf93</div>' +
-      '<h2 style="font-size:24px; font-weight:900; margin-bottom:8px; color:var(--text-primary, #1a2b4a);">\u0422\u0435\u0441\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d!</h2>' +
-      '<div style="font-size:48px; font-weight:900; color:'+color+'; margin:16px 0;">'+pct+'%</div>' +
-      '<div style="font-size:15px; color:var(--text-muted, #7a93ad); margin-bottom:8px;">' +
-        '\u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0445: '+c.correct+' \u0438\u0437 '+questions.length+' \u00b7 \u0411\u0430\u043b\u043b\u043e\u0432: '+earnedPts+' \u0438\u0437 '+totalPts +
-      '</div>' +
-      '<div style="font-size:15px; color:'+color+'; font-weight:700; margin-bottom:24px;">'+statusText+'</div>' +
-      '<button onclick="finishQuiz()" style="padding:12px 32px; font-size:16px; font-weight:700; background:var(--accent, #0f62ae); color:#fff; border:none; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(15,98,174,0.3);">' +
-        '\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044c' +
-      '</button>' +
+    '<div style="text-align:center;padding:40px 20px;background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,0.08);">' +
+      '<div style="font-size:64px;margin-bottom:20px;">'+icon+'</div>' +
+      '<h2 style="font-size:26px;font-weight:900;margin-bottom:12px;color:var(--text-primary,#1a2b4a);">'+title+'</h2>' +
+      '<div style="font-size:56px;font-weight:900;color:'+color+';margin:20px 0;">'+pct+'%</div>' +
+      '<div style="font-size:15px;color:var(--text-muted,#7a93ad);margin-bottom:8px;">\u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0445: '+c.correct+' \u0438\u0437 '+questions.length+(ps>0?' \u00b7 \u041f\u043e\u0440\u043e\u0433: '+ps+'%':'')+'</div>' +
+      '<div style="font-size:16px;color:'+color+';font-weight:700;margin-bottom:32px;">'+statusLine+'</div>' +
+      '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">'+buttonsHtml+'</div>' +
     '</div>';
   screen.style.display = 'block';
   var navRow = document.querySelector('.nav-row');
@@ -950,21 +1030,31 @@ function showResultScreen() {
 
 function finishQuiz() {
   var res = window._quizResult || {};
-  // Записать результат в localStorage для preview
   try {
     localStorage.setItem('quizReturn', JSON.stringify({
-      stepId: STEP_PK,
-      moduleId: typeof MODULE_ID !== 'undefined' ? MODULE_ID : null,
-      completed: true,
-      score: res.pct || 0,
-      correctCount: res.correct || 0,
-      totalCount: res.totalQ || 0,
+      stepId: STEP_PK, moduleId: typeof MODULE_ID!=='undefined'?MODULE_ID:null,
+      completed: true, score: res.pct||0, correctCount: res.correct||0, totalCount: res.totalQ||0,
     }));
   } catch(e){}
-  // Удалить промежуточный прогресс
   localStorage.removeItem(QUIZ_STORAGE_KEY);
-  // Вернуться к модулю (в той же вкладке)
   window.location.href = RETURN_URL;
+}
+
+function retryExam() {
+  localStorage.removeItem(QUIZ_STORAGE_KEY);
+  window.location.reload();
+}
+
+function resetAndGoEdit() {
+  localStorage.removeItem('module_progress_'+MODULE_ID);
+  localStorage.removeItem('module_scores_'+MODULE_ID);
+  localStorage.removeItem(QUIZ_STORAGE_KEY);
+  window.location.href = typeof EDIT_URL!=='undefined' ? EDIT_URL : '/modules/'+MODULE_ID+'/edit/';
+}
+
+function goEditNoReset() {
+  localStorage.removeItem(QUIZ_STORAGE_KEY);
+  window.location.href = typeof EDIT_URL!=='undefined' ? EDIT_URL : '/modules/'+MODULE_ID+'/edit/';
 }
 
 // ══════════════════════════════════════

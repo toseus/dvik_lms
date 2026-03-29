@@ -129,6 +129,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 AUTH_USER_MODEL = 'courses.User'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGIN_URL = '/'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

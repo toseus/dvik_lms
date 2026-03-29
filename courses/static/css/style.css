@@ -53,6 +53,16 @@ a { color: inherit; text-decoration: none; }
 button { font-family: var(--font); cursor: pointer; }
 img { display: block; max-width: 100%; }
 
+/* Убрать стрелки у числовых полей */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* ══════════════════════════════════════
    ОБЩАЯ ШАПКА
 ══════════════════════════════════════ */
