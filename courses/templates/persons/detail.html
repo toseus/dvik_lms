@@ -16,7 +16,7 @@
   <button class="hdr-back" onclick="history.back()" title="Назад">&#8592;</button>
   <div class="hdr-t">
     {{ person.last_name }} {{ person.first_name }} {{ person.middle_name }}
-    <span>{{ person.pk }} | {{ person.user.username|default:"—" }}</span>
+    <span>{{ person.user.username|default:person.pk }} | Код: {{ person.code|default:"—" }}</span>
   </div>
   <button class="b" onclick="saveAll()">&#128190; Сохранить</button>
 </div>
@@ -184,7 +184,9 @@
     <div class="sl" id="pList" style="flex:1;overflow-y:auto;"></div>
   </div>
   <div id="tplPanel" style="width:180px;flex-shrink:0;border-left:1px solid var(--bl);overflow-y:auto;padding:6px;"></div>
-</div><div class="modal-f"><span id="pSelCount" style="font-size:11px;font-weight:600;color:var(--acc);flex:1;"></span><button class="b" onclick="closeModal()">Отмена</button><button class="b bp" onclick="confirmP()">Добавить</button></div></div></div>
+</div><div class="modal-f"><span id="pSelCount" style="font-size:11px;font-weight:600;color:var(--acc);flex:1;"></span><button class="b" id="pClearBtn" style="display:none;" onclick="clearSelection()">✕ Сбросить</button><button class="b" onclick="closeModal()">Отмена</button><button class="b bp" onclick="confirmP()">Добавить</button></div></div></div>
+
+<div class="mo" id="moduleModal"><div class="modal"><div class="modal-h"><h3 id="moduleModalTitle">Выдать модули</h3><button class="bi" onclick="closeModuleModal()">&#10005;</button></div><div class="modal-b" id="moduleModalBody" style="max-height:400px;overflow-y:auto;"></div><div class="modal-f"><span id="moduleSelCount" style="font-size:11px;font-weight:600;color:var(--acc);flex:1;"></span><button class="b" onclick="closeModuleModal()">Отмена</button><button class="b bp" onclick="confirmAssignModules()">Выдать</button></div></div></div>
 
 <div class="mo" id="cenzModal"><div class="modal"><div class="modal-h"><h3>Добавить в ценз</h3><button class="bi" onclick="closeCM()">&#10005;</button></div><div class="modal-b" id="cmBody"></div><div class="modal-f"><button class="b" onclick="closeCM()">Отмена</button><button class="b bp" onclick="confirmCM()">Добавить</button></div></div></div>
 
@@ -201,6 +203,7 @@
 <script type="application/json" id="programsData">{{ programs_json|safe }}</script>
 <script type="application/json" id="programCategoriesData">{{ program_categories_json|safe }}</script>
 <script type="application/json" id="programTemplatesData">{{ templates_json|safe }}</script>
+<script>const userRole = '{{ request.user.role|default:"" }}';</script>
 
 <script src="{% static 'js/person-card.js' %}"></script>
 </body>

@@ -409,7 +409,7 @@ class Program(models.Model):
         CANCELLED = 'otm', 'Отменён'
 
     # === Основные связи ===
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='programs', verbose_name='Заявка')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, null=True, blank=True, related_name='programs', verbose_name='Заявка')
     person = models.ForeignKey('Person', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='trainings', verbose_name='Слушатель')
     training_program = models.ForeignKey('TrainingProgram', null=True, blank=True, on_delete=models.SET_NULL,
@@ -726,6 +726,7 @@ class LearningModule(models.Model):
     title = models.CharField(max_length=300, verbose_name='Название модуля')
     order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
     description = models.TextField(blank=True, verbose_name='Описание')
+    cover_image = models.CharField(max_length=500, blank=True, default='', verbose_name='Обложка модуля (URL)')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -786,7 +787,7 @@ class QuizQuestion(models.Model):
     text = models.TextField(verbose_name='Текст вопроса')
     type = models.CharField(max_length=10, choices=QType.choices, default=QType.SINGLE, verbose_name='Тип')
     points = models.PositiveIntegerField(default=1, verbose_name='Баллы')
-    image_url = models.URLField(max_length=500, blank=True, verbose_name='URL изображения')
+    image_url = models.CharField(max_length=500, blank=True, default='', verbose_name='Ссылка на картинку')
     explanation = models.TextField(blank=True, verbose_name='Пояснение к ответу')
     answers = models.JSONField(verbose_name='Варианты ответов', help_text='["ответ 1","ответ 2",...]')
     correct = models.JSONField(verbose_name='Правильные ответы', help_text='[0,2]')
@@ -892,6 +893,31 @@ class ModuleResult(models.Model):
 
     def __str__(self):
         return f'{self.person} \u2192 {self.module.title} ({self.final_exam_score}%)'
+
+
+class ModuleAssignment(models.Model):
+    """Назначение модуля слушателю."""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE,
+        related_name='module_assignments', verbose_name='Слушатель')
+    module = models.ForeignKey('LearningModule', on_delete=models.CASCADE,
+        related_name='assignments', verbose_name='Модуль')
+    program_line = models.ForeignKey('Program', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='module_assignments', verbose_name='Строка заявки (подготовка)')
+    order = models.ForeignKey('Order', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='module_assignments', verbose_name='Заявка')
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='assigned_modules', verbose_name='Кто выдал')
+    assigned_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата выдачи')
+    is_active = models.BooleanField(default=True, verbose_name='Активно')
+
+    class Meta:
+        unique_together = ['person', 'module', 'program_line']
+        ordering = ['-assigned_at']
+        verbose_name = 'Назначение модуля'
+        verbose_name_plural = 'Назначения модулей'
+
+    def __str__(self):
+        return f'{self.person} — {self.module}'
 
 
 class ProgramDocument(models.Model):
@@ -1095,3 +1121,42 @@ class ProgramTemplate(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class MenuPermission(models.Model):
+    """Настройка видимости пунктов меню по ролям."""
+    MENU_ITEMS = [
+        ('dashboard', 'Дашборд'),
+        ('learning', 'Обучение'),
+        ('schedule', 'График'),
+        ('results', 'Результаты'),
+        ('library', 'Библиотека'),
+        ('programs', 'Программы'),
+        ('modules', 'Модули'),
+        ('persons', 'Слушатели (Физлица)'),
+        ('students', 'Слушатели'),
+        ('companies', 'Юридические лица'),
+        ('organizations', 'Организации'),
+        ('contracts', 'Договоры'),
+        ('orders', 'Заявки'),
+    ]
+
+    ROLES = [
+        ('student', 'Слушатель'),
+        ('teacher', 'Преподаватель'),
+        ('admin', 'Администратор'),
+        ('superadmin', 'Суперадмин'),
+    ]
+
+    menu_item = models.CharField(max_length=50, choices=MENU_ITEMS, verbose_name='Пункт меню')
+    role = models.CharField(max_length=20, choices=ROLES, verbose_name='Роль')
+    is_visible = models.BooleanField(default=False, verbose_name='Видим')
+
+    class Meta:
+        unique_together = ['menu_item', 'role']
+        ordering = ['menu_item', 'role']
+        verbose_name = 'Настройка меню'
+        verbose_name_plural = 'Настройки меню'
+
+    def __str__(self):
+        return f'{self.get_menu_item_display()} — {self.get_role_display()} — {"✓" if self.is_visible else "✗"}'

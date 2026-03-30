@@ -64,6 +64,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'courses.context_processors.program_filters',
                 'courses.context_processors.student_filters',
+                'courses.context_processors.menu_permissions',
+                'courses.context_processors.impersonation_context',
             ],
         },
     },

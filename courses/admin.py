@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
 
@@ -447,3 +447,19 @@ class ProgramTemplateAdmin(admin.ModelAdmin):
     list_editable = ['is_active', 'sort_order']
     filter_horizontal = ['programs']
     search_fields = ['name']
+
+
+@admin.register(ModuleAssignment)
+class ModuleAssignmentAdmin(admin.ModelAdmin):
+    list_display = ['person', 'module', 'program_line', 'assigned_by', 'assigned_at', 'is_active']
+    list_filter = ['is_active', 'assigned_at']
+    search_fields = ['person__last_name', 'module__title']
+    raw_id_fields = ['person', 'module', 'program_line', 'order', 'assigned_by']
+
+
+@admin.register(MenuPermission)
+class MenuPermissionAdmin(admin.ModelAdmin):
+    list_display = ['menu_item', 'role', 'is_visible']
+    list_editable = ['is_visible']
+    list_filter = ['role', 'is_visible']
+    ordering = ['menu_item', 'role']

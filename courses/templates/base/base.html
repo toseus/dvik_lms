@@ -56,7 +56,15 @@
     <nav class="sidebar-nav">
       {% block sidebar %}
 
+      {% if impersonated_person_name %}
+      <div style="background:#e74c3c;color:#fff;text-align:center;padding:6px 8px;font-size:11px;font-weight:700;border-radius:4px;margin:0 8px 6px;">
+        &#128065; {{ impersonated_person_name }}
+        <button onclick="fetch('/api/stop-impersonation/',{method:'POST',headers:{'X-CSRFToken':document.cookie.match(/csrftoken_lms=([^;]+)/)?.[1]||''}}).then(()=>location.reload())" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:1px 6px;border-radius:3px;cursor:pointer;font-size:10px;margin-left:4px;">Выйти</button>
+      </div>
+      {% endif %}
+
       <!-- Дашборд — отдельно -->
+      {% if 'dashboard' in visible_menu %}
       <div style="border-bottom:1px solid var(--sidebar-border); padding-bottom:2px; margin-bottom:2px;">
         <a href="{% url 'dashboard' %}" data-label="Дашборд"
            class="sidebar-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
@@ -64,6 +72,7 @@
           <span class="sidebar-label">Дашборд</span>
         </a>
       </div>
+      {% endif %}
 
       <!-- ══════ ОБУЧЕНИЕ ══════ -->
       <div class="accordion-group" id="grp-learn">
@@ -73,11 +82,13 @@
         </div>
         <div class="accordion-body">
 
-          <a href="{% url 'home' %}#learning" data-label="Обучение"
-             class="sidebar-item {% if request.resolver_match.url_name == 'home' %}hash-active{% endif %}" data-hash="learning">
+          {% if 'learning' in visible_menu %}
+          <a href="{% url 'student_learning' %}" data-label="Обучение"
+             class="sidebar-item {% if request.resolver_match.url_name == 'student_learning' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2zm1 0v8h10V2H3z"/><path d="M0 12h5v1H0v-1zm6.5-1.5l3.5 3.5-1 1-3.5-3.5 1-1z"/><path d="M0 13.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/><path d="M11 12h5v1h-5v-1z"/></svg>
             <span class="sidebar-label">Обучение</span>
           </a>
+          {% endif %}
 
           <a href="{% url 'home' %}#schedule" data-label="График"
              class="sidebar-item {% if request.resolver_match.url_name == 'home' %}hash-active{% endif %}" data-hash="schedule">
@@ -130,11 +141,13 @@
             <span class="sidebar-label">Мои дисциплины</span>
           </a>
 
+          {% if 'programs' in visible_menu %}
           <a href="{% url 'program_catalog' %}" data-label="Программы"
              class="sidebar-item {% if request.resolver_match.url_name == 'program_catalog' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z"/></svg>
             <span class="sidebar-label">Программы</span>
           </a>
+          {% endif %}
 
           <a href="#" data-label="Группы" class="sidebar-item">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5.784 6A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
@@ -146,6 +159,7 @@
             <span class="sidebar-label">Сроки</span>
           </a>
 
+          {% if 'organizations' in visible_menu %}
           <a href="{% url 'organization_list' %}" data-label="Организации"
              class="sidebar-item {% if request.resolver_match.url_name == 'organization_list' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor">
@@ -153,18 +167,23 @@
             </svg>
             <span class="sidebar-label">Организации</span>
           </a>
+          {% endif %}
 
+          {% if 'contracts' in visible_menu %}
           <a href="{% url 'contract_list' %}" data-label="Договоры"
              class="sidebar-item {% if request.resolver_match.url_name == 'contract_list' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/><path d="M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm1.639-3.708l1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V8.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V8s1.54-1.274 1.639-1.208z"/></svg>
             <span class="sidebar-label">Договоры</span>
           </a>
+          {% endif %}
 
+          {% if 'students' in visible_menu %}
           <a href="{% url 'student_list' %}" data-label="Слушатели"
              class="sidebar-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/><path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
             <span class="sidebar-label">Слушатели</span>
           </a>
+          {% endif %}
 
         </div>
       </div>
@@ -177,23 +196,29 @@
         </div>
         <div class="accordion-body">
 
+          {% if 'persons' in visible_menu %}
           <a href="{% url 'person_list' %}" data-label="Физические лица"
              class="sidebar-item {% if request.resolver_match.url_name == 'person_list' or request.resolver_match.url_name == 'student_card' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>
             <span class="sidebar-label">Физические лица</span>
           </a>
+          {% endif %}
 
+          {% if 'modules' in visible_menu %}
           <a href="{% url 'module_list' %}" data-label="Модули"
              class="sidebar-item {% if request.resolver_match.url_name == 'module_list' or request.resolver_match.url_name == 'module_edit' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-11zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1h-7zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6v7zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-13z"/></svg>
             <span class="sidebar-label">Модули</span>
           </a>
+          {% endif %}
 
+          {% if 'companies' in visible_menu %}
           <a href="{% url 'company_list' %}" data-label="Юридические лица"
              class="sidebar-item {% if request.resolver_match.url_name == 'company_list' %}active{% endif %}">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 16s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H4zm0 0"/><path d="M2 15.5a1 1 0 0 1 .067-.17c.182-.36.611-.93 1.39-1.466C4.355 13.18 5.725 12.5 8 12.5v.002z"/><rect x="1" y="1" width="7" height="10" rx="1"/><path d="M2.5 3h4M2.5 5h4M2.5 7h2.5"/><rect x="10" y="4" width="5" height="7" rx="1"/><path d="M11 6h3M11 8h2"/></svg>
             <span class="sidebar-label">Юридические лица</span>
           </a>
+          {% endif %}
 
           <a href="{% url 'home' %}#roles" data-label="Роли"
              class="sidebar-item {% if request.resolver_match.url_name == 'home' %}hash-active{% endif %}" data-hash="roles">

@@ -14,7 +14,12 @@
 <header class="app-header">
   <div class="logo-icon">📚</div>
   <span class="app-title">ДВИК — Система электронного обучения</span>
-  <div class="header-right"></div>
+  <div class="header-right">
+    <a href="{{ back_url }}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:5px;color:#fff;font-family:'Golos Text',sans-serif;font-size:13px;font-weight:500;text-decoration:none;transition:background .15s;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      {{ back_label }}
+    </a>
+  </div>
 </header>
 
 <main id="pageContent"></main>
@@ -41,7 +46,7 @@ const MODULE_TITLE = '{{ module.title|escapejs }}';
 const MODULE_DESC = '{{ module.description|escapejs }}';
 const PROGRAM_CODE = '{{ module.program.code|escapejs }}';
 const PROGRAM_TITLE = '{{ module.program.title|truncatechars:80|escapejs }}';
-const BACK_URL = '{% url "module_edit" module.pk %}';
+const BACK_URL = '{{ back_url }}';
 </script>
 <script src="{% static 'js/els-learn.js' %}"></script>
 </body>

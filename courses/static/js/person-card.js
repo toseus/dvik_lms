@@ -8,7 +8,7 @@ let cenz = JSON.parse(document.getElementById('cenzData').textContent);
 let msgs = JSON.parse(document.getElementById('msgsData').textContent);
 const personData = JSON.parse(document.getElementById('personData').textContent);
 const PROG_CATS = JSON.parse(document.getElementById('programCategoriesData').textContent);
-let progTemplates = JSON.parse(document.getElementById('programTemplatesData').textContent);
+let progTemplates = JSON.parse(document.getElementById('programTemplatesData')?.textContent || '[]');
 let currentCat = '';
 
 // --- CSRF ---
@@ -168,7 +168,7 @@ function renderApps() {
 function getPS(a) { if (!selProgs[a]) selProgs[a] = new Set(); return selProgs[a]; }
 function togProg(a, i) { const s = getPS(a); s.has(i) ? s.delete(i) : s.add(i); renderDet(); }
 function togAllP(a) { const ap = apps.find(x => x.id === a); if (!ap) return; const s = getPS(a); s.size === ap.programs.length ? s.clear() : ap.programs.forEach((_, i) => s.add(i)); renderDet(); }
-function delSelP(a) { const s = getPS(a); if (!s.size || !confirm('\u0423\u0434\u0430\u043B\u0438\u0442\u044C ' + s.size + '?')) return; apps.find(x => x.id === a).programs = apps.find(x => x.id === a).programs.filter((_, i) => !s.has(i)); s.clear(); render(); }
+async function delSelP(a) { const s = getPS(a); if (!s.size || !confirm('\u0423\u0434\u0430\u043B\u0438\u0442\u044C ' + s.size + '?')) return; const ap = apps.find(x => x.id === a); const ids = [...s].map(i => ap.programs[i].id); await fetch(`/api/orders/${a}/remove-programs/`, { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }); ap.programs = ap.programs.filter((_, i) => !s.has(i)); s.clear(); render(); }
 
 function renderDet() {
     const el = document.getElementById('detContent'), sa = getSelApps();
@@ -182,20 +182,28 @@ function renderDet() {
             let dH = '';
             if (p.dt === 'pct' && p.disc) dH = `<span class="disc-cell pct">${p.disc}%</span>`;
             else if (p.dt === 'rub' && p.disc) dH = `<span class="disc-cell rub">${fM(p.disc)} \u20BD</span>`;
-            const iss = p.issued ? `<span class="issue-date" onclick="uniss(${a.id},${i})">${fS(p.issuedDate)}</span>` : `<button class="issue-btn" onclick="doIss(${a.id},${i})">\u041D\u0430 \u0432\u044B\u0434\u0430\u0447\u0443</button>`;
+            let iss;
+            if (p.issuedDate) { iss = `<span class="issue-date">${fS(p.issuedDate)}</span>`; }
+            else if (a.payerType === 'ul' && p.grade) { iss = `<span class="issue-ready">\u041D\u0430 \u0432\u044B\u0434\u0430\u0447\u0443</span>`; }
+            else if (a.payerType === 'fl' && p.paymentDate && p.grade) { iss = `<span class="issue-ready">\u041D\u0430 \u0432\u044B\u0434\u0430\u0447\u0443</span>`; }
+            else { iss = `<span class="issue-no">\u041D\u0435 \u0432\u044B\u0434\u0430\u0432\u0430\u0442\u044C!</span>`; }
             const pC = a.paid ? 'cell-paid' : (a.debt > 0 && fi > 0 ? 'cell-debt' : '');
-            return `<tr class="${ps.has(i) ? 'p-sel' : ''}"><td class="star-cell">${sH(ps.has(i) ? 'star-full' : 'star-empty', 'togProg(' + a.id + ',' + i + ')')}</td><td class="col-sub"><span class="cdot" style="background:${sc}"></span>${p.sub}</td><td class="col-name" title="${p.name}">${p.name}</td><td class="col-df">${fS(p.dateFrom)}</td><td class="col-dt">${fS(p.dateTo)}</td><td class="col-disc">${dH}</td><td class="col-pay r ${pC}">${fi ? fM(fi) + ' \u20BD' : '0 \u20BD'}</td><td class="col-doc">${p.docNum || '\u2014'}</td><td class="col-reg">${p.regNum || '\u2014'}</td><td class="col-iss">${iss}</td></tr>`;
+            const ms = p.moduleStatus;
+            const modCell = ms ? `<span title="\u0412\u044B\u0434\u0430\u043D\u043E ${ms.total}, \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E ${ms.completed}">${ms.completed}/${ms.total}</span>` : '\u2014';
+            const gradeVal = p.manualGrade || '';
+            const gradeOpts = ['','5 (\u043E\u0442\u043B.)','4 (\u0445\u043E\u0440.)','3 (\u0443\u0434\u043E\u0432\u043B.)','\u0437\u0430\u0447\u0451\u0442','\u043D\u0435 \u0441\u0434\u0430\u043B'].map(v => `<option value="${v}" ${gradeVal===v?'selected':''}>${v||'\u2014'}</option>`).join('');
+            return `<tr class="${ps.has(i) ? 'p-sel' : ''}"><td class="star-cell">${sH(ps.has(i) ? 'star-full' : 'star-empty', 'togProg(' + a.id + ',' + i + ')')}</td><td class="col-sub"><span class="cdot" style="background:${sc}"></span>${p.sub}</td><td class="col-name" title="${p.name}">${p.name}</td><td class="col-df">${fS(p.dateFrom)}</td><td class="col-dt">${fS(p.dateTo)}</td><td class="col-disc">${dH}</td><td class="col-pay r ${pC}">${fi ? fM(fi) + ' \u20BD' : '0 \u20BD'}</td><td class="col-mod">${modCell}</td><td class="col-grade"><select class="grade-sel" onchange="setGrade(${a.id},${i},this.value)">${gradeOpts}</select></td><td class="col-doc">${p.docNum || '\u2014'}</td><td class="col-reg">${p.regNum || '\u2014'}</td><td class="col-iss">${iss}</td></tr>`;
         }).join('');
-        html += `<div class="ag"><div>\u2116 ${a.num} \u00B7 ${fD(a.date)}<span class="agr">${a.payer}</span></div><div style="display:flex;gap:4px">${ps.size ? `<button class="berr b" onclick="delSelP(${a.id})">\u0423\u0434\u0430\u043B\u0438\u0442\u044C (${ps.size})</button>` : ''}<button class="b" onclick="openModal(${a.id})">+ \u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</button></div></div>`;
-        if (a.programs.length) html += `<div style="overflow-x:auto"><table class="pt"><thead><tr><th class="star-cell">${sH('star-' + hs, 'togAllP(' + a.id + ')')}</th><th class="col-sub">\u041F\u043E\u0434\u0440.</th><th class="col-name">\u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</th><th class="col-df">\u0421</th><th class="col-dt">\u041F\u043E</th><th class="col-disc">\u0421\u043A\u0438\u0434\u043A\u0430</th><th class="col-pay r">\u041A \u043E\u043F\u043B\u0430\u0442\u0435</th><th class="col-doc">\u2116 \u0441\u0435\u0440\u0442.</th><th class="col-reg">\u0420\u0435\u0433 \u2116</th><th class="col-iss">\u0412\u044B\u0434\u0430\u043D\u043E</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        const moduleBtn = ps.size === 1 ? `<button class="b" onclick="openModuleAssign(${a.id},${[...ps][0]})">Модули</button>` : '';
+        const impBtn = (typeof userRole !== 'undefined' && userRole === 'superadmin' && ps.size === 1) ? `<button class="b" onclick="impersonateAndOpen()">&#128065; Войти как слушатель</button>` : '';
+        html += `<div class="ag"><div>\u2116 ${a.num} \u00B7 ${fD(a.date)}<span class="agr">${a.payer}</span></div><div style="display:flex;gap:4px">${ps.size ? `<button class="berr b" onclick="delSelP(${a.id})">\u0423\u0434\u0430\u043B\u0438\u0442\u044C (${ps.size})</button>` : ''}${moduleBtn}${impBtn}<button class="b" onclick="openModal(${a.id})">+ \u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</button></div></div>`;
+        if (a.programs.length) html += `<div style="overflow-x:auto"><table class="pt"><thead><tr><th class="star-cell">${sH('star-' + hs, 'togAllP(' + a.id + ')')}</th><th class="col-sub">\u041F\u043E\u0434\u0440.</th><th class="col-name">\u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</th><th class="col-df">\u0421</th><th class="col-dt">\u041F\u043E</th><th class="col-disc">\u0421\u043A\u0438\u0434\u043A\u0430</th><th class="col-pay r">\u041A \u043E\u043F\u043B\u0430\u0442\u0435</th><th class="col-mod">\u041C\u043E\u0434\u0443\u043B\u0438</th><th class="col-grade">\u041E\u0446\u0435\u043D\u043A\u0430</th><th class="col-doc">\u2116 \u0441\u0435\u0440\u0442.</th><th class="col-reg">\u0420\u0435\u0433 \u2116</th><th class="col-iss">\u0412\u044B\u0434\u0430\u043D\u043E</th></tr></thead><tbody>${rows}</tbody></table></div>`;
         else html += '<div class="empty" style="padding:8px">\u041D\u0435\u0442 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C</div>';
         html += `<div class="pt-f"><span class="pt-f-t">\u0418\u0442\u043E\u0433\u043E: ${fM(tot)} \u20BD</span></div>`;
     });
     el.innerHTML = html;
 }
 
-function doIss(a, i) { apps.find(x => x.id === a).programs[i].issued = true; apps.find(x => x.id === a).programs[i].issuedDate = new Date().toISOString().slice(0, 10); renderDet(); }
-function uniss(a, i) { if (!confirm('\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C?')) return; apps.find(x => x.id === a).programs[i].issued = false; apps.find(x => x.id === a).programs[i].issuedDate = ''; renderDet(); }
 
 // --- Docs ---
 function togDocSel(id) { docSelIds.has(id) ? docSelIds.delete(id) : docSelIds.add(id); renderDocs(); }
@@ -460,9 +468,12 @@ function closeModal() { document.getElementById('pModal').classList.remove('show
 
 function initCatPanel() {
     const panel = document.getElementById('catPanel');
-    let html = '<div class="cat-item on" data-cat="" onclick="filterByCat(\'\',this)">\u0412\u0441\u0435 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B</div>';
+    const catCounts = {};
+    PROGS.forEach(p => { const c = p.cat || ''; catCounts[c] = (catCounts[c] || 0) + 1; });
+    let html = `<div class="cat-item on" data-cat="" onclick="filterByCat('',this)"><span class="cat-name">\u0412\u0441\u0435 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B</span><span class="cat-count">${PROGS.length}</span></div>`;
     PROG_CATS.forEach(cat => {
-        html += `<div class="cat-item" data-cat="${cat}" onclick="filterByCat('${cat.replace(/'/g,"\\'")}',this)">${cat}</div>`;
+        const cnt = catCounts[cat] || 0;
+        html += `<div class="cat-item" data-cat="${cat}" onclick="filterByCat('${cat.replace(/'/g,"\\'")}',this)"><span class="cat-name">${cat}</span><span class="cat-count">${cnt}</span></div>`;
     });
     panel.innerHTML = html;
 }
@@ -496,6 +507,8 @@ function renderModal() {
         : '<div class="empty">\u041D\u0435\u0442 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C</div>';
     const countEl = document.getElementById('pSelCount');
     if (countEl) countEl.textContent = mSel.length ? `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${mSel.length}` : '';
+    const clearBtn = document.getElementById('pClearBtn');
+    if (clearBtn) clearBtn.style.display = mSel.length ? '' : 'none';
 }
 
 // --- Шаблоны программ ---
@@ -511,8 +524,16 @@ function renderTemplates() {
 
 function applyTemplate(id) {
     const tpl = progTemplates.find(t => t.id === id);
-    if (!tpl) return;
-    tpl.programs.forEach(pid => { if (!mSel.includes(pid)) mSel.push(pid); });
+    if (!tpl || !tpl.programs) return;
+    const a = apps.find(x => x.id === (parseInt(document.getElementById('addToApp')?.value) || modalAid));
+    const have = a ? a.programs.map(p => Number(p.catId)) : [];
+    tpl.programs.forEach(pid => {
+        pid = Number(pid);
+        if (!PROGS.find(p => Number(p.id) === pid)) return;
+        if (mSel.includes(pid)) return;
+        if (have.includes(pid)) return;
+        mSel.push(pid);
+    });
     renderModal();
 }
 
@@ -544,6 +565,7 @@ async function delTemplate(id) {
     }
 }
 function togM(id) { const i = mSel.indexOf(id); i >= 0 ? mSel.splice(i, 1) : mSel.push(id); renderModal(); }
+function clearSelection() { mSel = []; renderModal(); }
 
 async function confirmP() {
     const targetId = parseInt(document.getElementById('addToApp').value) || modalAid;
@@ -643,6 +665,72 @@ async function saveAll() {
     if (data.ok) {
         const btn = document.querySelector('.hdr .b');
         if (btn) { btn.textContent = '\u2705 \u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E'; setTimeout(() => { btn.textContent = '\uD83D\uDCBE \u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C'; }, 1500); }
+    }
+}
+
+// --- Module Assignment ---
+let moduleSelIds = [];
+let assignCtx = {};
+
+function openModuleAssign(orderId, progIndex) {
+    const a = apps.find(x => x.id === orderId);
+    if (!a) return;
+    const p = a.programs[progIndex];
+    if (!p || !p.catId) return;
+    assignCtx = { personId: personData.id, programId: p.catId, programLineId: p.id, orderId: orderId };
+    moduleSelIds = [];
+    fetch(`/api/training-programs/${p.catId}/modules/`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(data => {
+        document.getElementById('moduleModalTitle').textContent = `\u0412\u044B\u0434\u0430\u0442\u044C \u043C\u043E\u0434\u0443\u043B\u0438 \u2014 ${data.program_title || ''}`;
+        if (!data.modules.length) {
+            document.getElementById('moduleModalBody').innerHTML = '<div class="empty">\u041D\u0435\u0442 \u043C\u043E\u0434\u0443\u043B\u0435\u0439 \u0434\u043B\u044F \u044D\u0442\u043E\u0439 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B</div>';
+        } else {
+            document.getElementById('moduleModalBody').innerHTML = data.modules.map(m =>
+                `<div class="si" data-mid="${m.id}" onclick="togModSel(${m.id})"><div class="si-left">${m.cover_image ? `<img src="${m.cover_image}" style="width:36px;height:48px;object-fit:cover;border-radius:3px;margin-right:8px;">` : ''}<div><div class="si-code">${m.title}</div><div style="font-size:9px;color:var(--t3)">${m.steps_count} \u044D\u0442\u0430\u043F\u043E\u0432</div></div></div></div>`
+            ).join('');
+        }
+        document.getElementById('moduleSelCount').textContent = '';
+        document.getElementById('moduleModal').classList.add('show');
+    }).catch(e => { console.error('Ошибка загрузки модулей:', e); });
+}
+function togModSel(id) {
+    const i = moduleSelIds.indexOf(id); i >= 0 ? moduleSelIds.splice(i, 1) : moduleSelIds.push(id);
+    document.querySelectorAll('#moduleModalBody .si').forEach(el => {
+        el.classList.toggle('on', moduleSelIds.includes(Number(el.dataset.mid)));
+    });
+    document.getElementById('moduleSelCount').textContent = moduleSelIds.length ? `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${moduleSelIds.length}` : '';
+}
+function closeModuleModal() { document.getElementById('moduleModal').classList.remove('show'); }
+async function confirmAssignModules() {
+    if (!moduleSelIds.length) return;
+    const resp = await fetch(`/api/persons/${assignCtx.personId}/assign-modules/`, {
+        method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module_ids: moduleSelIds, program_line_id: assignCtx.programLineId, order_id: assignCtx.orderId })
+    });
+    const data = await resp.json();
+    if (data.success) { closeModuleModal(); render(); }
+}
+
+// --- Grade ---
+async function setGrade(orderId, progIndex, value) {
+    const a = apps.find(x => x.id === orderId);
+    if (!a) return;
+    const p = a.programs[progIndex];
+    if (!p || !p.id) return;
+    const resp = await fetch(`/api/program-lines/${p.id}/set-grade/`, {
+        method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade: value })
+    });
+    if (resp.ok) { p.manualGrade = value; p.grade = value; }
+}
+
+// --- Impersonation ---
+async function impersonateAndOpen() {
+    const resp = await fetch(`/api/impersonate/${personData.id}/`, {
+        method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
+    });
+    const data = await resp.json();
+    if (data.success) {
+        window.open('/learning/', '_blank');
     }
 }
 

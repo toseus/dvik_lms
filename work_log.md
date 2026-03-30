@@ -772,3 +772,217 @@
 **Технические детали:** Расширена существующая модель `Program` (не создавалась новая). Admin с fieldsets по 8 категориям (collapse). raw_id_fields для FK. Миграция 0029.
 
 **Статус:** Готово
+
+---
+
+### 2026-03-30 — Импорт 100К подготовок из Access (часть 1)
+
+**Что сделано:** Импортировано 99 998 подготовок из `trainings_part1.csv`. Management command `import_trainings` с bulk_create (batch по 5000). Поле `order` в Program стало nullable для совместимости.
+
+**Статистика:**
+- Всего: 100 010 подготовок (99 998 из Access + 12 ранее)
+- С заявкой: 100 010 | С person: 99 992
+- С training_program: 99 625 | С сертификатом: 94 138
+
+**Как проверить:**
+1. `python manage.py shell -c "from courses.models import Program; print(Program.objects.count())"` → 100 010
+2. Админка → Подготовки — данные с оценками, сертификатами, датами.
+
+**Технические детали:** Command `import_trainings.py`. Маппинг 50+ полей Access→Django. Парсинг дат YYYY-MM-DD, float, int, bool. FK валидация через предзагруженные множества. Миграция 0030 (order nullable).
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Fix: отображение названия программы в заявке
+
+**Что сделано:** Исправлено отображение названий программ в карточке слушателя. Было: пустое поле (бралось из `p.code` — CharField, пустой у импортированных). Стало: `ID | код программы` через FK `training_program`.
+
+**Как проверить:**
+1. Открыть карточку слушателя с заявками → вкладка «Программы».
+2. В колонке «Программа» отображается: `13111 | С2`, `18111 | БЖС(п/п)` и т.д.
+
+**Технические детали:** View `student_card`: добавлен prefetch `orders__programs__training_program`. Формирование `name` через `tp.pk | tp.code`. Fallback на `p.code` для записей без FK.
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Fix: удаление подготовок из заявки не сохранялось
+
+**Что сделано:** Функция `delSelP()` в `person-card.js` удаляла подготовки только из локального JS-массива, не вызывая API. После обновления страницы данные загружались из БД заново. Исправлено: добавлен `fetch` к `/api/orders/{id}/remove-programs/`. Также переделан бэкенд — удаление по PK вместо ненадёжных индексов.
+
+**Файлы:**
+- `courses/static/js/person-card.js` — `delSelP()` → async + fetch API
+- `courses/views.py` — `api_order_remove_programs`: удаление по `ids` вместо `indices`
+- `courses/views.py` — `student_card`: добавлен `id: p.pk` в JSON программ
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Статус выдачи по логике Access
+
+**Что сделано:** Перенесена логика определения статуса выдачи из Access. Формула: если есть `issued_date` → дата; ЮЛ + оценка → «На выдачу»; ФЛ + оплата + оценка → «На выдачу»; иначе → «Не выдавать!».
+
+**Файлы:**
+- `courses/views.py` — поля `issuedDate`, `grade`, `paymentDate`, `payerType` в JSON
+- `courses/static/js/person-card.js` — логика рендера по 4 условиям
+- `courses/static/css/person-card.css` — стили `.issue-ready`, `.issue-no`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Fix: формат названия при добавлении программы через модалку
+
+**Что сделано:** При добавлении программ через модалку попадало полное `title`. Исправлено на `ID | код`. Добавлена привязка `training_program` FK.
+
+**Файлы:**
+- `courses/views.py` — `api_order_add_program`: `display_name`, `training_program=tp`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Модалка программ: сброс выбора, счётчики категорий, шаблоны
+
+**Что сделано:**
+1. Кнопка «✕ Сбросить» в footer модалки
+2. Счётчики программ в категориях (flex-выравнивание, бейдж)
+3. `applyTemplate()` — проверки существования, дубликатов, приведение типов
+4. Fallback для `progTemplates`
+
+**Файлы:**
+- `courses/templates/persons/detail.html` — кнопка `pClearBtn`
+- `courses/static/js/person-card.js` — `clearSelection()`, `applyTemplate()`, `initCatPanel()`
+- `courses/static/css/person-card.css` — `.cat-item` flex, `.cat-count`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Картинки в вопросах тестов
+
+**Что сделано:**
+1. Конструктор вопросов (`module_edit.html`) — добавлено поле ввода URL картинки с live-превью после текста вопроса
+2. Прохождение теста (`quiz.html`) — lightbox при клике на картинку (полноэкранный просмотр, Escape для закрытия)
+3. CSS (`els-quest.css`) — `max-height:400px`, `object-fit:contain`, hover-эффект
+4. Модель `QuizQuestion.image_url` — изменён с URLField на CharField (для относительных путей `/media/pics/quiz/...`)
+5. Миграция `0031`
+6. Папки `media/pics/quiz/`, `media/pics/slides/` созданы
+
+**Уже было на месте (не потребовало изменений):**
+- API GET/SAVE/Import/Final-exam — `image_url` передавался и сохранялся
+- `els-quest.js` — маппинг `image_url` → `image`, рендер в `renderQuestion()`
+- Импорт из Excel — колонка 12 (индекс 11)
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Выдача модулей слушателям, ЛК Обучение, колонки Модули/Оценка
+
+**Что сделано:**
+
+**Модели:**
+- `ModuleAssignment` — назначение модуля слушателю (person, module, program_line, order, assigned_by, is_active). unique_together (person, module, program_line)
+- `LearningModule.cover_image` — CharField URL обложки
+- Миграция `0032`, admin-регистрация, папка `media/pics/modules/`
+
+**API (4 новых эндпоинта):**
+- `GET /api/training-programs/<pk>/modules/` — список модулей программы
+- `POST /api/persons/<pk>/assign-modules/` — назначение модулей слушателю
+- `GET /api/program-lines/<pk>/module-status/` — статус модулей для строки заявки
+- `POST /api/program-lines/<pk>/set-grade/` — установка оценки (поле `grade`)
+
+**Карточка слушателя:**
+- Колонка «Модули» в таблице программ заявки (completed/total)
+- Колонка «Оценка» (select: 5/4/3/зачёт/не сдал)
+- Кнопка «Модули» при выделении 1 программы → модалка со списком модулей → выдача
+- `moduleStatus` и `manualGrade` в JSON программ из view `student_card`
+
+**ЛК «Обучение»:**
+- View `student_learning` — назначенные модули с прогрессом
+- Шаблон `lk/learning.html` — книжная полка (grid карточек с обложками, прогресс-баром)
+- URL `/learning/`, пункт меню «Обучение» в сайдбаре
+
+**Обложка модуля в конструкторе:**
+- Поле URL + live-превью в `module_edit.html`
+- Сохранение `cover_image` через `saveAll()` → `api_module_steps_save`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Fix: modulestep_set → steps
+
+**Что сделано:** Ошибка `LearningModule has no attribute modulestep_set` — FK в ModuleStep имеет `related_name='steps'`. Заменено во views `api_training_program_modules` и `student_learning`.
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Кнопка «В модуль» в тесте
+
+**Что сделано:** Кнопка `btnBackLearn` в quiz.html показывалась только при наличии `sessionStorage.questReturn`. Теперь показывается всегда при наличии `RETURN_URL`. Добавлен `confirm()` перед выходом, fallback на `history.back()`.
+
+**Файлы:** `courses/static/js/els-quest.js` — `checkReturnBtn()`, `returnToLearn()`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Меню по ролям, шапка карточки, impersonation
+
+**Что сделано:**
+
+**Меню по ролям:**
+- Модель `MenuPermission` (menu_item + role + is_visible, unique_together)
+- Admin с list_editable для управления
+- Context processor `menu_permissions` → `visible_menu` (set)
+- base.html — все ключевые пункты обёрнуты в `{% if 'xxx' in visible_menu %}`
+- Management command `init_menu_permissions` — 52 записи (13×4 роли)
+- Суперадмин видит всё без запроса к БД
+
+**Шапка карточки слушателя:**
+- Формат: `логин | Код: 123456` вместо `PK | username`
+
+**Impersonation:**
+- `courses/utils.py` — `get_current_person()` (возвращает Person из session при impersonation)
+- Views: `api_impersonate/<pk>/`, `api_stop_impersonation/`
+- 6 модульных views заменены на `get_current_person()`
+- Баннер impersonation в сайдбаре + кнопка «Выйти»
+- Кнопка «Войти как слушатель» в карточке (superadmin, 1 выделенная программа)
+
+**Файлы:**
+- `courses/models.py` — `MenuPermission`
+- `courses/admin.py` — регистрация
+- `courses/context_processors.py` — `menu_permissions`, `impersonation_context`
+- `courses/utils.py` — `get_current_person()`, `is_impersonating()`
+- `courses/views.py` — `api_impersonate`, `api_stop_impersonation`, замена `request.user.person`
+- `courses/urls.py` — 2 маршрута
+- `courses/templates/base/base.html` — фильтрация меню, баннер
+- `courses/templates/persons/detail.html` — шапка, `userRole`
+- `courses/static/js/person-card.js` — `impersonateAndOpen()`
+- `dvik_lms/settings.py` — context_processors
+- `courses/management/commands/init_menu_permissions.py`
+- Миграция `0033`
+
+**Статус:** Готово
+
+---
+
+### 2026-03-30 — Кнопка «Назад» из модуля, прогресс тестов
+
+**Что сделано:**
+1. View `module_preview` — `back_url`/`back_label` по роли (student → `/learning/`, остальные → `/modules/`)
+2. Шаблон `preview.html` — кнопка в header с динамической ссылкой
+3. `saveQuizProgress()` вызывается перед `returnToLearn()` для гарантии сохранения
+
+**Файлы:**
+- `courses/views.py` — `module_preview` обновлён
+- `courses/templates/modules/preview.html` — header с кнопкой, BACK_URL динамический
+- `courses/static/js/els-quest.js` — `returnToLearn()` + `saveQuizProgress()` перед выходом
+
+**Статус:** Готово

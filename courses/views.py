@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -368,7 +368,7 @@ def student_list(request):
 def student_card(request, pk):
     person = get_object_or_404(
         Person.objects.select_related('user').prefetch_related(
-            'orders__programs',
+            'orders__programs__training_program',
             'messages__author',
             'documents',
             'sea_services',
@@ -381,9 +381,29 @@ def student_card(request, pk):
     for o in person.orders.all():
         programs_in_order = []
         for p in o.programs.all():
+            tp = p.training_program
+            if tp:
+                display_name = f'{tp.pk} | {tp.code or tp.title or ""}'
+            elif p.code:
+                display_name = p.code
+            else:
+                display_name = '\u2014'
+            # Статус модулей
+            ma_qs = ModuleAssignment.objects.filter(program_line=p, is_active=True)
+            module_status = None
+            if ma_qs.exists():
+                ma_total = ma_qs.count()
+                ma_completed = 0
+                for ma in ma_qs.select_related('module'):
+                    mp = ModuleProgress.objects.filter(person=person, module=ma.module).first()
+                    if mp and mp.is_completed:
+                        ma_completed += 1
+                module_status = {'total': ma_total, 'completed': ma_completed}
+
             programs_in_order.append({
-                'catId': p.pk,
-                'name': p.code,
+                'id': p.pk,
+                'catId': tp.pk if tp else p.pk,
+                'name': display_name,
                 'sub': p.category or '\u0411\u0426',
                 'price': float(p.amount) if p.amount else 0,
                 'dateFrom': p.date_start.isoformat() if p.date_start else '',
@@ -392,8 +412,11 @@ def student_card(request, pk):
                 'dt': '',
                 'docNum': p.cert_number or '',
                 'regNum': p.reg_number or '',
-                'issued': p.issue_status == 'da',
-                'issuedDate': '',
+                'issuedDate': p.issued_date.isoformat() if p.issued_date else '',
+                'grade': p.grade or '',
+                'paymentDate': p.payment_date.isoformat() if p.payment_date else '',
+                'moduleStatus': module_status,
+                'manualGrade': p.grade or '',
             })
         payer_name = o.payer or ''
         if not payer_name and o.payer_company:
@@ -406,6 +429,7 @@ def student_card(request, pk):
             'num': str(o.pk).zfill(5),
             'date': o.date.isoformat() if o.date else '',
             'payer': payer_name or '\u2014',
+            'payerType': o.payer_type or '',
             'author': o.author or '\u2014',
             'bonus': 0,
             'status': 'draft',
@@ -1533,6 +1557,20 @@ def api_module_steps_save(request, pk):
     except ValueError:
         return JsonResponse({'error': 'bad json'}, status=400)
 
+    # Обновить заголовок, описание и обложку модуля
+    updated_fields = []
+    if 'module_title' in data:
+        module.title = data['module_title']
+        updated_fields.append('title')
+    if 'module_description' in data:
+        module.description = data['module_description']
+        updated_fields.append('description')
+    if 'cover_image' in data:
+        module.cover_image = data['cover_image']
+        updated_fields.append('cover_image')
+    if updated_fields:
+        module.save(update_fields=updated_fields)
+
     steps_data = data.get('steps', [])
     existing_ids = set(module.steps.values_list('pk', flat=True))
     incoming_ids = set()
@@ -1645,7 +1683,17 @@ def api_step_questions_save(request, pk):
 @login_required
 def module_preview(request, pk):
     module = get_object_or_404(LearningModule.objects.select_related('program'), pk=pk)
-    return render(request, 'modules/preview.html', {'module': module})
+    from django.urls import reverse
+    role = getattr(request.user, 'role', 'student')
+    if role == 'student':
+        back_url = reverse('student_learning')
+        back_label = 'К обучению'
+    else:
+        back_url = reverse('module_list')
+        back_label = 'К модулям'
+    return render(request, 'modules/preview.html', {
+        'module': module, 'back_url': back_url, 'back_label': back_label,
+    })
 
 
 @login_required
@@ -1853,11 +1901,13 @@ def api_order_create(request):
 @login_required
 def api_module_progress(request, module_pk):
     """GET — получить прогресс по модулю для текущего пользователя."""
-    if not hasattr(request.user, 'person'):
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not person:
         return JsonResponse({'error': 'no person'}, status=400)
 
     progress, created = ModuleProgress.objects.get_or_create(
-        person=request.user.person, module_id=module_pk
+        person=person, module_id=module_pk
     )
 
     steps_data = {}
@@ -1881,12 +1931,14 @@ def api_module_progress(request, module_pk):
 @require_POST
 def api_step_complete(request, step_pk):
     """POST — отметить этап как пройденный."""
-    if not hasattr(request.user, 'person'):
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not person:
         return JsonResponse({'error': 'no person'}, status=400)
 
     step = get_object_or_404(ModuleStep, pk=step_pk)
     progress, _ = ModuleProgress.objects.get_or_create(
-        person=request.user.person, module=step.module
+        person=person, module=step.module
     )
 
     sp, _ = StepProgress.objects.get_or_create(
@@ -1925,7 +1977,9 @@ def api_step_complete(request, step_pk):
 @require_POST
 def api_quiz_save_progress(request, step_pk):
     """POST — сохранить промежуточный прогресс теста."""
-    if not hasattr(request.user, 'person'):
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not person:
         return JsonResponse({'error': 'no person'}, status=400)
 
     try:
@@ -1935,7 +1989,7 @@ def api_quiz_save_progress(request, step_pk):
 
     step = get_object_or_404(ModuleStep, pk=step_pk)
     progress, _ = ModuleProgress.objects.get_or_create(
-        person=request.user.person, module=step.module
+        person=person, module=step.module
     )
     sp, _ = StepProgress.objects.get_or_create(
         module_progress=progress, step=step
@@ -1958,7 +2012,9 @@ def api_quiz_save_progress(request, step_pk):
 @require_POST
 def api_quiz_complete(request, step_pk):
     """POST — завершить тест, сохранить результат."""
-    if not hasattr(request.user, 'person'):
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not person:
         return JsonResponse({'error': 'no person'}, status=400)
 
     try:
@@ -1968,7 +2024,7 @@ def api_quiz_complete(request, step_pk):
 
     step = get_object_or_404(ModuleStep, pk=step_pk)
     progress, _ = ModuleProgress.objects.get_or_create(
-        person=request.user.person, module=step.module
+        person=person, module=step.module
     )
     sp, _ = StepProgress.objects.get_or_create(
         module_progress=progress, step=step
@@ -2086,9 +2142,11 @@ def api_final_exam_submit(request, step_pk):
     pass_score = step.pass_score or 70
     passed = score >= pass_score
 
-    if not is_preview and hasattr(request.user, 'person'):
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not is_preview and person:
         ModuleResult.objects.create(
-            person=request.user.person,
+            person=person,
             module=step.module,
             quiz_scores=data.get('quiz_scores', {}),
             final_exam_step=step,
@@ -2352,15 +2410,18 @@ def api_order_add_program(request, order_pk):
         from datetime import timedelta
         prog = Program.objects.create(
             order=order,
+            training_program=tp,
             code=tp.title or '',
             category='',
             date_start=order.date,
             date_end=order.date + timedelta(days=14) if order.date else order.date,
             amount=tp.new_price or tp.price or 0,
         )
+        display_name = f'{tp.pk} | {tp.code}' if tp.code else f'{tp.pk} | {tp.title or ""}'
         added.append({
-            'catId': prog.pk,
-            'name': prog.code,
+            'id': prog.pk,
+            'catId': tp.pk,
+            'name': display_name,
             'sub': prog.category or '\u0411\u0426',
             'price': float(prog.amount),
             'dateFrom': prog.date_start.isoformat() if prog.date_start else '',
@@ -2369,8 +2430,9 @@ def api_order_add_program(request, order_pk):
             'dt': '',
             'docNum': '',
             'regNum': '',
-            'issued': False,
             'issuedDate': '',
+            'grade': '',
+            'paymentDate': '',
         })
     return JsonResponse({'success': True, 'programs': added})
 
@@ -2378,13 +2440,11 @@ def api_order_add_program(request, order_pk):
 @login_required
 @require_POST
 def api_order_remove_programs(request, order_pk):
-    """Удалить программы из заявки по индексам."""
+    """Удалить программы из заявки по PK."""
     order = get_object_or_404(Order, pk=order_pk)
     data = json.loads(request.body)
-    indices = data.get('indices', [])
-    programs = list(order.programs.order_by('date_start'))
-    to_delete = [programs[i].pk for i in indices if i < len(programs)]
-    Program.objects.filter(pk__in=to_delete).delete()
+    ids = data.get('ids', [])
+    order.programs.filter(pk__in=ids).delete()
     return JsonResponse({'success': True})
 
 
@@ -2627,4 +2687,172 @@ def api_delete_program_template(request, pk):
     """Удалить шаблон."""
     tpl = get_object_or_404(ProgramTemplate, pk=pk)
     tpl.delete()
+    return JsonResponse({'success': True})
+
+
+# ─────────────────────────────────────────────
+# Выдача модулей слушателям
+# ─────────────────────────────────────────────
+
+@login_required
+def api_training_program_modules(request, pk):
+    """GET — список модулей для программы обучения."""
+    program = get_object_or_404(TrainingProgram, pk=pk)
+    modules = LearningModule.objects.filter(program=program, is_active=True).order_by('order')
+    data = [{
+        'id': m.pk,
+        'title': m.title,
+        'order': m.order,
+        'cover_image': m.cover_image or '',
+        'steps_count': m.steps.count(),
+    } for m in modules]
+    return JsonResponse({'modules': data, 'program_title': program.title})
+
+
+@login_required
+@require_POST
+def api_assign_modules(request, pk):
+    """POST — назначить модули слушателю."""
+    person = get_object_or_404(Person, pk=pk)
+    body = json.loads(request.body)
+    module_ids = body.get('module_ids', [])
+    program_line_id = body.get('program_line_id')
+    order_id = body.get('order_id')
+
+    created = 0
+    for mid in module_ids:
+        try:
+            module = LearningModule.objects.get(pk=mid)
+        except LearningModule.DoesNotExist:
+            continue
+        _, is_new = ModuleAssignment.objects.get_or_create(
+            person=person,
+            module=module,
+            program_line_id=program_line_id,
+            defaults={
+                'order_id': order_id,
+                'assigned_by': request.user,
+            }
+        )
+        if is_new:
+            created += 1
+
+    return JsonResponse({'success': True, 'created': created})
+
+
+@login_required
+def api_program_line_module_status(request, pk):
+    """GET — статус модулей для строки заявки."""
+    program_line = get_object_or_404(Program, pk=pk)
+    assignments = ModuleAssignment.objects.filter(
+        program_line=program_line, is_active=True
+    ).select_related('module')
+
+    modules_data = []
+    for a in assignments:
+        progress = ModuleProgress.objects.filter(
+            person=program_line.order.person if program_line.order else None, module=a.module
+        ).first()
+        result = ModuleResult.objects.filter(
+            person=program_line.order.person if program_line.order else None,
+            module=a.module, is_preview=False
+        ).first()
+        quiz_avg = None
+        if result and result.quiz_scores and isinstance(result.quiz_scores, dict):
+            vals = [v for v in result.quiz_scores.values() if isinstance(v, (int, float))]
+            quiz_avg = round(sum(vals) / len(vals), 1) if vals else None
+
+        modules_data.append({
+            'id': a.module.pk,
+            'title': a.module.title,
+            'is_completed': progress.is_completed if progress else False,
+            'quiz_avg': quiz_avg,
+            'final_score': result.final_exam_score if result else None,
+            'final_passed': result.final_exam_passed if result else False,
+        })
+
+    total = len(modules_data)
+    completed = sum(1 for m in modules_data if m['is_completed'])
+    return JsonResponse({'total': total, 'completed': completed, 'modules': modules_data})
+
+
+@login_required
+@require_POST
+def api_set_grade(request, pk):
+    """POST — установить оценку для строки заявки."""
+    program_line = get_object_or_404(Program, pk=pk)
+    body = json.loads(request.body)
+    program_line.grade = body.get('grade', '')
+    program_line.save(update_fields=['grade'])
+    return JsonResponse({'success': True})
+
+
+# ─────────────────────────────────────────────
+# Личный кабинет — Обучение
+# ─────────────────────────────────────────────
+
+@login_required
+def student_learning(request):
+    """Личный кабинет — раздел Обучение."""
+    from .utils import get_current_person
+    person = get_current_person(request)
+    if not person:
+        return render(request, 'lk/learning.html', {'modules': []})
+
+    assignments = ModuleAssignment.objects.filter(
+        person=person, is_active=True
+    ).select_related('module', 'module__program').order_by('-assigned_at')
+
+    modules_data = []
+    for a in assignments:
+        m = a.module
+        progress = ModuleProgress.objects.filter(person=person, module=m).first()
+        total_steps = m.steps.count()
+        current_step = 0
+        if progress and progress.current_step:
+            # current_step — FK, считаем порядок
+            current_step = m.steps.filter(order__lte=progress.current_step.order).count()
+
+        modules_data.append({
+            'id': m.pk,
+            'title': m.title,
+            'program_title': m.program.title if m.program else '',
+            'program_code': m.program.code if m.program else '',
+            'cover_image': m.cover_image or '',
+            'total_steps': total_steps,
+            'current_step': current_step,
+            'is_completed': progress.is_completed if progress else False,
+            'progress_percent': round(current_step / total_steps * 100) if total_steps > 0 else 0,
+            'assigned_at': a.assigned_at,
+        })
+
+    return render(request, 'lk/learning.html', {'modules': modules_data})
+
+
+# ─────────────────────────────────────────────
+# Impersonation (суперадмин → слушатель)
+# ─────────────────────────────────────────────
+
+@login_required
+@require_POST
+def api_impersonate(request, person_pk):
+    """Войти в режим слушателя."""
+    if getattr(request.user, 'role', '') != 'superadmin':
+        return JsonResponse({'error': 'Только для суперадмина'}, status=403)
+    person = get_object_or_404(Person, pk=person_pk)
+    request.session['impersonating_person_id'] = person.pk
+    request.session['impersonator_user_id'] = request.user.pk
+    return JsonResponse({
+        'success': True,
+        'person_id': person.pk,
+        'person_name': f'{person.last_name} {person.first_name}',
+    })
+
+
+@login_required
+@require_POST
+def api_stop_impersonation(request):
+    """Выйти из режима слушателя."""
+    request.session.pop('impersonating_person_id', None)
+    request.session.pop('impersonator_user_id', None)
     return JsonResponse({'success': True})

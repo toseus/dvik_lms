@@ -23,3 +23,30 @@ def student_filters(request):
         )
         return {'student_positions': list(positions)}
     return {}
+
+
+def menu_permissions(request):
+    if not request.user.is_authenticated:
+        return {'visible_menu': set()}
+    from .models import MenuPermission
+    role = getattr(request.user, 'role', 'student')
+    # Суперадмин видит всё всегда
+    if role == 'superadmin':
+        return {'visible_menu': set(k for k, _ in MenuPermission.MENU_ITEMS)}
+    visible = set(
+        MenuPermission.objects.filter(role=role, is_visible=True)
+        .values_list('menu_item', flat=True)
+    )
+    return {'visible_menu': visible}
+
+
+def impersonation_context(request):
+    person_id = request.session.get('impersonating_person_id')
+    if person_id and getattr(request.user, 'role', '') == 'superadmin':
+        from .models import Person
+        try:
+            person = Person.objects.get(pk=person_id)
+            return {'impersonated_person_name': f'{person.last_name} {person.first_name}'}
+        except Person.DoesNotExist:
+            pass
+    return {}

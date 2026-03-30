@@ -168,6 +168,21 @@
       onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'"
       onblur="this.style.borderColor='transparent';this.style.background='transparent'"
       oninput="markDirty()">{{ module.description }}</textarea>
+
+    <div style="margin-top:10px;display:flex;align-items:flex-start;gap:10px;">
+      <div style="flex:1;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);">Обложка модуля (URL)</label>
+        <input type="text" id="moduleCover" value="{{ module.cover_image|default:'' }}"
+          placeholder="/media/pics/modules/cover.jpg"
+          style="width:100%;padding:4px 8px;border:1.5px solid transparent;border-radius:6px;font-size:13px;background:transparent;font-family:inherit;outline:none;transition:all .15s;"
+          onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'"
+          onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+          oninput="markDirty();previewCover(this)">
+      </div>
+      <div id="coverPreview" style="flex-shrink:0;">
+        {% if module.cover_image %}<img src="{{ module.cover_image }}" style="width:80px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">{% endif %}
+      </div>
+    </div>
   </div>
 </div>
 
@@ -362,10 +377,17 @@ function moveStep(i,dir){
 }
 
 /* ═══ SAVE ═══ */
+function previewCover(input){
+  const p=document.getElementById('coverPreview');
+  const url=input.value.trim();
+  p.innerHTML=url?`<img src="${url}" style="width:80px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #ddd;" onerror="this.style.display='none'">`:'';
+}
+
 async function saveAll(){
   const body={
     module_title:document.getElementById('moduleTitle').value,
     module_description:document.getElementById('moduleDesc').value,
+    cover_image:document.getElementById('moduleCover').value.trim(),
     steps:steps.map((s,i)=>({id:s.id,order:i,type:s.type,title:s.title,description:s.description||'',url:s.url||'',slide_content:s.slide_content||'',time_limit_minutes:s.time_limit_minutes,pass_score:s.pass_score,exam_config:s.exam_config,is_active:s.is_active}))
   };
   const r=await fetch(`/api/modules/${MODULE_PK}/steps/save/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
@@ -424,6 +446,14 @@ function renderQuizQuestions(){
       </div></div>
       <div class="eq-body">
         <textarea class="eq-text-area" onchange="quizQuestions[${i}].text=this.value" placeholder="Текст вопроса...">${esc(q.text||'')}</textarea>
+        <div class="eq-image-field" style="margin:6px 0;">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);">Картинка (URL)</label>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
+            <input type="text" class="question-image-input" value="${esc(q.image_url||'')}" placeholder="/media/pics/quiz/filename.png" style="flex:1;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;" oninput="quizQuestions[${i}].image_url=this.value;previewQImg(this)">
+            <button type="button" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-muted);" onclick="this.previousElementSibling.value='';quizQuestions[${i}].image_url='';previewQImg(this.previousElementSibling)">✕</button>
+          </div>
+          <div class="eq-img-preview" style="margin-top:4px;">${q.image_url?`<img src="${esc(q.image_url)}" style="max-width:300px;max-height:150px;border:1px solid #ddd;border-radius:4px;" onerror="this.style.display='none'">`:''}</div>
+        </div>
         <div class="eq-answers"><div class="eq-answers-label">Варианты ответов</div>${answersHtml}</div>
         <div class="eq-explain"><label style="font-size:11px;font-weight:600;color:var(--text-muted);">Пояснение</label><textarea onchange="quizQuestions[${i}].explanation=this.value" placeholder="Пояснение к ответу...">${esc(q.explanation||'')}</textarea></div>
       </div>
@@ -454,6 +484,13 @@ async function importExcel(input){
   const d=await r.json();input.value='';
   if(d.ok){toast(`Импортировано ${d.imported} вопросов`);const r2=await fetch(`/api/steps/${quizStepId}/questions/`);const d2=await r2.json();quizQuestions=d2.questions;renderQuizQuestions();}
   else toast('Ошибка: '+(d.error||''));
+}
+
+function previewQImg(input){
+  const preview=input.closest('.eq-image-field').querySelector('.eq-img-preview');
+  const url=input.value.trim();
+  if(url){preview.innerHTML=`<img src="${url}" style="max-width:300px;max-height:150px;border:1px solid #ddd;border-radius:4px;" onerror="this.style.display='none'">`;}
+  else{preview.innerHTML='';}
 }
 
 /* ═══ SLIDE HELPERS ═══ */

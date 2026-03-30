@@ -111,4 +111,17 @@ urlpatterns = [
     path('api/progress/step/<int:step_pk>/complete/', views.api_step_complete, name='api_step_progress_complete'),
     path('api/progress/quiz/<int:step_pk>/save/', views.api_quiz_save_progress, name='api_quiz_save_progress'),
     path('api/progress/quiz/<int:step_pk>/complete/', views.api_quiz_complete, name='api_quiz_complete'),
+
+    # Выдача модулей
+    path('api/training-programs/<int:pk>/modules/', views.api_training_program_modules, name='api_training_program_modules'),
+    path('api/persons/<int:pk>/assign-modules/', views.api_assign_modules, name='api_assign_modules'),
+    path('api/program-lines/<int:pk>/module-status/', views.api_program_line_module_status, name='api_program_line_module_status'),
+    path('api/program-lines/<int:pk>/set-grade/', views.api_set_grade, name='api_set_grade'),
+
+    # ЛК Обучение
+    path('learning/', views.student_learning, name='student_learning'),
+
+    # Impersonation
+    path('api/impersonate/<int:person_pk>/', views.api_impersonate, name='api_impersonate'),
+    path('api/stop-impersonation/', views.api_stop_impersonation, name='api_stop_impersonation'),
 ]

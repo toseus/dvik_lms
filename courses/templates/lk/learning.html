@@ -1,0 +1,128 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Обучение{% endblock %}
+
+{% block extra_css %}
+<style>
+.learning-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+.module-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    overflow: hidden;
+    transition: transform .15s, box-shadow .15s;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+}
+.module-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+}
+.module-cover {
+    width: 100%;
+    height: 240px;
+    background: linear-gradient(135deg, #2c5282, #1a365d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.module-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.module-cover-ph {
+    color: rgba(255,255,255,.5);
+    font-size: 48px;
+}
+.module-info {
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.module-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e2024;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+.module-program {
+    font-size: 10px;
+    color: #8a8e96;
+    margin-bottom: 8px;
+}
+.module-pbar {
+    height: 4px;
+    background: #e8eaed;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: auto;
+}
+.module-pfill {
+    height: 100%;
+    background: #2b6cb0;
+    border-radius: 2px;
+    transition: width .3s;
+}
+.module-pfill.done { background: #1e7e34; }
+.module-ptext {
+    font-size: 9px;
+    color: #8a8e96;
+    margin-top: 4px;
+    text-align: right;
+}
+.learning-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8a8e96;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="padding:20px 20px 0;font-size:20px;font-weight:700;">Обучение</h1>
+
+{% if modules %}
+<div class="learning-grid">
+    {% for m in modules %}
+    <a href="{% url 'module_preview' m.id %}" class="module-card">
+        <div class="module-cover">
+            {% if m.cover_image %}
+            <img src="{{ m.cover_image }}" alt="{{ m.title }}" onerror="this.parentElement.innerHTML='<div class=module-cover-ph>&#128214;</div>'">
+            {% else %}
+            <div class="module-cover-ph">&#128214;</div>
+            {% endif %}
+        </div>
+        <div class="module-info">
+            <div class="module-title">{{ m.title }}</div>
+            <div class="module-program">{{ m.program_code }}</div>
+            <div class="module-pbar">
+                <div class="module-pfill {% if m.is_completed %}done{% endif %}" style="width:{{ m.progress_percent }}%"></div>
+            </div>
+            <div class="module-ptext">
+                {% if m.is_completed %}&#10003; Завершён{% else %}{{ m.current_step }}/{{ m.total_steps }} этапов{% endif %}
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="learning-empty">
+    <div style="font-size:64px;margin-bottom:16px;">&#128218;</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:8px;">Пока нет назначенных модулей</div>
+    <div>Модули появятся здесь после назначения преподавателем</div>
+</div>
+{% endif %}
+{% endblock %}

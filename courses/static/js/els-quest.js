@@ -897,23 +897,23 @@ function toggleMobileExpanded() {
 //  RETURN TO LEARN MODULE
 // ══════════════════════════════════════
 function returnToLearn() {
+  if (!confirm('\u0412\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F \u0432 \u043C\u043E\u0434\u0443\u043B\u044C? \u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u0442\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D.')) return;
+  saveQuizProgress();
   const raw = sessionStorage.getItem('questReturn');
   if (raw) {
     try {
       const obj = JSON.parse(raw);
-      // Mark all confirmed questions as test completed
       const allConfirmed = state.every(s => s.confirmed);
       if (allConfirmed) obj.completed = true;
       sessionStorage.setItem('questReturn', JSON.stringify(obj));
     } catch {}
   }
-  if(typeof RETURN_URL!=='undefined'&&RETURN_URL)window.location.href=RETURN_URL;else window.close();
+  if(typeof RETURN_URL!=='undefined'&&RETURN_URL)window.location.href=RETURN_URL;else window.history.back();
 }
 
 function checkReturnBtn() {
-  const raw = sessionStorage.getItem('questReturn');
   const btn = document.getElementById('btnBackLearn');
-  if (raw && btn) btn.style.display = 'inline-flex';
+  if (btn && typeof RETURN_URL !== 'undefined' && RETURN_URL) btn.style.display = 'inline-flex';
 }
 
 // After all questions confirmed — show result screen

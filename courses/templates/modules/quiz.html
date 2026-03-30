@@ -145,7 +145,7 @@
         <div class="question-text" id="qText">Загрузка вопросов...</div>
       </div>
       <div id="qImageWrap" class="question-image-wrap" style="display:none">
-        <img id="qImage" src="" alt="Рисунок к вопросу">
+        <img id="qImage" src="" alt="Рисунок к вопросу" style="cursor:pointer;" onclick="openImageOverlay(this.src)" onerror="this.parentElement.style.display='none'">
         <div class="image-caption" id="qCaption"></div>
       </div>
       <div id="qDesc" class="question-description" style="display:none"></div>
@@ -191,5 +191,18 @@ const EDIT_URL = '{% url "module_edit" step.module.pk %}';
 const USER_ROLE = '{{ request.user.role|default:"" }}';
 </script>
 <script src="{% static 'js/els-quest.js' %}"></script>
+<script>
+function openImageOverlay(src){
+  if(document.querySelector('.img-overlay'))return;
+  var o=document.createElement('div');
+  o.className='img-overlay';
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:pointer;padding:20px;';
+  o.innerHTML='<img src="'+src+'" style="max-width:90vw;max-height:90vh;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.3);">';
+  o.onclick=function(){o.remove();};
+  function esc(e){if(e.key==='Escape'){o.remove();document.removeEventListener('keydown',esc);}}
+  document.addEventListener('keydown',esc);
+  document.body.appendChild(o);
+}
+</script>
 </body>
 </html>

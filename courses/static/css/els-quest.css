@@ -141,7 +141,8 @@ body {
 .question-points { margin-left:auto; font-size:11px; color:var(--text-muted); }
 .question-text { font-size:16px; font-weight:600; color:var(--text-primary); line-height:1.5; margin-bottom:16px; }
 .question-image-wrap { margin:0 20px 16px; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); background:var(--sidebar-bg); }
-.question-image-wrap img { width:100%; display:block; max-height:240px; object-fit:cover; }
+.question-image-wrap img { width:100%; display:block; max-height:400px; object-fit:contain; cursor:pointer; transition:box-shadow .15s; }
+.question-image-wrap img:hover { box-shadow:0 2px 8px rgba(0,0,0,.15); }
 .image-caption { padding:7px 12px; font-size:11px; color:var(--text-muted); background:var(--sidebar-bg); border-top:1px solid var(--border); font-style:italic; }
 .question-description { margin:0 20px 16px; padding:11px 14px; background:var(--sidebar-bg); border-radius:var(--radius-sm); border:1px solid var(--border); font-size:13px; color:var(--text-secondary); line-height:1.6; }
 .answers-section { padding:0 20px 20px; }
