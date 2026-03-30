@@ -1160,3 +1160,25 @@ class MenuPermission(models.Model):
 
     def __str__(self):
         return f'{self.get_menu_item_display()} — {self.get_role_display()} — {"✓" if self.is_visible else "✗"}'
+
+
+class QuizAnswerRecord(models.Model):
+    """Запись ответа слушателя на конкретный вопрос теста."""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE,
+        related_name='quiz_answers', verbose_name='Слушатель')
+    step = models.ForeignKey('ModuleStep', on_delete=models.CASCADE,
+        related_name='quiz_answers', verbose_name='Этап (тест)')
+    question = models.ForeignKey('QuizQuestion', on_delete=models.CASCADE,
+        related_name='answer_records', verbose_name='Вопрос')
+    answer = models.JSONField(default=list, verbose_name='Ответ слушателя')
+    is_correct = models.BooleanField(default=False, verbose_name='Правильно')
+    score = models.FloatField(default=0, verbose_name='Баллы')
+    answered_at = models.DateTimeField(auto_now=True, verbose_name='Время ответа')
+
+    class Meta:
+        unique_together = ['person', 'step', 'question']
+        verbose_name = 'Ответ на вопрос'
+        verbose_name_plural = 'Ответы на вопросы'
+
+    def __str__(self):
+        return f'{self.person} — Q{self.question.pk} — {"✓" if self.is_correct else "✗"}'

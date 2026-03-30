@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -2855,4 +2855,107 @@ def api_stop_impersonation(request):
     """Выйти из режима слушателя."""
     request.session.pop('impersonating_person_id', None)
     request.session.pop('impersonator_user_id', None)
+    return JsonResponse({'success': True})
+
+
+# ─────────────────────────────────────────────
+# Прогресс тестов — QuizAnswerRecord
+# ─────────────────────────────────────────────
+
+@login_required
+@require_POST
+def api_save_single_answer(request, step_pk):
+    """Сохранить ответ на один вопрос."""
+    from .utils import get_current_person
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    person = get_current_person(request)
+    if not person:
+        return JsonResponse({'error': 'no person'}, status=400)
+
+    body = json.loads(request.body)
+    question_id = body.get('question_id')
+    answer = body.get('answer', [])
+    is_correct = body.get('is_correct', False)
+    score = body.get('score', 0)
+
+    if not question_id:
+        return JsonResponse({'error': 'question_id required'}, status=400)
+
+    question = get_object_or_404(QuizQuestion, pk=question_id)
+
+    QuizAnswerRecord.objects.update_or_create(
+        person=person, step=step, question=question,
+        defaults={'answer': answer, 'is_correct': is_correct, 'score': score}
+    )
+    return JsonResponse({'success': True})
+
+
+@login_required
+def api_load_saved_answers(request, step_pk):
+    """Загрузить все сохранённые ответы для теста."""
+    from .utils import get_current_person
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    person = get_current_person(request)
+    if not person:
+        return JsonResponse({'answers': {}, 'count': 0})
+
+    records = QuizAnswerRecord.objects.filter(person=person, step=step)
+    answers = {}
+    for r in records:
+        answers[str(r.question_id)] = {
+            'answer': r.answer,
+            'is_correct': r.is_correct,
+            'score': r.score,
+        }
+    return JsonResponse({'answers': answers, 'count': len(answers)})
+
+
+@login_required
+@require_POST
+def api_reset_quiz_answers(request, step_pk):
+    """Сбросить все ответы для теста."""
+    from .utils import get_current_person
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    person = get_current_person(request)
+    if not person:
+        return JsonResponse({'error': 'no person'}, status=400)
+    deleted, _ = QuizAnswerRecord.objects.filter(person=person, step=step).delete()
+    return JsonResponse({'success': True, 'deleted': deleted})
+
+
+# ─────────────────────────────────────────────
+# Настройки меню — панель суперадмина
+# ─────────────────────────────────────────────
+
+@login_required
+def menu_settings_view(request):
+    """Страница настроек меню (суперадмин)."""
+    if getattr(request.user, 'role', '') != 'superadmin':
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+    items = MenuPermission.objects.all()
+    roles = MenuPermission.ROLES
+    menu_items_choices = MenuPermission.MENU_ITEMS
+    perms_json = json.dumps({f'{mp.menu_item}__{mp.role}': mp.is_visible for mp in items})
+    return render(request, 'settings/menu.html', {
+        'menu_items_choices': menu_items_choices,
+        'roles': roles,
+        'perms_json': perms_json,
+    })
+
+
+@login_required
+@require_POST
+def api_update_menu_permission(request):
+    """Обновить видимость пункта меню."""
+    if getattr(request.user, 'role', '') != 'superadmin':
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    body = json.loads(request.body)
+    menu_item = body.get('menu_item')
+    role = body.get('role')
+    is_visible = body.get('is_visible', False)
+    MenuPermission.objects.update_or_create(
+        menu_item=menu_item, role=role,
+        defaults={'is_visible': is_visible}
+    )
     return JsonResponse({'success': True})

@@ -7,6 +7,15 @@ let questions = [];
 
 var QUIZ_STORAGE_KEY = 'quiz_progress_' + STEP_PK;
 
+function saveAnswerToServer(questionId, answer, isCorrect, score) {
+  var csrf = document.cookie.match(/csrftoken_lms=([^;]+)/);
+  fetch('/api/quiz/' + STEP_PK + '/save-answer/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf ? csrf[1] : '' },
+    body: JSON.stringify({ question_id: questionId, answer: answer, is_correct: isCorrect, score: score })
+  }).catch(function(e) { console.warn('Save answer failed:', e); });
+}
+
 function saveQuizProgress() {
   try {
     var saved = { stepId: STEP_PK, currentQ: currentQ, state: state, timestamp: Date.now() };
@@ -850,6 +859,11 @@ function confirmAnswer() {
     const wrong = s.selected.filter(i=>!q.correct.includes(i)).length;
     s.status = (hits===q.correct.length && wrong===0) ? 'correct' : (hits>0&&wrong===0) ? 'partial' : 'wrong';
   }
+
+  // Сохранить ответ в БД
+  var answerData = q.type==='order' ? s.order : q.type==='match' ? s.matchSlots : s.selected;
+  var pts = s.status==='correct' ? q.points : s.status==='partial' ? Math.ceil(q.points/2) : 0;
+  saveAnswerToServer(q.id, answerData, s.status==='correct', pts);
 
   renderAll();
   saveQuizProgress();

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission, QuizAnswerRecord
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
 
@@ -463,3 +463,10 @@ class MenuPermissionAdmin(admin.ModelAdmin):
     list_editable = ['is_visible']
     list_filter = ['role', 'is_visible']
     ordering = ['menu_item', 'role']
+
+
+@admin.register(QuizAnswerRecord)
+class QuizAnswerRecordAdmin(admin.ModelAdmin):
+    list_display = ['person', 'step', 'question', 'is_correct', 'score', 'answered_at']
+    list_filter = ['is_correct', 'step']
+    raw_id_fields = ['person', 'step', 'question']

@@ -124,4 +124,13 @@ urlpatterns = [
     # Impersonation
     path('api/impersonate/<int:person_pk>/', views.api_impersonate, name='api_impersonate'),
     path('api/stop-impersonation/', views.api_stop_impersonation, name='api_stop_impersonation'),
+
+    # Прогресс тестов (ответы в БД)
+    path('api/quiz/<int:step_pk>/save-answer/', views.api_save_single_answer, name='api_save_single_answer'),
+    path('api/quiz/<int:step_pk>/load-answers/', views.api_load_saved_answers, name='api_load_saved_answers'),
+    path('api/quiz/<int:step_pk>/reset-answers/', views.api_reset_quiz_answers, name='api_reset_quiz_answers'),
+
+    # Настройки меню
+    path('settings/menu/', views.menu_settings_view, name='menu_settings'),
+    path('api/menu-permissions/update/', views.api_update_menu_permission, name='api_update_menu_permission'),
 ]

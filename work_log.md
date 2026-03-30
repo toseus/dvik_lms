@@ -986,3 +986,31 @@
 - `courses/static/js/els-quest.js` — `returnToLearn()` + `saveQuizProgress()` перед выходом
 
 **Статус:** Готово
+
+---
+
+### 2026-03-30 — Прогресс тестов в БД + панель настроек меню
+
+**Что сделано:**
+
+**QuizAnswerRecord — запись каждого ответа в БД:**
+- Модель: person + step + question (unique_together), answer (JSON), is_correct, score, answered_at
+- 3 API: `save-answer` (POST, при каждом ответе), `load-answers` (GET, при загрузке теста), `reset-answers` (POST, сброс)
+- JS `saveAnswerToServer()` — вызывается из `confirmAnswer()` после определения статуса
+- Параллельно с localStorage (localStorage — быстрое восстановление, БД — надёжное хранение)
+
+**Панель настроек меню `/settings/menu/`:**
+- Страница-матрица: строки = пункты меню, столбцы = роли, ячейки = чекбоксы
+- API `POST /api/menu-permissions/update/` — обновление одной записи
+- Только для суперадмина
+
+**Файлы:**
+- `courses/models.py` — `QuizAnswerRecord`
+- `courses/admin.py` — регистрация
+- `courses/views.py` — 5 views (3 quiz API + 2 menu settings)
+- `courses/urls.py` — 5 маршрутов
+- `courses/static/js/els-quest.js` — `saveAnswerToServer()`, вызов из `confirmAnswer()`
+- `courses/templates/settings/menu.html` — панель настроек
+- Миграция `0034`
+
+**Статус:** Готово
