@@ -539,10 +539,16 @@ def student_card(request, pk):
     def _safe_json(data):
         return json.dumps(data, ensure_ascii=False).replace('</script>', '<\\/script>')
 
+    # Видимость кнопки impersonation
+    show_impersonate = MenuPermission.objects.filter(
+        menu_item='impersonate_btn', role=getattr(request.user, 'role', ''), is_visible=True
+    ).exists()
+
     context = {
         'person': person,
         'ais_positions': ais_positions,
         'itf_specialties': itf_specialties,
+        'show_impersonate_btn': show_impersonate,
         'person_json': _safe_json({'id': person.pk, 'dob': person.dob.isoformat() if person.dob else '', 'gender': person.gender or ''}),
         'orders_json': _safe_json(orders_data),
         'docs_json': _safe_json(person_docs),
@@ -1684,13 +1690,15 @@ def api_step_questions_save(request, pk):
 def module_preview(request, pk):
     module = get_object_or_404(LearningModule.objects.select_related('program'), pk=pk)
     from django.urls import reverse
+    from .utils import is_impersonating
     role = getattr(request.user, 'role', 'student')
-    if role == 'student':
+    # Слушатель или суперадмин в режиме impersonation → обратно в обучение
+    if role == 'student' or is_impersonating(request):
         back_url = reverse('student_learning')
-        back_label = 'К обучению'
+        back_label = 'Назад к обучению'
     else:
         back_url = reverse('module_list')
-        back_label = 'К модулям'
+        back_label = 'Назад к модулям'
     return render(request, 'modules/preview.html', {
         'module': module, 'back_url': back_url, 'back_label': back_label,
     })
@@ -2853,9 +2861,9 @@ def api_impersonate(request, person_pk):
 @require_POST
 def api_stop_impersonation(request):
     """Выйти из режима слушателя."""
-    request.session.pop('impersonating_person_id', None)
+    person_id = request.session.pop('impersonating_person_id', None)
     request.session.pop('impersonator_user_id', None)
-    return JsonResponse({'success': True})
+    return JsonResponse({'success': True, 'person_id': person_id})
 
 
 # ─────────────────────────────────────────────

@@ -1128,17 +1128,15 @@ class MenuPermission(models.Model):
     MENU_ITEMS = [
         ('dashboard', 'Дашборд'),
         ('learning', 'Обучение'),
-        ('schedule', 'График'),
-        ('results', 'Результаты'),
-        ('library', 'Библиотека'),
         ('programs', 'Программы'),
-        ('modules', 'Модули'),
-        ('persons', 'Слушатели (Физлица)'),
-        ('students', 'Слушатели'),
-        ('companies', 'Юридические лица'),
         ('organizations', 'Организации'),
         ('contracts', 'Договоры'),
-        ('orders', 'Заявки'),
+        ('students', 'Слушатели'),
+        ('persons', 'Физические лица'),
+        ('modules', 'Модули'),
+        ('companies', 'Юридические лица'),
+        ('menu_settings', 'Настройки меню'),
+        ('impersonate_btn', 'Кнопка «Войти как слушатель»'),
     ]
 
     ROLES = [

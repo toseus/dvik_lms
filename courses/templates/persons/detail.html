@@ -28,7 +28,10 @@
   <div class="col-stu">
     <div class="col-head">
       <span>Слушатель</span>
-      <button class="lock-ico" id="lockBtn" onclick="toggleLock()" title="Блокировка ФИО">&#128274;</button>
+      <div style="display:flex;gap:2px;align-items:center;">
+        {% if show_impersonate_btn %}<button class="lock-ico" id="impersonateBtn" onclick="impersonateStudent()" title="Войти как слушатель">&#128065;</button>{% endif %}
+        <button class="lock-ico" id="lockBtn" onclick="toggleLock()" title="Блокировка ФИО">&#128274;</button>
+      </div>
     </div>
     <div class="stu-scroll">
       <div class="fg-row">

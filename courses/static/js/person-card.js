@@ -195,8 +195,7 @@ function renderDet() {
             return `<tr class="${ps.has(i) ? 'p-sel' : ''}"><td class="star-cell">${sH(ps.has(i) ? 'star-full' : 'star-empty', 'togProg(' + a.id + ',' + i + ')')}</td><td class="col-sub"><span class="cdot" style="background:${sc}"></span>${p.sub}</td><td class="col-name" title="${p.name}">${p.name}</td><td class="col-df">${fS(p.dateFrom)}</td><td class="col-dt">${fS(p.dateTo)}</td><td class="col-disc">${dH}</td><td class="col-pay r ${pC}">${fi ? fM(fi) + ' \u20BD' : '0 \u20BD'}</td><td class="col-mod">${modCell}</td><td class="col-grade"><select class="grade-sel" onchange="setGrade(${a.id},${i},this.value)">${gradeOpts}</select></td><td class="col-doc">${p.docNum || '\u2014'}</td><td class="col-reg">${p.regNum || '\u2014'}</td><td class="col-iss">${iss}</td></tr>`;
         }).join('');
         const moduleBtn = ps.size === 1 ? `<button class="b" onclick="openModuleAssign(${a.id},${[...ps][0]})">Модули</button>` : '';
-        const impBtn = (typeof userRole !== 'undefined' && userRole === 'superadmin' && ps.size === 1) ? `<button class="b" onclick="impersonateAndOpen()">&#128065; Войти как слушатель</button>` : '';
-        html += `<div class="ag"><div>\u2116 ${a.num} \u00B7 ${fD(a.date)}<span class="agr">${a.payer}</span></div><div style="display:flex;gap:4px">${ps.size ? `<button class="berr b" onclick="delSelP(${a.id})">\u0423\u0434\u0430\u043B\u0438\u0442\u044C (${ps.size})</button>` : ''}${moduleBtn}${impBtn}<button class="b" onclick="openModal(${a.id})">+ \u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</button></div></div>`;
+        html += `<div class="ag"><div>\u2116 ${a.num} \u00B7 ${fD(a.date)}<span class="agr">${a.payer}</span></div><div style="display:flex;gap:4px">${ps.size ? `<button class="berr b" onclick="delSelP(${a.id})">\u0423\u0434\u0430\u043B\u0438\u0442\u044C (${ps.size})</button>` : ''}${moduleBtn}<button class="b" onclick="openModal(${a.id})">+ \u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</button></div></div>`;
         if (a.programs.length) html += `<div style="overflow-x:auto"><table class="pt"><thead><tr><th class="star-cell">${sH('star-' + hs, 'togAllP(' + a.id + ')')}</th><th class="col-sub">\u041F\u043E\u0434\u0440.</th><th class="col-name">\u041F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430</th><th class="col-df">\u0421</th><th class="col-dt">\u041F\u043E</th><th class="col-disc">\u0421\u043A\u0438\u0434\u043A\u0430</th><th class="col-pay r">\u041A \u043E\u043F\u043B\u0430\u0442\u0435</th><th class="col-mod">\u041C\u043E\u0434\u0443\u043B\u0438</th><th class="col-grade">\u041E\u0446\u0435\u043D\u043A\u0430</th><th class="col-doc">\u2116 \u0441\u0435\u0440\u0442.</th><th class="col-reg">\u0420\u0435\u0433 \u2116</th><th class="col-iss">\u0412\u044B\u0434\u0430\u043D\u043E</th></tr></thead><tbody>${rows}</tbody></table></div>`;
         else html += '<div class="empty" style="padding:8px">\u041D\u0435\u0442 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C</div>';
         html += `<div class="pt-f"><span class="pt-f-t">\u0418\u0442\u043E\u0433\u043E: ${fM(tot)} \u20BD</span></div>`;
@@ -724,14 +723,17 @@ async function setGrade(orderId, progIndex, value) {
 }
 
 // --- Impersonation ---
-async function impersonateAndOpen() {
-    const resp = await fetch(`/api/impersonate/${personData.id}/`, {
-        method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
-    });
-    const data = await resp.json();
-    if (data.success) {
-        window.open('/learning/', '_blank');
-    }
+async function impersonateStudent() {
+    const personId = typeof personData !== 'undefined' ? personData.id : null;
+    if (!personId) { alert('\u041E\u0448\u0438\u0431\u043A\u0430: ID \u0441\u043B\u0443\u0448\u0430\u0442\u0435\u043B\u044F \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0451\u043D'); return; }
+    try {
+        const resp = await fetch(`/api/impersonate/${personId}/`, {
+            method: 'POST', headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
+        });
+        if (!resp.ok) { const err = await resp.json(); alert(err.error || '\u041E\u0448\u0438\u0431\u043A\u0430 ' + resp.status); return; }
+        const data = await resp.json();
+        if (data.success) { window.open('/learning/', '_blank'); }
+    } catch (e) { alert('\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0442\u0438: ' + e.message); }
 }
 
 // --- Init ---
