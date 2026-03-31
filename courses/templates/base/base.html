@@ -14,6 +14,13 @@
 <body>
 
 <header class="app-header">
+  <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
   <div class="logo-icon">📚</div>
   <span class="app-title">ДВИК — {% block header_subtitle %}Система электронного обучения{% endblock %}</span>
   {% if user.is_authenticated %}
@@ -281,6 +288,8 @@
   <span style="margin-left:auto">{% block footer_right %}v2.1{% endblock %}</span>
 </footer>
 
+<div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="closeMobileMenu()"></div>
+
 <script>
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('collapsed');
@@ -292,7 +301,16 @@ if (localStorage.getItem('sidebar_collapsed') === 'true') {
 function toggleGroup(id) {
   document.getElementById(id).classList.toggle('collapsed');
 }
-
+function toggleMobileMenu() {
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('mobileMenuOverlay');
+  var open = sb.classList.toggle('mobile-open');
+  ov.classList.toggle('active', open);
+}
+function closeMobileMenu() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('mobileMenuOverlay').classList.remove('active');
+}
 </script>
 
 {% block extra_js %}{% endblock %}

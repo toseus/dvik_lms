@@ -231,9 +231,60 @@ body, button, input, select, textarea {
 }
 .filter-title:hover { opacity: 1; }
 
+/* ── Кнопка гамбургер (только мобильные) ── */
+.mobile-menu-btn {
+  display: none;
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  margin-right: 4px;
+}
+.mobile-menu-btn svg { width: 22px; height: 22px; }
+.mobile-menu-btn:active { background: rgba(255,255,255,0.3); }
+
+/* ── Оверлей ── */
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 999;
+}
+.mobile-menu-overlay.active { display: block; }
+
 /* ── Адаптив ── */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
+  .mobile-menu-btn { display: flex; }
+
+  .sidebar {
+    display: flex;
+    position: fixed;
+    left: -260px;
+    top: 0;
+    width: 250px;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.25s ease;
+    box-shadow: none;
+  }
+  .sidebar.mobile-open {
+    left: 0;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+  }
+  .sidebar.collapsed { width: 250px; }
+  .sidebar.collapsed .sidebar-label { opacity: 1; width: auto; }
+  .sidebar.collapsed .sidebar-item { padding: 8px 0 8px 14px; justify-content: flex-start; width: 100%; gap: 10px; }
+  .sidebar.collapsed .sidebar-badge { opacity: 1; width: auto; padding: 1px 6px; margin-right: 8px; min-width: 18px; }
+  .sidebar.collapsed .accordion-header { opacity: 1; pointer-events: auto; height: auto; padding: 8px 14px; }
+  .sidebar.collapsed .accordion-group { border-bottom: 1px solid var(--sidebar-border); }
+  .sidebar.collapsed .sidebar-toggle { display: none; }
+
   .mobile-bottom-nav { display: block; }
   body { padding-bottom: 62px; }
 }

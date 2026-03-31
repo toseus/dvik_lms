@@ -7,12 +7,14 @@ from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Or
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
+from courses.decorators import menu_access_required, menu_access_any
 
 
 # ─────────────────────────────────────────────
 # Список курсов
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 def course_list(request):
     courses = Course.objects.filter(is_active=True).prefetch_related('steps')
     return render(request, 'courses/list.html', {'courses': courses})
@@ -22,6 +24,7 @@ def course_list(request):
 # Страница обучения (learn) — прохождение курса
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 def learn_view(request, pk):
     """Страница прохождения курса — шаги, прогресс, загрузки."""
     course = get_object_or_404(Course, pk=pk)
@@ -79,6 +82,7 @@ def learn_view(request, pk):
 # Страница тестирования (quest)
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 def quest_view(request, step_pk):
     """Страница тестирования — вопросы из БД."""
     step = get_object_or_404(CourseStep, pk=step_pk, type='test')
@@ -115,6 +119,7 @@ def quest_view(request, step_pk):
 # API: отметить шаг как пройденный
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 @require_POST
 def step_complete(request, pk):
     step = get_object_or_404(CourseStep, pk=pk)
@@ -143,6 +148,7 @@ def step_complete(request, pk):
 # API: загрузка файла для шага upload
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 @require_POST
 def step_upload(request, pk):
     step = get_object_or_404(CourseStep, pk=pk)
@@ -177,6 +183,7 @@ def step_upload(request, pk):
 # API: сохранить результат теста
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 @require_POST
 def quest_result(request, step_pk):
     step = get_object_or_404(CourseStep, pk=step_pk, type='test')
@@ -213,6 +220,7 @@ def quest_result(request, step_pk):
 # API: данные курсов для личного кабинета
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('learning')
 def api_my_courses(request):
     if not hasattr(request.user, 'person'):
         return JsonResponse({'courses': []})
@@ -250,6 +258,7 @@ def api_my_courses(request):
 # Список физических лиц
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('persons')
 def person_list(request):
     q = request.GET.get('q', '').strip()
     sort = request.GET.get('sort', 'id')
@@ -294,6 +303,7 @@ def person_list(request):
 # Список слушателей (у кого есть user)
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('students')
 def student_list(request):
     """Список слушателей (у кого есть аккаунт)"""
     q = request.GET.get('q', '').strip()
@@ -365,6 +375,7 @@ def student_list(request):
 # Карточка слушателя (4-колоночный layout)
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('students')
 def student_card(request, pk):
     person = get_object_or_404(
         Person.objects.select_related('user').prefetch_related(
@@ -565,6 +576,7 @@ def student_card(request, pk):
 # AJAX: сохранение данных карточки
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('students')
 @require_POST
 def person_save(request, pk):
     person = get_object_or_404(Person, pk=pk)
@@ -601,6 +613,7 @@ def person_save(request, pk):
 # Добавление слушателя по СНИЛС (поддержка JSON и form-data)
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('students')
 @require_POST
 def student_add(request):
     """
@@ -710,6 +723,7 @@ def student_add(request):
     })
 
 @login_required
+@menu_access_required('students')
 def order_list(request):
     """Список всех заявок."""
     q = request.GET.get('q', '').strip()
@@ -725,6 +739,7 @@ def order_list(request):
 
 
 @login_required
+@menu_access_required('students')
 def api_person_orders(request, person_pk):
     """JSON: заявки и программы конкретного слушателя."""
     person = get_object_or_404(Person, pk=person_pk)
@@ -763,6 +778,7 @@ def api_person_orders(request, person_pk):
     return JsonResponse({'orders': orders_data})
 
 @login_required
+@menu_access_required('companies')
 def company_list(request):
     q = request.GET.get('q', '').strip()
     companies = Company.objects.all()
@@ -865,11 +881,13 @@ def logout_view(request):
 # Личный кабинет
 # ─────────────────────────────────────────────
 @login_required
+@menu_access_required('dashboard')
 def dashboard(request):
     return render(request, 'dashboard/dashboard.html')
 
 
 @login_required
+@menu_access_required('dashboard')
 def home_view(request):
     ctx = _user_context(request.user)
 
@@ -882,18 +900,21 @@ def home_view(request):
 
 
 @login_required
+@menu_access_required('learning')
 def learn_view(request):
     ctx = _user_context(request.user)
     return render(request, 'courses/learn.html', ctx)
 
 
 @login_required
+@menu_access_required('learning')
 def quest_view(request):
     ctx = _user_context(request.user)
     return render(request, 'courses/test.html', ctx)
 
 
 @login_required
+@menu_access_required('organizations')
 def organization_list(request):
     """Список назначенных организаций с фильтрацией"""
     q = request.GET.get('q', '').strip()
@@ -922,6 +943,7 @@ def organization_list(request):
 
 
 @login_required
+@menu_access_required('organizations')
 @require_POST
 def organization_assign(request):
     """Назначить существующую компанию с типом"""
@@ -985,6 +1007,7 @@ def organization_assign(request):
         return JsonResponse({'error': 'Ошибка при создании назначения'}, status=400)
 
 @login_required
+@menu_access_required('organizations')
 @require_POST
 def organization_search_by_inn(request):
     """API для поиска компании по ИНН"""
@@ -1014,6 +1037,7 @@ def organization_search_by_inn(request):
 
 
 @login_required
+@menu_access_required('organizations')
 @require_POST
 def organization_delete(request, pk):
     """Удалить назначение организации"""
@@ -1028,6 +1052,7 @@ def organization_delete(request, pk):
 
 
 @login_required
+@menu_access_required('organizations')
 def organization_create(request):
     """Создание новой организации"""
     if request.method == 'POST':
@@ -1061,6 +1086,7 @@ def organization_create(request):
 
 
 @login_required
+@menu_access_required('organizations')
 def organization_edit(request, pk):
     """Редактирование организации"""
     company = get_object_or_404(Company, pk=pk)
@@ -1098,6 +1124,7 @@ def organization_edit(request, pk):
 
 
 @login_required
+@menu_access_required('organizations')
 def organization_detail(request, pk):
     """Просмотр детальной информации об организации"""
     company = get_object_or_404(Company, pk=pk)
@@ -1114,6 +1141,7 @@ def organization_detail(request, pk):
 
 
 @login_required
+@menu_access_required('persons')
 def person_create(request):
     """Создание нового физического лица"""
     if request.method == 'POST':
@@ -1172,6 +1200,7 @@ def person_create(request):
     })
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def check_student_organization(request):
     """Проверка, относится ли слушатель к текущей организации пользователя"""
@@ -1199,6 +1228,7 @@ def check_student_organization(request):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('programs')
 def program_catalog(request):
     """Справочник программ обучения."""
     q = request.GET.get('q', '').strip()
@@ -1265,6 +1295,7 @@ def program_catalog(request):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('persons')
 def api_persons_list(request):
     """API для списка физических лиц"""
     persons = Person.objects.select_related('user').all().order_by('last_name', 'first_name')
@@ -1287,6 +1318,7 @@ def api_persons_list(request):
 
 
 @login_required
+@menu_access_required('learning')
 def api_schedule(request):
     """API для расписания"""
     # Пока возвращаем пустой список
@@ -1294,6 +1326,7 @@ def api_schedule(request):
 
 
 @login_required
+@menu_access_required('learning')
 def api_results(request):
     """API для результатов тестов"""
     results = []
@@ -1317,6 +1350,7 @@ def api_results(request):
 
 
 @login_required
+@menu_access_required('learning')
 def api_library(request):
     """API для библиотеки"""
     # Пока возвращаем пустой список
@@ -1324,6 +1358,7 @@ def api_library(request):
 
 
 @login_required
+@menu_access_required('learning')
 def api_practice_items(request):
     """API для практических занятий"""
     items = []
@@ -1353,6 +1388,7 @@ def api_practice_items(request):
 
 
 @login_required
+@menu_access_required('learning')
 def api_course_students(request, course_id):
     """API для получения слушателей курса"""
     course = get_object_or_404(Course, pk=course_id)
@@ -1375,6 +1411,7 @@ def api_course_students(request, course_id):
 
 
 @login_required
+@menu_access_required('learning')
 def api_all_students(request):
     """API для всех слушателей"""
     students = Person.objects.filter(
@@ -1399,6 +1436,7 @@ def api_all_students(request):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('students')
 def api_messages(request, person_pk):
     """GET — список сообщений по слушателю."""
     messages_qs = Message.objects.filter(person_id=person_pk).select_related('author').order_by('created_at')
@@ -1423,6 +1461,7 @@ def api_messages(request, person_pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_message_send(request, person_pk):
     """POST — отправить сообщение."""
@@ -1460,6 +1499,7 @@ def api_message_send(request, person_pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('modules')
 def module_list(request):
     from django.db.models import Count, Q as DQ
     q = request.GET.get('q', '').strip()
@@ -1495,6 +1535,7 @@ def module_list(request):
 
 
 @login_required
+@menu_access_required('modules')
 @require_POST
 def module_create(request):
     program_id = request.POST.get('program_id')
@@ -1514,6 +1555,7 @@ def module_create(request):
 
 
 @login_required
+@menu_access_required('modules')
 def module_edit(request, pk):
     module = get_object_or_404(
         LearningModule.objects.select_related('program').prefetch_related('steps__questions'),
@@ -1523,6 +1565,7 @@ def module_edit(request, pk):
 
 
 @login_required
+@menu_access_required('modules')
 @require_POST
 def module_delete(request, pk):
     module = get_object_or_404(LearningModule, pk=pk)
@@ -1531,6 +1574,7 @@ def module_delete(request, pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 def api_module_steps(request, pk):
     module = get_object_or_404(LearningModule, pk=pk)
     steps = module.steps.order_by('order')
@@ -1555,6 +1599,7 @@ def api_module_steps(request, pk):
 
 
 @login_required
+@menu_access_required('modules')
 @require_POST
 def api_module_steps_save(request, pk):
     module = get_object_or_404(LearningModule, pk=pk)
@@ -1621,6 +1666,7 @@ def api_module_steps_save(request, pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 def api_step_questions(request, pk):
     step = get_object_or_404(ModuleStep, pk=pk)
     questions = step.questions.order_by('order')
@@ -1642,6 +1688,7 @@ def api_step_questions(request, pk):
 
 
 @login_required
+@menu_access_required('modules')
 @require_POST
 def api_step_questions_save(request, pk):
     step = get_object_or_404(ModuleStep, pk=pk)
@@ -1687,6 +1734,7 @@ def api_step_questions_save(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_any('learning', 'modules')
 def module_preview(request, pk):
     module = get_object_or_404(LearningModule.objects.select_related('program'), pk=pk)
     from django.urls import reverse
@@ -1705,6 +1753,7 @@ def module_preview(request, pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 def module_slides(request, pk):
     """Прохождение слайд-презентации внутри одного этапа (pk = ModuleStep.pk)."""
     step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=pk)
@@ -1725,12 +1774,14 @@ def module_slides(request, pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 def module_quiz_preview(request, step_pk):
     step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=step_pk)
     return render(request, 'modules/quiz.html', {'step': step, 'preview': True})
 
 
 @login_required
+@menu_access_required('modules')
 @require_POST
 def api_import_questions(request, pk):
     """Импорт вопросов из Excel."""
@@ -1803,6 +1854,7 @@ def api_import_questions(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('contracts')
 def contract_list(request):
     q = request.GET.get('q', '').strip()
     contracts = Contract.objects.select_related('payer', 'our_organization').all()
@@ -1829,6 +1881,7 @@ def contract_list(request):
 
 
 @login_required
+@menu_access_required('contracts')
 @require_POST
 def contract_create(request):
     try:
@@ -1846,6 +1899,7 @@ def contract_create(request):
 
 
 @login_required
+@menu_access_required('contracts')
 def api_signers(request):
     space = request.user.space
     if not space:
@@ -1856,6 +1910,7 @@ def api_signers(request):
 
 
 @login_required
+@menu_access_required('contracts')
 def api_payers(request, person_pk):
     person = get_object_or_404(Person, pk=person_pk)
     companies = Company.objects.order_by('short_name').values('id', 'short_name', 'inn')
@@ -1866,6 +1921,7 @@ def api_payers(request, person_pk):
 
 
 @login_required
+@menu_access_required('contracts')
 def api_contracts_by_payer(request, company_pk):
     contracts = Contract.objects.filter(payer_id=company_pk, is_active=True).order_by('-date')
     data = [{'id': c.pk, 'number': c.number, 'date': c.date.strftime('%d.%m.%Y'), 'display': f'№{c.number} от {c.date.strftime("%d.%m.%Y")}'} for c in contracts]
@@ -1873,6 +1929,7 @@ def api_contracts_by_payer(request, company_pk):
 
 
 @login_required
+@menu_access_required('contracts')
 @require_POST
 def api_order_create(request):
     try:
@@ -1907,6 +1964,7 @@ def api_order_create(request):
 # ══════════════════════════════════════════════════
 
 @login_required
+@menu_access_any('learning', 'modules')
 def api_module_progress(request, module_pk):
     """GET — получить прогресс по модулю для текущего пользователя."""
     from .utils import get_current_person
@@ -1936,6 +1994,7 @@ def api_module_progress(request, module_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_step_complete(request, step_pk):
     """POST — отметить этап как пройденный."""
@@ -1982,6 +2041,7 @@ def api_step_complete(request, step_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_quiz_save_progress(request, step_pk):
     """POST — сохранить промежуточный прогресс теста."""
@@ -2017,6 +2077,7 @@ def api_quiz_save_progress(request, step_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_quiz_complete(request, step_pk):
     """POST — завершить тест, сохранить результат."""
@@ -2068,6 +2129,7 @@ def api_quiz_complete(request, step_pk):
 # ══════════════════════════════════════════════════
 
 @login_required
+@menu_access_any('learning', 'modules')
 def api_final_exam_questions(request, step_pk):
     """GET — собрать вопросы для итоговой аттестации из промежуточных тестов."""
     import random
@@ -2135,6 +2197,7 @@ def api_final_exam_questions(request, step_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_final_exam_submit(request, step_pk):
     """POST — сохранить результат итоговой аттестации."""
@@ -2178,6 +2241,7 @@ def api_final_exam_submit(request, step_pk):
 # ══════════════════════════════════════════════════
 
 @login_required
+@menu_access_required('programs')
 def program_detail(request, pk):
     program = get_object_or_404(
         TrainingProgram.objects.prefetch_related('documents', 'modules'),
@@ -2199,6 +2263,7 @@ def program_detail(request, pk):
 
 
 @login_required
+@menu_access_required('programs')
 @require_POST
 def program_save(request, pk):
     program = get_object_or_404(TrainingProgram, pk=pk)
@@ -2301,6 +2366,7 @@ def program_save(request, pk):
 
 
 @login_required
+@menu_access_required('programs')
 @require_POST
 def program_document_upload(request, pk):
     program = get_object_or_404(TrainingProgram, pk=pk)
@@ -2318,6 +2384,7 @@ def program_document_upload(request, pk):
 
 
 @login_required
+@menu_access_required('programs')
 @require_POST
 def program_document_delete(request, doc_pk):
     doc = get_object_or_404(ProgramDocument, pk=doc_pk)
@@ -2327,6 +2394,7 @@ def program_document_delete(request, doc_pk):
 
 
 @login_required
+@menu_access_required('programs')
 @require_POST
 def create_template_docs(request, pk):
     program = get_object_or_404(TrainingProgram, pk=pk)
@@ -2353,6 +2421,7 @@ def create_template_docs(request, pk):
 
 
 @login_required
+@menu_access_required('programs')
 def available_templates(request, pk):
     program = get_object_or_404(TrainingProgram, pk=pk)
     templates = ProgramDocumentTemplate.objects.filter(is_active=True).order_by('sort_order')
@@ -2375,6 +2444,7 @@ def available_templates(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_person_order_create(request, pk):
     """Создать новую заявку для слушателя."""
@@ -2404,6 +2474,7 @@ def api_person_order_create(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_order_add_program(request, order_pk):
     """Добавить программы в заявку."""
@@ -2419,7 +2490,7 @@ def api_order_add_program(request, order_pk):
         prog = Program.objects.create(
             order=order,
             training_program=tp,
-            code=tp.title or '',
+            code=str(tp.pk),
             category='',
             date_start=order.date,
             date_end=order.date + timedelta(days=14) if order.date else order.date,
@@ -2446,6 +2517,7 @@ def api_order_add_program(request, order_pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_order_remove_programs(request, order_pk):
     """Удалить программы из заявки по PK."""
@@ -2457,6 +2529,7 @@ def api_order_remove_programs(request, order_pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_person_document_upload(request, pk):
     """Загрузка документа слушателя."""
@@ -2515,6 +2588,7 @@ def api_person_document_upload(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_person_documents_archive(request, pk):
     """Архивирование документов слушателя."""
@@ -2533,6 +2607,7 @@ def api_person_documents_archive(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_document_restore(request, doc_pk):
     """Восстановление документа из архива."""
@@ -2545,6 +2620,7 @@ def api_document_restore(request, doc_pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_person_sea_service_create(request, pk):
     """Добавить запись ценза."""
@@ -2572,6 +2648,7 @@ def api_person_sea_service_create(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 def api_sea_service_delete(request, pk):
     """Удалить запись ценза."""
     if request.method != 'DELETE':
@@ -2582,6 +2659,7 @@ def api_sea_service_delete(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_person_message_send(request, pk):
     """Отправка комментария."""
@@ -2614,6 +2692,7 @@ def api_person_message_send(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_message_pin(request, pk):
     """Закрепить комментарий (создать кейс)."""
@@ -2625,6 +2704,7 @@ def api_message_pin(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_message_unpin(request, pk):
     """Открепить комментарий (убрать из кейсов)."""
@@ -2636,6 +2716,7 @@ def api_message_unpin(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_toggle_case_status(request, pk):
     """Переключить статус кейса: В работе <-> Архив."""
@@ -2650,6 +2731,7 @@ def api_toggle_case_status(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('students')
 def api_program_templates_list(request):
     """Список шаблонов наборов программ."""
     templates = ProgramTemplate.objects.filter(is_active=True).prefetch_related('programs')
@@ -2663,6 +2745,7 @@ def api_program_templates_list(request):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_create_program_template(request):
     """Создать шаблон из выбранных программ."""
@@ -2690,6 +2773,7 @@ def api_create_program_template(request):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_delete_program_template(request, pk):
     """Удалить шаблон."""
@@ -2703,6 +2787,7 @@ def api_delete_program_template(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('students')
 def api_training_program_modules(request, pk):
     """GET — список модулей для программы обучения."""
     program = get_object_or_404(TrainingProgram, pk=pk)
@@ -2718,6 +2803,7 @@ def api_training_program_modules(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_assign_modules(request, pk):
     """POST — назначить модули слушателю."""
@@ -2749,6 +2835,7 @@ def api_assign_modules(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 def api_program_line_module_status(request, pk):
     """GET — статус модулей для строки заявки."""
     program_line = get_object_or_404(Program, pk=pk)
@@ -2785,6 +2872,7 @@ def api_program_line_module_status(request, pk):
 
 
 @login_required
+@menu_access_required('students')
 @require_POST
 def api_set_grade(request, pk):
     """POST — установить оценку для строки заявки."""
@@ -2800,6 +2888,7 @@ def api_set_grade(request, pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('learning')
 def student_learning(request):
     """Личный кабинет — раздел Обучение."""
     from .utils import get_current_person
@@ -2842,6 +2931,7 @@ def student_learning(request):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('impersonate_btn')
 @require_POST
 def api_impersonate(request, person_pk):
     """Войти в режим слушателя."""
@@ -2858,6 +2948,7 @@ def api_impersonate(request, person_pk):
 
 
 @login_required
+@menu_access_required('impersonate_btn')
 @require_POST
 def api_stop_impersonation(request):
     """Выйти из режима слушателя."""
@@ -2871,6 +2962,7 @@ def api_stop_impersonation(request):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_save_single_answer(request, step_pk):
     """Сохранить ответ на один вопрос."""
@@ -2899,6 +2991,7 @@ def api_save_single_answer(request, step_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 def api_load_saved_answers(request, step_pk):
     """Загрузить все сохранённые ответы для теста."""
     from .utils import get_current_person
@@ -2919,6 +3012,7 @@ def api_load_saved_answers(request, step_pk):
 
 
 @login_required
+@menu_access_any('learning', 'modules')
 @require_POST
 def api_reset_quiz_answers(request, step_pk):
     """Сбросить все ответы для теста."""
@@ -2936,6 +3030,7 @@ def api_reset_quiz_answers(request, step_pk):
 # ─────────────────────────────────────────────
 
 @login_required
+@menu_access_required('menu_settings')
 def menu_settings_view(request):
     """Страница настроек меню (суперадмин)."""
     if getattr(request.user, 'role', '') != 'superadmin':
@@ -2953,6 +3048,7 @@ def menu_settings_view(request):
 
 
 @login_required
+@menu_access_required('menu_settings')
 @require_POST
 def api_update_menu_permission(request):
     """Обновить видимость пункта меню."""

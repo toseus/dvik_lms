@@ -1,0 +1,15 @@
+{% extends "base/base.html" %}
+{% block title %}Доступ запрещён{% endblock %}
+{% block content %}
+<div style="max-width:500px;margin:80px auto;text-align:center;">
+    <div style="font-size:64px;margin-bottom:16px;">&#x1F6AB;</div>
+    <h2 style="font-size:22px;font-weight:700;color:#1a2433;margin-bottom:8px;">Доступ запрещён</h2>
+    <p style="font-size:14px;color:#5a6b7f;margin-bottom:24px;">
+        У вашей роли нет доступа к этому разделу.<br>
+        Обратитесь к администратору для изменения прав.
+    </p>
+    <a href="/dashboard/" style="display:inline-block;padding:10px 24px;background:#0f62ae;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">
+        &larr; На главную
+    </a>
+</div>
+{% endblock %}
