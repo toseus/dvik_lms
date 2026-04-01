@@ -1175,3 +1175,34 @@ python manage.py test courses -v 2
 **Файл:** `courses/views.py`, функция `api_order_add_program`, строка ~2493.
 
 **Статус:** Готово
+
+---
+
+## 2026-04-01 — Дашборд: панель «Обучение» + раздел «Результаты»
+
+### Часть 1. Дашборд — панель «Моё обучение»
+
+**Что сделано:**
+- View `dashboard` теперь формирует контекст с приветствием по времени суток (`_get_greeting`) и статистикой обучения
+- Для **слушателя** (`_dashboard_student`): статистика модулей (всего/завершено/в процессе/не начато), карточки модулей с обложками, прогресс-бар, кнопка «Продолжить обучение»
+- Для **админа/преподавателя** (`_dashboard_admin`): сводка — слушателей в обучении, назначений, завершено
+- Шаблон `dashboard/dashboard.html` полностью переписан с CSS-стилями (dash-panel, dash-stats, dash-modules и т.д.)
+
+### Часть 2. Раздел «Результаты»
+
+**Что сделано:**
+- Расширена модель `ModuleResult` — добавлены поля: `program` (FK), `total_steps`, `completed_steps`, `total_questions`, `correct_questions`, `time_spent_seconds`
+- Миграция `0035_moduleresult_completed_steps_and_more` создана и применена
+- Обновлён `api_final_exam_submit` — заполняет новые поля при создании ModuleResult
+- Завершённые модули (final_exam_passed=True, is_preview=False) исключаются из `/learning/`
+- Новый view `learning_results` — таблица завершённых модулей (слушатель — свои, админы — всех)
+- URL: `/results/`, name=`learning_results`
+- Шаблон `results/list.html` — таблица с ФИО, модулем, программой, этапами, вопросами, баллом, результатом, датой
+- Пункт «Результаты» в боковом меню (группа «Обучение»), `MenuPermission` для всех ролей
+- `results` добавлен в `MENU_ITEMS`, декоратор `@menu_access_required('results')`
+
+**Файлы:** models.py, views.py, urls.py, dashboard.html, results/list.html, base.html
+
+**Тесты:** 82/82 OK
+
+**Статус:** Готово

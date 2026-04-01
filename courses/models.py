@@ -883,6 +883,13 @@ class ModuleResult(models.Model):
     final_exam_passed = models.BooleanField(default=False, verbose_name='Итоговая сдана')
     final_exam_details = models.JSONField(default=list, verbose_name='Детали итоговой аттестации',
         help_text='Полный протокол: вопросы, ответы слушателя, правильные ответы')
+    program = models.ForeignKey('TrainingProgram', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='module_results', verbose_name='Программа обучения')
+    total_steps = models.PositiveIntegerField(default=0, verbose_name='Всего этапов в модуле')
+    completed_steps = models.PositiveIntegerField(default=0, verbose_name='Пройдено этапов')
+    total_questions = models.PositiveIntegerField(default=0, verbose_name='Всего вопросов в итоговой')
+    correct_questions = models.PositiveIntegerField(default=0, verbose_name='Правильных ответов')
+    time_spent_seconds = models.PositiveIntegerField(null=True, blank=True, verbose_name='Время прохождения (сек)')
     completed_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата завершения')
     is_preview = models.BooleanField(default=False, verbose_name='Режим проверки')
 
@@ -1137,6 +1144,7 @@ class MenuPermission(models.Model):
         ('companies', 'Юридические лица'),
         ('menu_settings', 'Настройки меню'),
         ('impersonate_btn', 'Кнопка «Войти как слушатель»'),
+        ('results', 'Результаты'),
     ]
 
     ROLES = [

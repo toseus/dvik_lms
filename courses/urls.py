@@ -120,6 +120,7 @@ urlpatterns = [
 
     # ЛК Обучение
     path('learning/', views.student_learning, name='student_learning'),
+    path('results/', views.learning_results, name='learning_results'),
 
     # Impersonation
     path('api/impersonate/<int:person_pk>/', views.api_impersonate, name='api_impersonate'),

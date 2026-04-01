@@ -883,7 +883,118 @@ def logout_view(request):
 @login_required
 @menu_access_required('dashboard')
 def dashboard(request):
-    return render(request, 'dashboard/dashboard.html')
+    from .utils import get_current_person
+    context = {
+        'greeting': _get_greeting(),
+    }
+
+    role = getattr(request.user, 'role', 'student')
+    person = get_current_person(request)
+
+    if role == 'student' and person:
+        context.update(_dashboard_student(person))
+    elif role in ('admin', 'superadmin', 'teacher'):
+        context.update(_dashboard_admin(request.user))
+
+    return render(request, 'dashboard/dashboard.html', context)
+
+
+def _get_greeting():
+    """Возвращает приветствие по времени суток (Asia/Vladivostok)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo('Asia/Vladivostok')
+    hour = datetime.now(tz).hour
+    if hour < 6:
+        return 'Доброй ночи'
+    elif hour < 12:
+        return 'Доброе утро'
+    elif hour < 18:
+        return 'Добрый день'
+    else:
+        return 'Добрый вечер'
+
+
+def _dashboard_student(person):
+    """Статистика обучения для слушателя."""
+    # Завершённые (реальные, не preview)
+    completed_ids = set(
+        ModuleResult.objects.filter(
+            person=person, final_exam_passed=True, is_preview=False,
+        ).values_list('module_id', flat=True)
+    )
+    completed_count = len(completed_ids)
+
+    # Незавершённые назначения
+    assignments = ModuleAssignment.objects.filter(
+        person=person, is_active=True
+    ).select_related('module', 'module__program').exclude(
+        module_id__in=completed_ids
+    )
+
+    active_count = assignments.count()
+
+    modules_data = []
+    in_progress_count = 0
+
+    for a in assignments:
+        m = a.module
+        progress = ModuleProgress.objects.filter(person=person, module=m).first()
+        total_steps = m.steps.filter(is_active=True).count()
+        current_step = 0
+        if progress and progress.current_step:
+            current_step = m.steps.filter(order__lte=progress.current_step.order).count()
+
+        progress_percent = round(current_step / total_steps * 100) if total_steps > 0 else 0
+        if progress_percent > 0:
+            in_progress_count += 1
+
+        modules_data.append({
+            'id': m.pk,
+            'title': m.title,
+            'program_title': m.program.title if m.program else '',
+            'program_code': m.program.code if m.program else '',
+            'cover_image': m.cover_image or '',
+            'total_steps': total_steps,
+            'is_completed': False,
+            'progress_percent': progress_percent,
+        })
+
+    # Модуль для «Продолжить» — первый незавершённый
+    continue_module = None
+    for md in modules_data:
+        if not md['is_completed']:
+            continue_module = md
+            break
+
+    return {
+        'learning_total': active_count + completed_count,
+        'learning_active': active_count,
+        'learning_completed': completed_count,
+        'learning_in_progress': in_progress_count,
+        'learning_not_started': active_count - in_progress_count,
+        'learning_modules': modules_data[:5],
+        'continue_module': continue_module,
+        'show_student_panel': True,
+    }
+
+
+def _dashboard_admin(user):
+    """Сводная статистика для админов и преподавателей."""
+    total_assignments = ModuleAssignment.objects.filter(is_active=True).count()
+    total_students = ModuleAssignment.objects.filter(
+        is_active=True
+    ).values('person').distinct().count()
+    total_completed = ModuleResult.objects.filter(
+        final_exam_passed=True, is_preview=False
+    ).count()
+
+    return {
+        'admin_total_assignments': total_assignments,
+        'admin_total_students': total_students,
+        'admin_total_completed': total_completed,
+        'show_admin_panel': True,
+    }
 
 
 @login_required
@@ -2216,14 +2327,21 @@ def api_final_exam_submit(request, step_pk):
     from .utils import get_current_person
     person = get_current_person(request)
     if not is_preview and person:
+        module = step.module
+        details = data.get('details', [])
         ModuleResult.objects.create(
             person=person,
-            module=step.module,
+            module=module,
+            program=module.program,
             quiz_scores=data.get('quiz_scores', {}),
             final_exam_step=step,
             final_exam_score=score,
             final_exam_passed=passed,
-            final_exam_details=data.get('details', []),
+            final_exam_details=details,
+            total_steps=module.steps.filter(is_active=True).count(),
+            completed_steps=module.steps.filter(is_active=True).count(),
+            total_questions=len(details) if isinstance(details, list) else 0,
+            correct_questions=sum(1 for a in details if isinstance(a, dict) and a.get('is_correct')) if isinstance(details, list) else 0,
             is_preview=False,
         )
 
@@ -2896,9 +3014,21 @@ def student_learning(request):
     if not person:
         return render(request, 'lk/learning.html', {'modules': []})
 
+    # ID модулей, которые реально завершены (не preview)
+    completed_module_ids = set(
+        ModuleResult.objects.filter(
+            person=person,
+            final_exam_passed=True,
+            is_preview=False,
+        ).values_list('module_id', flat=True)
+    )
+
+    # Назначения КРОМЕ завершённых
     assignments = ModuleAssignment.objects.filter(
         person=person, is_active=True
-    ).select_related('module', 'module__program').order_by('-assigned_at')
+    ).select_related('module', 'module__program').exclude(
+        module_id__in=completed_module_ids
+    ).order_by('-assigned_at')
 
     modules_data = []
     for a in assignments:
@@ -2924,6 +3054,52 @@ def student_learning(request):
         })
 
     return render(request, 'lk/learning.html', {'modules': modules_data})
+
+
+# ─────────────────────────────────────────────
+# Результаты обучения
+# ─────────────────────────────────────────────
+
+@login_required
+@menu_access_required('results')
+def learning_results(request):
+    """Раздел Результаты — завершённые модули."""
+    from .utils import get_current_person
+
+    person = get_current_person(request)
+    role = getattr(request.user, 'role', 'student')
+
+    if role == 'student' and person:
+        results = ModuleResult.objects.filter(
+            person=person,
+            final_exam_passed=True,
+            is_preview=False,
+        ).select_related(
+            'module', 'module__program', 'final_exam_step'
+        ).order_by('-completed_at')
+    elif role in ('admin', 'superadmin', 'teacher'):
+        results = ModuleResult.objects.filter(
+            final_exam_passed=True,
+            is_preview=False,
+        ).select_related(
+            'person', 'module', 'module__program', 'final_exam_step'
+        ).order_by('-completed_at')[:500]
+    else:
+        results = ModuleResult.objects.none()
+
+    total_completed = results.count() if not isinstance(results, list) else len(results)
+    avg_score = None
+    if total_completed > 0:
+        scores = [r.final_exam_score for r in results if r.final_exam_score is not None]
+        avg_score = round(sum(scores) / len(scores), 1) if scores else None
+
+    context = {
+        'results': results,
+        'total_completed': total_completed,
+        'avg_score': avg_score,
+        'is_admin': role in ('admin', 'superadmin', 'teacher'),
+    }
+    return render(request, 'results/list.html', context)
 
 
 # ─────────────────────────────────────────────

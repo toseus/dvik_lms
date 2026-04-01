@@ -1,0 +1,100 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Результаты обучения{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px 16px;">
+
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:20px;">
+        🏆 Результаты обучения
+    </h1>
+
+    <!-- Сводка -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="flex:0 0 auto;min-width:120px;padding:12px 20px;border-radius:8px;background:#e8f5e9;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#2e7d32;">{{ total_completed }}</div>
+            <div style="font-size:11px;color:#555;margin-top:2px;">Завершено модулей</div>
+        </div>
+        {% if avg_score %}
+        <div style="flex:0 0 auto;min-width:120px;padding:12px 20px;border-radius:8px;background:#e3f2fd;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#1565c0;">{{ avg_score }}%</div>
+            <div style="font-size:11px;color:#555;margin-top:2px;">Средний балл</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if results %}
+    <!-- Таблица результатов -->
+    <div style="background:#fff;border:1px solid #e0e6ed;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+                <tr style="background:#f5f7fa;border-bottom:2px solid #e0e6ed;">
+                    {% if is_admin %}
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Слушатель</th>
+                    {% endif %}
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Модуль</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Программа</th>
+                    <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Этапов</th>
+                    <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Вопросов</th>
+                    <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Итоговый балл</th>
+                    <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Результат</th>
+                    <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#555;">Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr style="border-bottom:1px solid #eee;{% cycle '' 'background:#fafbfc;' %}">
+                    {% if is_admin %}
+                    <td style="padding:8px 12px;">
+                        <a href="{% url 'student_card' r.person.pk %}" style="color:#0f62ae;text-decoration:none;font-weight:600;">
+                            {{ r.person.last_name }} {{ r.person.first_name|truncatechars:1 }}.
+                        </a>
+                    </td>
+                    {% endif %}
+                    <td style="padding:8px 12px;font-weight:600;">{{ r.module.title }}</td>
+                    <td style="padding:8px 12px;color:#555;">
+                        {% if r.module.program %}{{ r.module.program.code|default:r.module.program.title }}{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:8px 12px;text-align:center;">
+                        {{ r.completed_steps|default:"—" }} / {{ r.total_steps|default:"—" }}
+                    </td>
+                    <td style="padding:8px 12px;text-align:center;">
+                        {% if r.total_questions %}
+                            {{ r.correct_questions }} / {{ r.total_questions }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td style="padding:8px 12px;text-align:center;font-weight:700;font-size:15px;color:#1565c0;">
+                        {% if r.final_exam_score is not None %}{{ r.final_exam_score }}%{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:8px 12px;text-align:center;">
+                        {% if r.final_exam_passed %}
+                        <span style="display:inline-block;padding:3px 10px;border-radius:12px;background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:700;">
+                            ✓ Зачтено
+                        </span>
+                        {% else %}
+                        <span style="display:inline-block;padding:3px 10px;border-radius:12px;background:#fce4ec;color:#c62828;font-size:11px;font-weight:700;">
+                            ✗ Не сдано
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:8px 12px;text-align:right;color:#888;font-size:12px;">
+                        {{ r.completed_at|date:"d.m.Y H:i" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:48px 16px;color:#888;">
+        <div style="font-size:48px;margin-bottom:12px;">🏆</div>
+        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:4px;">Пока нет результатов</div>
+        <div style="font-size:13px;">Результаты появятся после прохождения итоговой аттестации</div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

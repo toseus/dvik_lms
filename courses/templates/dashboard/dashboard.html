@@ -1,12 +1,354 @@
-{% extends 'base/base.html' %}
+{% extends "base/base.html" %}
 {% load static %}
 
 {% block title %}Дашборд — ДВИК СЭО{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── Панель дашборда ── */
+.dash-panel {
+    background: #fff;
+    border: 1px solid var(--border, #e0e6ed);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.dash-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.dash-panel-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text, #1a2433);
+}
+.dash-panel-link {
+    font-size: 13px;
+    color: var(--accent, #0f62ae);
+    text-decoration: none;
+    font-weight: 600;
+}
+.dash-panel-link:hover { text-decoration: underline; }
+
+/* ── Статистика (числа) ── */
+.dash-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.dash-stat {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--bg-light, #f5f7fa);
+    text-align: center;
+}
+.dash-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text, #1a2433);
+    line-height: 1.2;
+}
+.dash-stat-label {
+    font-size: 11px;
+    color: var(--text-muted, #7a93ad);
+    margin-top: 2px;
+    font-weight: 500;
+}
+.dash-stat--success { background: #e8f5e9; }
+.dash-stat--success .dash-stat-value { color: #2e7d32; }
+.dash-stat--warning { background: #fff8e1; }
+.dash-stat--warning .dash-stat-value { color: #f57f17; }
+.dash-stat--muted { background: #f0f0f0; }
+.dash-stat--muted .dash-stat-value { color: #888; }
+
+/* ── Общий прогресс-бар ── */
+.dash-progress-block { margin-bottom: 16px; }
+.dash-progress-text {
+    font-size: 13px;
+    color: var(--text-muted, #7a93ad);
+    margin-bottom: 6px;
+}
+.dash-progress-bar {
+    height: 8px;
+    background: #e0e6ed;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.dash-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0f62ae, #1e88e5);
+    border-radius: 4px;
+    transition: width .3s;
+}
+
+/* ── Карточки модулей (горизонтальная лента) ── */
+.dash-modules {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+}
+.dash-module-card {
+    flex: 0 0 150px;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e0e6ed);
+    overflow: hidden;
+    transition: box-shadow .15s, transform .15s;
+    background: #fff;
+}
+.dash-module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+    transform: translateY(-2px);
+}
+.dash-module-cover {
+    width: 100%;
+    height: 100px;
+    background: #e8ecf0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.dash-module-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.dash-module-placeholder {
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+.dash-module-info { padding: 8px 10px; }
+.dash-module-title {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    max-height: 2.6em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.dash-module-program {
+    font-size: 10px;
+    color: var(--accent, #0f62ae);
+    margin-top: 2px;
+    font-weight: 500;
+}
+.dash-module-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+}
+.dash-module-badge--done { background: #e8f5e9; color: #2e7d32; }
+.dash-module-badge--new { background: #f0f0f0; color: #888; }
+.dash-module-progress-bar {
+    height: 4px;
+    background: #e0e6ed;
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+.dash-module-progress-fill {
+    height: 100%;
+    background: #1e88e5;
+    border-radius: 2px;
+}
+
+/* ── Кнопка «Продолжить» ── */
+.dash-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+.dash-btn-primary {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent, #0f62ae);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    transition: background .15s;
+}
+.dash-btn-primary:hover { background: #0d529a; }
+.dash-action-hint {
+    font-size: 13px;
+    color: var(--text-muted, #7a93ad);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Пустое состояние ── */
+.dash-empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text, #1a2433);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display:flex; align-items:center; justify-content:center; min-height:60vh;">
-    <h1 style="font-size:3rem; color:var(--text-primary); font-weight:700;">
-        Добрый день!
+<div style="max-width:900px;margin:0 auto;padding:24px 16px;">
+
+    <!-- Приветствие -->
+    <h1 style="font-size:28px;font-weight:700;color:var(--text, #1a2433);margin-bottom:24px;">
+        {{ greeting }}{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}!
     </h1>
+
+    {% if show_student_panel %}
+    <!-- ══════════════════════════════════════ -->
+    <!--       ПАНЕЛЬ ОБУЧЕНИЯ (СЛУШАТЕЛЬ)      -->
+    <!-- ══════════════════════════════════════ -->
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <div class="dash-panel-title">📚 Моё обучение</div>
+            <a href="{% url 'student_learning' %}" class="dash-panel-link">Все модули →</a>
+        </div>
+
+        {% if learning_total > 0 %}
+        <!-- Статистика -->
+        <div class="dash-stats">
+            <div class="dash-stat">
+                <div class="dash-stat-value">{{ learning_total }}</div>
+                <div class="dash-stat-label">Всего модулей</div>
+            </div>
+            <div class="dash-stat dash-stat--success">
+                <div class="dash-stat-value">{{ learning_completed }}</div>
+                <div class="dash-stat-label">Завершено</div>
+            </div>
+            <div class="dash-stat dash-stat--warning">
+                <div class="dash-stat-value">{{ learning_in_progress }}</div>
+                <div class="dash-stat-label">В процессе</div>
+            </div>
+            <div class="dash-stat dash-stat--muted">
+                <div class="dash-stat-value">{{ learning_not_started }}</div>
+                <div class="dash-stat-label">Не начато</div>
+            </div>
+        </div>
+
+        <!-- Общий прогресс -->
+        {% if learning_total > 0 %}
+        <div class="dash-progress-block">
+            <div class="dash-progress-text">
+                Общий прогресс:
+                <strong>{{ learning_completed }} из {{ learning_total }}</strong>
+            </div>
+            <div class="dash-progress-bar">
+                <div class="dash-progress-fill" style="width:{% widthratio learning_completed learning_total 100 %}%"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Модули (превью до 5 штук) -->
+        {% if learning_modules %}
+        <div class="dash-modules">
+            {% for m in learning_modules %}
+            <a href="{% url 'module_preview' m.id %}" class="dash-module-card" title="{{ m.title }}">
+                <div class="dash-module-cover">
+                    {% if m.cover_image %}
+                    <img src="{{ m.cover_image }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <div class="dash-module-placeholder" style="display:none">📖</div>
+                    {% else %}
+                    <div class="dash-module-placeholder">📖</div>
+                    {% endif %}
+                </div>
+                <div class="dash-module-info">
+                    <div class="dash-module-title">{{ m.title }}</div>
+                    <div class="dash-module-program">{{ m.program_code }}</div>
+                    {% if m.is_completed %}
+                    <div class="dash-module-badge dash-module-badge--done">✓ Завершён</div>
+                    {% elif m.progress_percent > 0 %}
+                    <div class="dash-module-progress-bar">
+                        <div class="dash-module-progress-fill" style="width:{{ m.progress_percent }}%"></div>
+                    </div>
+                    {% else %}
+                    <div class="dash-module-badge dash-module-badge--new">Не начат</div>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Кнопка «Продолжить обучение» -->
+        {% if continue_module %}
+        <div class="dash-action">
+            <a href="{% url 'module_preview' continue_module.id %}" class="dash-btn-primary">
+                ▶ Продолжить обучение
+            </a>
+            <span class="dash-action-hint">{{ continue_module.title }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Ссылка на результаты -->
+        {% if learning_completed > 0 %}
+        <div style="margin-top:12px;">
+            <a href="{% url 'learning_results' %}" class="dash-panel-link">
+                🏆 Результаты: {{ learning_completed }} завершённых модулей →
+            </a>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- Нет назначений -->
+        <div class="dash-empty">
+            <div style="font-size:40px;margin-bottom:8px;">📚</div>
+            <div style="font-weight:600;margin-bottom:4px;">Пока нет назначенных модулей</div>
+            <div style="color:var(--text-muted, #7a93ad);font-size:13px;">
+                Модули появятся здесь после назначения преподавателем
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if show_admin_panel %}
+    <!-- ══════════════════════════════════════ -->
+    <!--       ПАНЕЛЬ ОБУЧЕНИЯ (АДМИН)          -->
+    <!-- ══════════════════════════════════════ -->
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <div class="dash-panel-title">📊 Обучение — сводка</div>
+            <a href="{% url 'person_list' %}" class="dash-panel-link">Слушатели →</a>
+        </div>
+
+        <div class="dash-stats">
+            <div class="dash-stat">
+                <div class="dash-stat-value">{{ admin_total_students }}</div>
+                <div class="dash-stat-label">Слушателей в обучении</div>
+            </div>
+            <div class="dash-stat">
+                <div class="dash-stat-value">{{ admin_total_assignments }}</div>
+                <div class="dash-stat-label">Назначений модулей</div>
+            </div>
+            <div class="dash-stat dash-stat--success">
+                <div class="dash-stat-value">{{ admin_total_completed }}</div>
+                <div class="dash-stat-label">Завершено</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
