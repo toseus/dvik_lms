@@ -2403,6 +2403,25 @@ def api_quiz_complete(request, step_pk):
         completed_at=timezone.now(),
     )
 
+    # Обновить current_step на следующий незавершённый
+    all_steps = list(step.module.steps.filter(is_active=True).order_by('order'))
+    completed_ids = set(progress.step_progress.filter(
+        status__in=['completed', 'graded']
+    ).values_list('step_id', flat=True))
+
+    next_step = None
+    for s in all_steps:
+        if s.pk not in completed_ids:
+            next_step = s
+            break
+    progress.current_step = next_step
+
+    if not next_step or all(s.pk in completed_ids for s in all_steps):
+        progress.is_completed = True
+        progress.completed_at = timezone.now()
+
+    progress.save()
+
     return JsonResponse({'ok': True, 'score': score})
 
 
@@ -2496,25 +2515,54 @@ def api_final_exam_submit(request, step_pk):
     passed = score >= pass_score
 
     from .utils import get_current_person
+    from django.utils import timezone
     person = get_current_person(request)
     if not is_preview and person:
         module = step.module
         details = data.get('details', [])
-        ModuleResult.objects.create(
+        total_steps = module.steps.filter(is_active=True).count()
+        total_questions = len(details) if isinstance(details, list) else 0
+        correct_questions = sum(
+            1 for a in details if isinstance(a, dict) and a.get('is_correct')
+        ) if isinstance(details, list) else 0
+
+        # Создать или обновить ModuleResult (без дублей)
+        result, created = ModuleResult.objects.update_or_create(
             person=person,
             module=module,
-            program=module.program,
-            quiz_scores=data.get('quiz_scores', {}),
-            final_exam_step=step,
-            final_exam_score=score,
-            final_exam_passed=passed,
-            final_exam_details=details,
-            total_steps=module.steps.filter(is_active=True).count(),
-            completed_steps=module.steps.filter(is_active=True).count(),
-            total_questions=len(details) if isinstance(details, list) else 0,
-            correct_questions=sum(1 for a in details if isinstance(a, dict) and a.get('is_correct')) if isinstance(details, list) else 0,
             is_preview=False,
+            defaults={
+                'program': module.program,
+                'quiz_scores': data.get('quiz_scores', {}),
+                'final_exam_step': step,
+                'final_exam_score': score,
+                'final_exam_passed': passed,
+                'final_exam_details': details,
+                'total_steps': total_steps,
+                'completed_steps': total_steps,
+                'total_questions': total_questions,
+                'correct_questions': correct_questions,
+            },
         )
+
+        # Отметить итоговый шаг как пройденный в StepProgress
+        progress, _ = ModuleProgress.objects.get_or_create(
+            person=person, module=module
+        )
+        sp, _ = StepProgress.objects.get_or_create(
+            module_progress=progress, step=step
+        )
+        sp.status = 'completed'
+        sp.score = score
+        sp.completed_at = timezone.now()
+        sp.save()
+
+        # Пометить модуль завершённым при успешной сдаче
+        if passed:
+            progress.is_completed = True
+            progress.completed_at = timezone.now()
+            progress.current_step = None
+            progress.save(update_fields=['is_completed', 'completed_at', 'current_step'])
 
     return JsonResponse({
         'ok': True,

@@ -1268,3 +1268,58 @@ python manage.py test courses -v 2
 **Тесты:** 104/104 OK
 
 **Статус:** Готово
+
+---
+
+### 2026-04-02 — Обновление тестов вопросов
+
+**Что сделано:** Переработан `courses/tests/test_questions_save.py` — с 22 до 28 тестов.
+
+**Новые тесты QuestionsSaveTest (+3):**
+- `test_update_answers_and_correct` — обновление вариантов, правильных, типа
+- `test_update_explanation_and_points` — обновление пояснения и баллов
+- `test_student_cannot_load_questions` — слушатель может загрузить через learning
+
+**Новые тесты QuestionsAndModuleSaveTest (+3):**
+- `test_empty_step_deleted_normally` — material-шаг без вопросов удаляется
+- `test_empty_quiz_step_deleted_normally` — quiz-шаг БЕЗ вопросов удаляется
+- `test_two_quiz_steps_independent` — два quiz-этапа с вопросами независимы
+
+**Рефакторинг:**
+- `STEP_DEFAULTS` dict для устранения дублирования полей шагов
+- `_make_step()` хелпер вместо повторяющихся словарей
+- Обновлены docstrings для отражения текущего поведения (деактивация, не удаление)
+
+**Тесты:** 110/110 OK
+
+**Статус:** Готово
+
+---
+
+### 2026-04-02 — Fix: завершённые модули переходят в Результаты
+
+**Проблема:** После прохождения итоговой аттестации модуль оставался в «Обучении» и не появлялся в «Результатах». Причины:
+1. `api_final_exam_submit` создавал `ModuleResult`, но не ставил `ModuleProgress.is_completed = True`
+2. `api_final_exam_submit` не отмечал финальный шаг в `StepProgress`
+3. `api_quiz_complete` не проверял завершение модуля (не обновлял current_step)
+4. Повторная сдача экзамена создавала дубли `ModuleResult`
+
+**Что исправлено в `views.py`:**
+
+`api_final_exam_submit`:
+- `ModuleResult.objects.create` → `update_or_create` (без дублей)
+- Добавлено создание `StepProgress` для финального шага
+- При успешной сдаче: `ModuleProgress.is_completed = True`, `current_step = None`
+
+`api_quiz_complete`:
+- Добавлена проверка завершения модуля (как в `api_step_complete`)
+- Обновление `current_step` на следующий незавершённый шаг
+- Установка `is_completed = True` если все шаги пройдены
+
+**Shell-диагностика:**
+- До фикса: 2 completed progresses, 0 results → модули не переходили в результаты
+- После фикса: цепочка quiz_complete → step_complete → final_exam_submit → ModuleResult + is_completed
+
+**Тесты:** 110/110 OK
+
+**Статус:** Готово
