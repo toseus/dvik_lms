@@ -54,6 +54,13 @@ urlpatterns = [
     path('api/steps/<int:pk>/questions/save/', views.api_step_questions_save, name='api_step_questions_save'),
     path('api/steps/<int:pk>/questions/import/', views.api_import_questions, name='api_import_questions'),
 
+    # Загрузка изображений
+    path('api/modules/<int:pk>/upload-cover/', views.upload_module_cover, name='upload_module_cover'),
+    path('api/steps/<int:step_pk>/upload-question-image/', views.upload_question_image, name='upload_question_image'),
+    path('api/steps/<int:step_pk>/upload-question-images/', views.upload_question_images_bulk, name='upload_question_images_bulk'),
+    path('api/steps/<int:step_pk>/question-images/', views.list_question_images, name='list_question_images'),
+    path('api/steps/<int:step_pk>/question-images/<int:question_order>/delete/', views.delete_question_image, name='delete_question_image'),
+
     # Заказы
     path('orders/api/person/<int:person_pk>/', views.api_person_orders, name='api_person_orders'),
 

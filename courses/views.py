@@ -1,4 +1,6 @@
 import json
+import os
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -1958,6 +1960,169 @@ def api_import_questions(request, pk):
 
     except Exception as e:
         return JsonResponse({'error': f'Ошибка: {str(e)}'}, status=400)
+
+
+# ─────────────────────────────────────────────
+# Загрузка изображений (обложки, картинки вопросов)
+# ─────────────────────────────────────────────
+
+@login_required
+@menu_access_required('modules')
+@require_POST
+def upload_module_cover(request, pk):
+    """Загрузка обложки модуля."""
+    module = get_object_or_404(LearningModule, pk=pk)
+    file = request.FILES.get('cover')
+    if not file:
+        return JsonResponse({'error': 'Файл не выбран'}, status=400)
+
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'pics', 'modules')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else 'png'
+    filename = f'module_{module.pk}.{ext}'
+    filepath = os.path.join(upload_dir, filename)
+
+    with open(filepath, 'wb+') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+
+    url = f'/media/pics/modules/{filename}'
+    module.cover_image = url
+    module.save(update_fields=['cover_image'])
+
+    return JsonResponse({'success': True, 'url': url})
+
+
+@login_required
+@menu_access_required('modules')
+@require_POST
+def upload_question_image(request, step_pk):
+    """Загрузка картинки для конкретного вопроса."""
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    file = request.FILES.get('image')
+    question_order = request.POST.get('question_order')
+
+    if not file or not question_order:
+        return JsonResponse({'error': 'Файл и номер вопроса обязательны'}, status=400)
+
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'pics', 'quiz', f'step_{step.pk}')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f'{question_order}.png'
+    filepath = os.path.join(upload_dir, filename)
+
+    with open(filepath, 'wb+') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+
+    url = f'/media/pics/quiz/step_{step.pk}/{filename}'
+
+    question = QuizQuestion.objects.filter(step=step, order=int(question_order)).first()
+    if question:
+        question.image_url = url
+        question.save(update_fields=['image_url'])
+
+    return JsonResponse({'success': True, 'url': url, 'question_order': question_order})
+
+
+@login_required
+@menu_access_required('modules')
+@require_POST
+def upload_question_images_bulk(request, step_pk):
+    """Массовая загрузка картинок для вопросов теста."""
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    files = request.FILES.getlist('images')
+
+    if not files:
+        return JsonResponse({'error': 'Файлы не выбраны'}, status=400)
+
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'pics', 'quiz', f'step_{step.pk}')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    uploaded = []
+    for file in files:
+        name_without_ext = file.name.rsplit('.', 1)[0]
+        try:
+            question_order = int(name_without_ext)
+        except ValueError:
+            continue
+
+        filename = f'{question_order}.png'
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, 'wb+') as f:
+            for chunk in file.chunks():
+                f.write(chunk)
+
+        url = f'/media/pics/quiz/step_{step.pk}/{filename}'
+
+        question = QuizQuestion.objects.filter(step=step, order=question_order).first()
+        if question:
+            question.image_url = url
+            question.save(update_fields=['image_url'])
+
+        uploaded.append({'order': question_order, 'url': url, 'filename': file.name})
+
+    return JsonResponse({'success': True, 'uploaded': uploaded, 'count': len(uploaded)})
+
+
+@login_required
+@menu_access_required('modules')
+def list_question_images(request, step_pk):
+    """Список загруженных картинок для теста."""
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'pics', 'quiz', f'step_{step.pk}')
+
+    images = []
+    if os.path.exists(upload_dir):
+        for fname in sorted(os.listdir(upload_dir)):
+            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg')):
+                order_str = fname.rsplit('.', 1)[0]
+                try:
+                    order = int(order_str)
+                except ValueError:
+                    continue
+                url = f'/media/pics/quiz/step_{step.pk}/{fname}'
+                size = os.path.getsize(os.path.join(upload_dir, fname))
+                images.append({
+                    'order': order,
+                    'filename': fname,
+                    'url': url,
+                    'size_kb': round(size / 1024, 1),
+                })
+
+    questions = QuizQuestion.objects.filter(step=step).order_by('order')
+    question_orders = [q.order for q in questions]
+    image_orders = set(img['order'] for img in images)
+    missing = [o for o in question_orders if o not in image_orders]
+
+    return JsonResponse({
+        'images': images,
+        'missing': missing,
+        'total_questions': len(question_orders),
+    })
+
+
+@login_required
+@menu_access_required('modules')
+@require_POST
+def delete_question_image(request, step_pk, question_order):
+    """Удалить картинку вопроса."""
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'pics', 'quiz', f'step_{step.pk}')
+
+    for ext in ['png', 'jpg', 'jpeg', 'gif', 'svg']:
+        filepath = os.path.join(upload_dir, f'{question_order}.{ext}')
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+    question = QuizQuestion.objects.filter(step=step, order=question_order).first()
+    if question:
+        question.image_url = ''
+        question.save(update_fields=['image_url'])
+
+    return JsonResponse({'success': True})
 
 
 # ─────────────────────────────────────────────
