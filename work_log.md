@@ -1239,3 +1239,32 @@ python manage.py test courses -v 2
 **Тесты:** 104/104 OK
 
 **Статус:** Готово
+
+---
+
+### 2026-04-02 — Защита от выхода без сохранения + fix каскадного удаления вопросов
+
+**Задача 1. Флаг quizDirty + предупреждения**
+
+- Добавлен `quizDirty` — флаг несохранённых изменений в редакторе вопросов
+- `markQuizDirty()` вызывается при: добавлении/удалении вопроса, изменении текста, вариантов, правильных ответов, типа, баллов, пояснения, картинки, терминов
+- Сброс при успешном сохранении теста и импорте Excel
+- `closeQuiz()` — confirm если есть несохранённые изменения
+- `openQuiz()` — confirm при переключении на другой тест с несохранёнными изменениями
+- `beforeunload` учитывает и `dirty`, и `quizDirty`
+
+**Задача 2. Fix каскадного удаления вопросов при saveAll**
+
+- `api_module_steps_save`: шаги с вопросами **деактивируются** (`is_active=False`) вместо удаления
+- `removeStep()` в JS: предупреждение с количеством вопросов при удалении quiz/final_exam шага
+- Тест `test_save_module_without_step_id_deactivates_quiz` подтверждает защиту
+
+**Задача 3. Management command test_quiz_integrity**
+
+- `python manage.py test_quiz_integrity` — проверка целостности: тестовые шаги без вопросов, вопросы-сироты
+
+**Файлы:** views.py, templates/modules/edit.html, tests/test_questions_save.py, management/commands/test_quiz_integrity.py
+
+**Тесты:** 104/104 OK
+
+**Статус:** Готово

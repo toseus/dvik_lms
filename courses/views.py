@@ -1763,7 +1763,13 @@ def api_module_steps_save(request, pk):
 
     to_delete = existing_ids - incoming_ids
     if to_delete:
-        ModuleStep.objects.filter(pk__in=to_delete).delete()
+        # Не удалять шаги, у которых есть вопросы — деактивировать
+        for del_id in to_delete:
+            has_questions = QuizQuestion.objects.filter(step_id=del_id).exists()
+            if has_questions:
+                ModuleStep.objects.filter(pk=del_id).update(is_active=False)
+            else:
+                ModuleStep.objects.filter(pk=del_id).delete()
 
     update_fields = []
     if 'module_title' in data:

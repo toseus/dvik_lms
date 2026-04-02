@@ -254,12 +254,14 @@ const TYPE_LABELS = {material:'Онлайн',practice:'Практика',upload:
 
 let steps=[], dirty=false;
 let currentQuizStepIdx=null, quizQuestions=[], quizStepId=null;
+let quizDirty=false;
+function markQuizDirty(){quizDirty=true;}
 
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function markDirty(){dirty=true;document.getElementById('dirtyDot').style.display='inline-block';}
 function clearDirty(){dirty=false;document.getElementById('dirtyDot').style.display='none';}
-window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(dirty||quizDirty){e.preventDefault();e.returnValue='';}});
 
 /* ═══ LOAD ═══ */
 async function loadSteps(){
@@ -395,7 +397,15 @@ function addStep(type){
   steps.push({id:null,order:steps.length,type,title:'',description:'',url:'',slide_content:'',time_limit_minutes:null,pass_score:null,exam_config:null,questions_count:0,is_active:true});
   markDirty(); renderSteps();
 }
-function removeStep(i){if(confirm('Удалить этап?')){steps.splice(i,1);markDirty();renderSteps();}}
+function removeStep(i){
+  const s=steps[i];
+  if((s.type==='quiz'||s.type==='final_exam')&&(s.questions_count||0)>0){
+    if(!confirm(`Этот тест содержит ${s.questions_count} вопросов. Удаление шага удалит ВСЕ вопросы. Продолжить?`))return;
+  } else {
+    if(!confirm('Удалить этап?'))return;
+  }
+  steps.splice(i,1);markDirty();renderSteps();
+}
 function moveStep(i,dir){
   const j=i+dir;if(j<0||j>=steps.length)return;
   [steps[i],steps[j]]=[steps[j],steps[i]];
@@ -423,6 +433,10 @@ async function saveAll(){
 
 /* ═══ QUIZ EDITOR ═══ */
 async function openQuiz(stepIdx){
+  if(quizDirty){
+    if(!confirm('Есть несохранённые изменения в текущем тесте. Выйти без сохранения?'))return;
+  }
+  quizDirty=false;
   currentQuizStepIdx=stepIdx;
   const s=steps[stepIdx];
   quizStepId=s.id;
@@ -437,7 +451,11 @@ async function openQuiz(stepIdx){
   renderQuizQuestions();
   document.getElementById('quizOverlay').classList.add('show');
 }
-function closeQuiz(){document.getElementById('quizOverlay').classList.remove('show');}
+function closeQuiz(){
+  if(quizDirty){if(!confirm('Есть несохранённые изменения в вопросах. Выйти без сохранения?'))return;}
+  quizDirty=false;
+  document.getElementById('quizOverlay').classList.remove('show');
+}
 
 function renderQuizQuestions(){
   const c=document.getElementById('quizQuestions');
@@ -451,27 +469,27 @@ function renderQuizQuestions(){
         const checked=(q.correct||[]).includes(ai)?'checked':'';
         const inputType=isSingle?'radio':'checkbox';
         const nameAttr=isSingle?`name="q${i}_c"`:'';
-        return `<div class="eq-ans-row"><input type="${inputType}" ${nameAttr} ${checked} onchange="updateCorrect(${i},${ai},this)"><input type="text" value="${esc(a)}" onchange="quizQuestions[${i}].answers[${ai}]=this.value"><button class="eq-ans-remove" onclick="removeAnswer(${i},${ai})">✕</button></div>`;
+        return `<div class="eq-ans-row"><input type="${inputType}" ${nameAttr} ${checked} onchange="markQuizDirty();updateCorrect(${i},${ai},this)"><input type="text" value="${esc(a)}" onchange="markQuizDirty();quizQuestions[${i}].answers[${ai}]=this.value"><button class="eq-ans-remove" onclick="removeAnswer(${i},${ai})">✕</button></div>`;
       }).join('');
       answersHtml+=`<button class="eq-add-ans" onclick="addAnswer(${i})">+ Добавить вариант</button>`;
     } else {
-      answersHtml=`<div class="edit-field"><label>Термины (по одному на строку)</label><textarea class="edit-textarea" onchange="quizQuestions[${i}].terms=this.value.split('\\n').filter(Boolean)">${(q.terms||[]).join('\n')}</textarea></div>`;
-      answersHtml+=`<div class="edit-field"><label>Определения (по одному на строку)</label><textarea class="edit-textarea" onchange="quizQuestions[${i}].answers=this.value.split('\\n').filter(Boolean)">${(q.answers||[]).join('\n')}</textarea></div>`;
+      answersHtml=`<div class="edit-field"><label>Термины (по одному на строку)</label><textarea class="edit-textarea" onchange="markQuizDirty();quizQuestions[${i}].terms=this.value.split('\\n').filter(Boolean)">${(q.terms||[]).join('\n')}</textarea></div>`;
+      answersHtml+=`<div class="edit-field"><label>Определения (по одному на строку)</label><textarea class="edit-textarea" onchange="markQuizDirty();quizQuestions[${i}].answers=this.value.split('\\n').filter(Boolean)">${(q.answers||[]).join('\n')}</textarea></div>`;
     }
     return `<div class="eq-card">
       <button class="eq-remove" onclick="removeQuestion(${i})">✕</button>
       <div class="eq-header"><div class="eq-meta">
         <span class="eq-num">Вопрос ${i+1}</span>
-        <select class="eq-type-sel" onchange="quizQuestions[${i}].type=this.value;renderQuizQuestions()">
+        <select class="eq-type-sel" onchange="markQuizDirty();quizQuestions[${i}].type=this.value;renderQuizQuestions()">
           <option value="single" ${q.type==='single'?'selected':''}>Один ответ</option>
           <option value="multi" ${q.type==='multi'?'selected':''}>Несколько</option>
           <option value="order" ${q.type==='order'?'selected':''}>Последовательность</option>
           <option value="match" ${q.type==='match'?'selected':''}>Сопоставление</option>
         </select>
-        <div class="eq-points"><span>Баллов:</span><input type="number" value="${q.points||1}" onchange="quizQuestions[${i}].points=+this.value||1"></div>
+        <div class="eq-points"><span>Баллов:</span><input type="number" value="${q.points||1}" onchange="markQuizDirty();quizQuestions[${i}].points=+this.value||1"></div>
       </div></div>
       <div class="eq-body">
-        <textarea class="eq-text-area" onchange="quizQuestions[${i}].text=this.value" placeholder="Текст вопроса...">${esc(q.text||'')}</textarea>
+        <textarea class="eq-text-area" onchange="markQuizDirty();quizQuestions[${i}].text=this.value" placeholder="Текст вопроса...">${esc(q.text||'')}</textarea>
         <div class="eq-image-field" style="margin:6px 0;">
           <label style="font-size:11px;font-weight:600;color:var(--text-muted);">Картинка</label>
           <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
@@ -480,22 +498,22 @@ function renderQuizQuestions(){
               📁
               <input type="file" accept="image/*" style="display:none;" onchange="uploadQuizImage(${i}, this)">
             </label>
-            <button type="button" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-muted);" onclick="quizQuestions[${i}].image_url='';renderQuizQuestions()">✕</button>
+            <button type="button" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-muted);" onclick="markQuizDirty();quizQuestions[${i}].image_url='';renderQuizQuestions()">✕</button>
           </div>
           <div class="eq-img-preview" style="margin-top:4px;">${q.image_url?`<img src="${esc(q.image_url)}" style="max-width:300px;max-height:150px;border:1px solid #ddd;border-radius:4px;" onerror="this.style.display='none'">`:''}</div>
         </div>
         <div class="eq-answers"><div class="eq-answers-label">Варианты ответов</div>${answersHtml}</div>
-        <div class="eq-explain"><label style="font-size:11px;font-weight:600;color:var(--text-muted);">Пояснение</label><textarea onchange="quizQuestions[${i}].explanation=this.value" placeholder="Пояснение к ответу...">${esc(q.explanation||'')}</textarea></div>
+        <div class="eq-explain"><label style="font-size:11px;font-weight:600;color:var(--text-muted);">Пояснение</label><textarea onchange="markQuizDirty();quizQuestions[${i}].explanation=this.value" placeholder="Пояснение к ответу...">${esc(q.explanation||'')}</textarea></div>
       </div>
     </div>`;
   }).join('');
 }
 
-function addQuestion(){quizQuestions.push({id:null,order:quizQuestions.length,type:'single',text:'',points:1,image_url:'',explanation:'',answers:['',''],correct:[0],terms:null});renderQuizQuestions();}
-function removeQuestion(i){quizQuestions.splice(i,1);renderQuizQuestions();}
-function addAnswer(qi){quizQuestions[qi].answers.push('');renderQuizQuestions();}
-function removeAnswer(qi,ai){quizQuestions[qi].answers.splice(ai,1);quizQuestions[qi].correct=quizQuestions[qi].correct.filter(c=>c!==ai).map(c=>c>ai?c-1:c);renderQuizQuestions();}
-function updateCorrect(qi,ai,el){const q=quizQuestions[qi];if(q.type==='single'){q.correct=[ai];}else{if(el.checked){if(!q.correct.includes(ai))q.correct.push(ai);}else{q.correct=q.correct.filter(c=>c!==ai);}}}
+function addQuestion(){markQuizDirty();quizQuestions.push({id:null,order:quizQuestions.length,type:'single',text:'',points:1,image_url:'',explanation:'',answers:['',''],correct:[0],terms:null});renderQuizQuestions();}
+function removeQuestion(i){markQuizDirty();quizQuestions.splice(i,1);renderQuizQuestions();}
+function addAnswer(qi){markQuizDirty();quizQuestions[qi].answers.push('');renderQuizQuestions();}
+function removeAnswer(qi,ai){markQuizDirty();quizQuestions[qi].answers.splice(ai,1);quizQuestions[qi].correct=quizQuestions[qi].correct.filter(c=>c!==ai).map(c=>c>ai?c-1:c);renderQuizQuestions();}
+function updateCorrect(qi,ai,el){markQuizDirty();const q=quizQuestions[qi];if(q.type==='single'){q.correct=[ai];}else{if(el.checked){if(!q.correct.includes(ai))q.correct.push(ai);}else{q.correct=q.correct.filter(c=>c!==ai);}}}
 
 async function uploadQuizImage(qi, input) {
   if (!input.files.length) return;
@@ -508,6 +526,7 @@ async function uploadQuizImage(qi, input) {
   });
   const d = await r.json();
   if (d.success) {
+    markQuizDirty();
     quizQuestions[qi].image_url = d.url;
     renderQuizQuestions();
     toast('Картинка загружена');
@@ -520,7 +539,7 @@ async function saveQuiz(){
   const body={questions:quizQuestions.map((q,i)=>({id:q.id,order:i,type:q.type,text:q.text,points:q.points,image_url:q.image_url||'',explanation:q.explanation||'',answers:q.answers||[],correct:q.correct||[],terms:q.terms}))};
   const r=await fetch(`/api/steps/${quizStepId}/questions/save/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
   const d=await r.json();
-  if(d.ok){toast(`Сохранено (${d.count} вопросов)`);steps[currentQuizStepIdx].questions_count=d.count;closeQuiz();renderSteps();}
+  if(d.ok){quizDirty=false;toast(`Сохранено (${d.count} вопросов)`);steps[currentQuizStepIdx].questions_count=d.count;closeQuiz();renderSteps();}
   else toast('Ошибка: '+(d.error||''));
 }
 
@@ -530,7 +549,7 @@ async function importExcel(input){
   const fd=new FormData();fd.append('file',input.files[0]);
   const r=await fetch(`/api/steps/${quizStepId}/questions/import/`,{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd});
   const d=await r.json();input.value='';
-  if(d.ok){toast(`Импортировано ${d.imported} вопросов`);const r2=await fetch(`/api/steps/${quizStepId}/questions/`);const d2=await r2.json();quizQuestions=d2.questions;renderQuizQuestions();}
+  if(d.ok){toast(`Импортировано ${d.imported} вопросов`);const r2=await fetch(`/api/steps/${quizStepId}/questions/`);const d2=await r2.json();quizQuestions=d2.questions;quizDirty=false;renderQuizQuestions();}
   else toast('Ошибка: '+(d.error||''));
 }
 

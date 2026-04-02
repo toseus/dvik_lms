@@ -472,10 +472,10 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
         questions = self._load_questions(quiz_pk)
         self.assertEqual(len(questions), 3)
 
-    def test_save_module_without_step_id_deletes_questions(self):
+    def test_save_module_without_step_id_deactivates_quiz(self):
         """
-        БАГ-СЦЕНАРИЙ: если фронт отправит шаг с id=null (вместо реального id),
-        бэкенд создаст новый шаг и удалит старый — вопросы каскадно удалятся.
+        ЗАЩИТА: если фронт отправит шаг с id=null (потерял id),
+        бэкенд деактивирует старый шаг с вопросами вместо удаления.
         """
         # Создаём quiz + вопросы
         self._save_module([{
@@ -492,7 +492,7 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
         ])
         self.assertEqual(QuizQuestion.objects.filter(step_id=quiz_pk).count(), 3)
 
-        # Фронт отправляет шаг с id=null (потерял id) — бэкенд пересоздаёт шаг
+        # Фронт отправляет шаг с id=null (потерял id)
         self._save_module([{
             'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
             'description': '', 'url': '', 'slide_content': '',
@@ -500,14 +500,10 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
             'exam_config': None, 'is_active': True,
         }])
 
-        # Старый шаг удалён — вопросы каскадно удалены
-        self.assertEqual(QuizQuestion.objects.filter(step_id=quiz_pk).count(), 0)
-
-        # У нового шага вопросов нет
-        new_steps = self._load_steps()
-        new_quiz_pk = new_steps[0]['id']
-        self.assertNotEqual(new_quiz_pk, quiz_pk)
-        self.assertEqual(QuizQuestion.objects.filter(step_id=new_quiz_pk).count(), 0)
+        # Старый шаг НЕ удалён — только деактивирован, вопросы сохранены
+        self.assertEqual(QuizQuestion.objects.filter(step_id=quiz_pk).count(), 3)
+        old_step = ModuleStep.objects.get(pk=quiz_pk)
+        self.assertFalse(old_step.is_active)
 
     def test_full_cycle_add_questions_incrementally(self):
         """
