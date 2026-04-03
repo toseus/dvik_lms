@@ -979,7 +979,7 @@ function showResultScreen() {
   } else {
     fetch('/api/progress/quiz/'+STEP_PK+'/complete/', {
       method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},
-      body:JSON.stringify({score:earnedPts, max_score:totalPts, answers:{}})
+      body:JSON.stringify({score:earnedPts, max_score:totalPts, answers:{correct_count:c.correct, total_count:questions.length}})
     }).catch(function(){});
   }
   fetch('/api/progress/step/'+STEP_PK+'/complete/', {

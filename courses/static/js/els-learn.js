@@ -177,7 +177,7 @@ async function initLearn(){
   var r=await fetch('/api/modules/'+MODULE_PK+'/steps/');var d=await r.json();
   allSteps=d.steps.filter(function(s){return s.is_active;});
   loadDone();checkQuizReturn();
-  try{var pr=await fetch('/api/progress/module/'+MODULE_PK+'/');if(pr.ok){var pd=await pr.json();if(pd.steps)Object.entries(pd.steps).forEach(function(e){var id=parseInt(e[0]),info=e[1];if(info.status==='completed'||info.status==='graded'){var idx=allSteps.findIndex(function(s){return s.id===id;});if(idx!==-1)doneSet.add(idx);}});}}catch(e){}
+  try{var pr=await fetch('/api/progress/module/'+MODULE_PK+'/');if(pr.ok){var pd=await pr.json();if(pd.steps)Object.entries(pd.steps).forEach(function(e){var id=parseInt(e[0]),info=e[1];if(info.status==='completed'||info.status==='graded'){var idx=allSteps.findIndex(function(s){return s.id===id;});if(idx!==-1)doneSet.add(idx);}if(typeof info.quiz_score!=='undefined'){try{var sc=JSON.parse(localStorage.getItem('module_scores_'+MODULE_PK)||'{}');sc[id]={score:info.quiz_score,correct:info.quiz_correct||0,total:info.quiz_total||0};localStorage.setItem('module_scores_'+MODULE_PK,JSON.stringify(sc));}catch(e2){}}});}}catch(e){}
   saveDone();renderPage();
 }
 initLearn();

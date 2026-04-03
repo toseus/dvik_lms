@@ -1690,7 +1690,7 @@ def module_delete(request, pk):
 @menu_access_any('learning', 'modules')
 def api_module_steps(request, pk):
     module = get_object_or_404(LearningModule, pk=pk)
-    steps = module.steps.order_by('order')
+    steps = module.steps.filter(is_active=True).order_by('order')
     data = []
     for s in steps:
         data.append({
@@ -2260,12 +2260,25 @@ def api_module_progress(request, module_pk):
 
     steps_data = {}
     for sp in progress.step_progress.select_related('step').all():
-        quiz_attempt = sp.quiz_attempts.filter(is_completed=False).first()
-        steps_data[sp.step_id] = {
+        quiz_attempt_in_progress = sp.quiz_attempts.filter(is_completed=False).first()
+        quiz_attempt_done = sp.quiz_attempts.filter(is_completed=True).order_by('-completed_at').first()
+        entry = {
             'status': sp.status,
             'score': sp.score,
-            'current_question': quiz_attempt.current_question_index if quiz_attempt else 0,
+            'current_question': quiz_attempt_in_progress.current_question_index if quiz_attempt_in_progress else 0,
         }
+        if quiz_attempt_done and quiz_attempt_done.max_score:
+            earned = quiz_attempt_done.score or 0
+            mx = quiz_attempt_done.max_score
+            pct = round(earned / mx * 100) if mx else 0
+            total_q = quiz_attempt_done.answers.get('total_count', 0) if isinstance(quiz_attempt_done.answers, dict) else 0
+            correct_q = quiz_attempt_done.answers.get('correct_count', 0) if isinstance(quiz_attempt_done.answers, dict) else 0
+            entry['quiz_score'] = pct
+            entry['quiz_correct'] = correct_q
+            entry['quiz_total'] = total_q
+            entry['quiz_earned'] = earned
+            entry['quiz_max'] = mx
+        steps_data[sp.step_id] = entry
 
     return JsonResponse({
         'module_id': module_pk,

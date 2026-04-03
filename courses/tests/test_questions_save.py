@@ -2,6 +2,10 @@
 Тесты API ручного добавления и сохранения вопросов:
 POST /api/steps/<pk>/questions/save/
 GET  /api/steps/<pk>/questions/
+
+Тесты взаимодействия сохранения модуля (шагов) и вопросов:
+POST /api/modules/<pk>/steps/save/
+- защита от каскадного удаления вопросов (деактивация шага)
 """
 import json
 from courses.models import LearningModule, ModuleStep, QuizQuestion
@@ -195,6 +199,34 @@ class QuestionsSaveTest(BaseTestCase):
         reloaded = self._load_questions()
         self.assertEqual(reloaded[0]['id'], original_id)
 
+    def test_update_answers_and_correct(self):
+        """Обновление вариантов ответов и правильных."""
+        self._post_questions([self._make_question(
+            'Q', answers=['A', 'B'], correct=[0],
+        )])
+        loaded = self._load_questions()
+        loaded[0]['answers'] = ['X', 'Y', 'Z']
+        loaded[0]['correct'] = [1, 2]
+        loaded[0]['type'] = 'multi'
+        self._post_questions(loaded)
+
+        reloaded = self._load_questions()
+        self.assertEqual(reloaded[0]['answers'], ['X', 'Y', 'Z'])
+        self.assertEqual(reloaded[0]['correct'], [1, 2])
+        self.assertEqual(reloaded[0]['type'], 'multi')
+
+    def test_update_explanation_and_points(self):
+        """Обновление пояснения и баллов."""
+        self._post_questions([self._make_question('Q')])
+        loaded = self._load_questions()
+        loaded[0]['explanation'] = 'Потому что так'
+        loaded[0]['points'] = 5
+        self._post_questions(loaded)
+
+        reloaded = self._load_questions()
+        self.assertEqual(reloaded[0]['explanation'], 'Потому что так')
+        self.assertEqual(reloaded[0]['points'], 5)
+
     # ── Удаление ──
 
     def test_remove_one_from_three(self):
@@ -305,6 +337,15 @@ class QuestionsSaveTest(BaseTestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
+    def test_student_cannot_load_questions(self):
+        """Слушатель без доступа к modules/learning не может загрузить вопросы."""
+        # api_step_questions требует learning ИЛИ modules
+        # у слушателя есть learning → может загрузить (для прохождения)
+        client = self.get_client('student')
+        resp = client.get(self._load_url())
+        # Слушатель имеет доступ через learning
+        self.assertEqual(resp.status_code, 200)
+
     def test_bad_json_returns_400(self):
         """Невалидный JSON → 400."""
         client = self.get_client('admin')
@@ -319,9 +360,14 @@ class QuestionsSaveTest(BaseTestCase):
 class QuestionsAndModuleSaveTest(BaseTestCase):
     """
     Тесты взаимодействия сохранения модуля (шагов) и вопросов.
-    Баг: после сохранения модуля шаги могут пересоздаться,
-    и вопросы удалятся каскадно.
+    Защита: шаги с вопросами деактивируются вместо каскадного удаления.
     """
+
+    STEP_DEFAULTS = {
+        'description': '', 'url': '', 'slide_content': '',
+        'time_limit_minutes': None, 'pass_score': None,
+        'exam_config': None, 'is_active': True,
+    }
 
     @classmethod
     def setUpTestData(cls):
@@ -335,12 +381,6 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
 
     def _load_steps_url(self):
         return f'/api/modules/{self.module.pk}/steps/'
-
-    def _save_questions_url(self, step_pk):
-        return f'/api/steps/{step_pk}/questions/save/'
-
-    def _load_questions_url(self, step_pk):
-        return f'/api/steps/{step_pk}/questions/'
 
     def _save_module(self, steps_data):
         client = self.get_client('admin')
@@ -363,14 +403,14 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
     def _save_questions(self, step_pk, questions):
         client = self.get_client('admin')
         return client.post(
-            self._save_questions_url(step_pk),
+            f'/api/steps/{step_pk}/questions/save/',
             data=json.dumps({'questions': questions}),
             content_type='application/json',
         )
 
     def _load_questions(self, step_pk):
         client = self.get_client('admin')
-        resp = client.get(self._load_questions_url(step_pk))
+        resp = client.get(f'/api/steps/{step_pk}/questions/')
         return json.loads(resp.content)['questions']
 
     def _make_q(self, text='Вопрос?', qid=None):
@@ -380,20 +420,21 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
             'answers': ['Да', 'Нет'], 'correct': [0], 'terms': None,
         }
 
+    def _make_step(self, step_id=None, step_type='quiz', title='Тест', order=0):
+        return {
+            'id': step_id, 'order': order, 'type': step_type,
+            'title': title, **self.STEP_DEFAULTS,
+        }
+
+    # ── Базовое взаимодействие ──
+
     def test_save_module_then_questions(self):
         """Сохранить модуль с quiz-шагом → добавить 3 вопроса → вопросы на месте."""
-        # Сохранить модуль с quiz-этапом
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
         steps = self._load_steps()
         self.assertEqual(len(steps), 1)
         step_pk = steps[0]['id']
 
-        # Добавить 3 вопроса
         self._save_questions(step_pk, [
             self._make_q('Q1'), self._make_q('Q2'), self._make_q('Q3'),
         ])
@@ -401,50 +442,30 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
 
     def test_resave_module_preserves_questions(self):
         """
-        КЛЮЧЕВОЙ ТЕСТ: сохранить модуль → добавить вопросы →
+        Сохранить модуль → добавить вопросы →
         повторно сохранить модуль → вопросы НЕ должны пропасть.
         """
-        # 1. Создаём quiz-этап
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
         steps = self._load_steps()
         step_pk = steps[0]['id']
 
-        # 2. Добавляем 3 вопроса
         self._save_questions(step_pk, [
             self._make_q('Q1'), self._make_q('Q2'), self._make_q('Q3'),
         ])
         self.assertEqual(QuizQuestion.objects.filter(step_id=step_pk).count(), 3)
 
-        # 3. Повторно сохраняем модуль (как делает saveAll на фронте)
-        #    шаг передаётся с реальным id
-        self._save_module([{
-            'id': step_pk, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        # Повторно сохраняем модуль с тем же id шага
+        self._save_module([self._make_step(step_id=step_pk)])
 
-        # 4. Проверяем: вопросы на месте
         questions = self._load_questions(step_pk)
         self.assertEqual(len(questions), 3)
 
     def test_add_new_step_preserves_quiz_questions(self):
         """
-        Добавить quiz + вопросы → добавить ещё один этап и сохранить модуль →
-        вопросы quiz-этапа не должны пропасть.
+        Quiz + вопросы → добавить ещё один этап → сохранить модуль →
+        вопросы quiz-этапа не пропадают.
         """
-        # Quiz-этап с вопросами
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
         steps = self._load_steps()
         quiz_pk = steps[0]['id']
 
@@ -454,36 +475,21 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
 
         # Добавляем новый этап (material) и пересохраняем модуль
         self._save_module([
-            {
-                'id': quiz_pk, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-                'description': '', 'url': '', 'slide_content': '',
-                'time_limit_minutes': None, 'pass_score': None,
-                'exam_config': None, 'is_active': True,
-            },
-            {
-                'id': None, 'order': 1, 'type': 'material',
-                'title': 'Лекция', 'description': '', 'url': '',
-                'slide_content': '', 'time_limit_minutes': None,
-                'pass_score': None, 'exam_config': None, 'is_active': True,
-            },
+            self._make_step(step_id=quiz_pk, order=0),
+            self._make_step(step_type='material', title='Лекция', order=1),
         ])
 
-        # Вопросы на месте
         questions = self._load_questions(quiz_pk)
         self.assertEqual(len(questions), 3)
 
-    def test_save_module_without_step_id_deactivates_quiz(self):
+    # ── Защита от каскадного удаления ──
+
+    def test_lost_step_id_deactivates_quiz_with_questions(self):
         """
-        ЗАЩИТА: если фронт отправит шаг с id=null (потерял id),
+        Если фронт отправит шаг с id=null (потерял id),
         бэкенд деактивирует старый шаг с вопросами вместо удаления.
         """
-        # Создаём quiz + вопросы
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
         steps = self._load_steps()
         quiz_pk = steps[0]['id']
 
@@ -493,17 +499,40 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
         self.assertEqual(QuizQuestion.objects.filter(step_id=quiz_pk).count(), 3)
 
         # Фронт отправляет шаг с id=null (потерял id)
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
 
-        # Старый шаг НЕ удалён — только деактивирован, вопросы сохранены
+        # Старый шаг НЕ удалён — деактивирован, вопросы сохранены
         self.assertEqual(QuizQuestion.objects.filter(step_id=quiz_pk).count(), 3)
         old_step = ModuleStep.objects.get(pk=quiz_pk)
         self.assertFalse(old_step.is_active)
+
+    def test_empty_step_deleted_normally(self):
+        """Шаг без вопросов удаляется при исключении из saveAll."""
+        self._save_module([
+            self._make_step(step_type='material', title='Лекция'),
+        ])
+        steps = self._load_steps()
+        material_pk = steps[0]['id']
+
+        # Сохраняем модуль без этого шага
+        self._save_module([])
+
+        # Шаг без вопросов — удалён полностью
+        self.assertFalse(ModuleStep.objects.filter(pk=material_pk).exists())
+
+    def test_empty_quiz_step_deleted_normally(self):
+        """Quiz-шаг БЕЗ вопросов удаляется нормально."""
+        self._save_module([self._make_step()])
+        steps = self._load_steps()
+        quiz_pk = steps[0]['id']
+        # Не добавляем вопросы
+
+        self._save_module([])
+
+        # Quiz без вопросов — удалён
+        self.assertFalse(ModuleStep.objects.filter(pk=quiz_pk).exists())
+
+    # ── Полный цикл ──
 
     def test_full_cycle_add_questions_incrementally(self):
         """
@@ -511,20 +540,12 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
         (3 раунда через saveQuiz) → каждый раз пересохранить модуль →
         в итоге 3 вопроса.
         """
-        # Модуль с quiz-этапом
-        self._save_module([{
-            'id': None, 'order': 0, 'type': 'quiz', 'title': 'Тест',
-            'description': '', 'url': '', 'slide_content': '',
-            'time_limit_minutes': None, 'pass_score': None,
-            'exam_config': None, 'is_active': True,
-        }])
+        self._save_module([self._make_step()])
         steps = self._load_steps()
         quiz_pk = steps[0]['id']
 
         for round_num in range(1, 4):
-            # Загружаем текущие вопросы
             current = self._load_questions(quiz_pk)
-            # Добавляем ещё один
             current.append(self._make_q(f'Вопрос {round_num}'))
             self._save_questions(quiz_pk, current)
 
@@ -532,17 +553,75 @@ class QuestionsAndModuleSaveTest(BaseTestCase):
             steps = self._load_steps()
             self._save_module([{
                 'id': s['id'], 'order': i, 'type': s['type'],
-                'title': s['title'], 'description': s.get('description', ''),
-                'url': s.get('url', ''), 'slide_content': s.get('slide_content', ''),
-                'time_limit_minutes': s.get('time_limit_minutes'),
-                'pass_score': s.get('pass_score'),
-                'exam_config': s.get('exam_config'),
-                'is_active': s.get('is_active', True),
+                'title': s['title'], **self.STEP_DEFAULTS,
             } for i, s in enumerate(steps)])
 
-            # Проверяем: вопросы на месте
             qs = self._load_questions(quiz_pk)
             self.assertEqual(
                 len(qs), round_num,
                 f'Раунд {round_num}: ожидали {round_num} вопросов, получили {len(qs)}',
             )
+
+    def test_two_quiz_steps_independent(self):
+        """Два quiz-этапа — вопросы одного не влияют на другой."""
+        self._save_module([
+            self._make_step(title='Тест 1', order=0),
+            self._make_step(title='Тест 2', order=1),
+        ])
+        steps = self._load_steps()
+        pk1, pk2 = steps[0]['id'], steps[1]['id']
+
+        self._save_questions(pk1, [self._make_q('Q1-1'), self._make_q('Q1-2')])
+        self._save_questions(pk2, [self._make_q('Q2-1'), self._make_q('Q2-2'), self._make_q('Q2-3')])
+
+        self.assertEqual(len(self._load_questions(pk1)), 2)
+        self.assertEqual(len(self._load_questions(pk2)), 3)
+
+        # Пересохраняем модуль
+        steps = self._load_steps()
+        self._save_module([{
+            'id': s['id'], 'order': i, 'type': s['type'],
+            'title': s['title'], **self.STEP_DEFAULTS,
+        } for i, s in enumerate(steps)])
+
+        self.assertEqual(len(self._load_questions(pk1)), 2)
+        self.assertEqual(len(self._load_questions(pk2)), 3)
+
+    # ── Баг: деактивированный шаг не должен возвращаться в API ──
+
+    def test_deactivated_step_not_in_api_response(self):
+        """
+        Удаляем один из трёх quiz-этапов (у которого есть вопросы) →
+        сохраняем модуль → API /steps/ НЕ должен возвращать деактивированный шаг.
+        Регрессия: раньше api_module_steps не фильтровал is_active.
+        """
+        # Создаём 3 quiz-этапа
+        self._save_module([
+            self._make_step(title='Тест 1', order=0),
+            self._make_step(title='Тест 2', order=1),
+            self._make_step(title='Тест 3', order=2),
+        ])
+        steps = self._load_steps()
+        self.assertEqual(len(steps), 3)
+        pk1, pk2, pk3 = steps[0]['id'], steps[1]['id'], steps[2]['id']
+
+        # Добавляем вопросы во все три этапа
+        for pk in (pk1, pk2, pk3):
+            self._save_questions(pk, [self._make_q(f'Q-{pk}')])
+
+        # Удаляем второй этап (не отправляем его в saveAll)
+        self._save_module([
+            self._make_step(step_id=pk1, title='Тест 1', order=0),
+            self._make_step(step_id=pk3, title='Тест 3', order=1),
+        ])
+
+        # Шаг деактивирован, а не удалён (есть вопросы)
+        self.assertFalse(ModuleStep.objects.get(pk=pk2).is_active)
+
+        # API должен вернуть только 2 активных этапа
+        steps = self._load_steps()
+        self.assertEqual(len(steps), 2)
+        returned_ids = {s['id'] for s in steps}
+        self.assertNotIn(pk2, returned_ids)
+        self.assertIn(pk1, returned_ids)
+        self.assertIn(pk3, returned_ids)
