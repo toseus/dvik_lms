@@ -1,3 +1,19 @@
+import os
+from datetime import datetime
+from django.conf import settings as django_settings
+
+
+def app_version(request):
+    version = 'v2.2'
+    views_path = os.path.join(os.path.dirname(__file__), 'views.py')
+    try:
+        mtime = os.path.getmtime(views_path)
+        updated = datetime.fromtimestamp(mtime).strftime('%d.%m.%Y %H:%M')
+    except OSError:
+        updated = '—'
+    return {'app_version': version, 'app_last_updated': updated}
+
+
 def program_filters(request):
     if request.user.is_authenticated:
         from .models import TrainingProgram, Department

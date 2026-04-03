@@ -62,6 +62,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'courses.context_processors.app_version',
                 'courses.context_processors.program_filters',
                 'courses.context_processors.student_filters',
                 'courses.context_processors.menu_permissions',

@@ -1708,7 +1708,9 @@ def api_module_steps(request, pk):
             'slide_content': s.slide_content,
             'is_active': s.is_active,
         })
-    return JsonResponse({'steps': data}, json_dumps_params={'ensure_ascii': False})
+    response = JsonResponse({'steps': data}, json_dumps_params={'ensure_ascii': False})
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 
 @login_required
@@ -1736,7 +1738,7 @@ def api_module_steps_save(request, pk):
         module.save(update_fields=updated_fields)
 
     steps_data = data.get('steps', [])
-    existing_ids = set(module.steps.values_list('pk', flat=True))
+    existing_ids = set(module.steps.filter(is_active=True).values_list('pk', flat=True))
     incoming_ids = set()
 
     for i, step_data in enumerate(steps_data):
@@ -1770,16 +1772,6 @@ def api_module_steps_save(request, pk):
                 ModuleStep.objects.filter(pk=del_id).update(is_active=False)
             else:
                 ModuleStep.objects.filter(pk=del_id).delete()
-
-    update_fields = []
-    if 'module_title' in data:
-        module.title = data['module_title']
-        update_fields.append('title')
-    if 'module_description' in data:
-        module.description = data['module_description']
-        update_fields.append('description')
-    if update_fields:
-        module.save(update_fields=update_fields)
 
     return JsonResponse({'ok': True})
 

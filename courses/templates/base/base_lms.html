@@ -45,7 +45,7 @@
 <footer class="status-bar">
   <span class="status-dot">●</span>
   <span>{% block footer_text %}ДВИК СЭО — Система работает в штатном режиме{% endblock %}</span>
-  <span style="margin-left:auto">{% block footer_right %}v2.1{% endblock %}</span>
+  <span style="margin-left:auto">{% block footer_right %}{{ app_version }} | обновлено {{ app_last_updated }}{% endblock %}</span>
 </footer>
 {% endblock %}
 
