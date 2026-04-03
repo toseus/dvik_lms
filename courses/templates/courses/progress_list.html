@@ -1,0 +1,113 @@
+{% extends "base/base.html" %}
+
+{% block title %}Прогресс обучения{% endblock %}
+
+{% block content %}
+<div style="padding:16px 20px;">
+    <h1 style="font-size:20px;font-weight:700;margin-bottom:16px;">Прогресс обучения</h1>
+
+    <!-- Статистика -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="padding:10px 16px;background:#fff;border:1px solid #e0e6ed;border-radius:8px;min-width:100px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#333;">{{ total_assignments }}</div>
+            <div style="font-size:10px;color:#888;text-transform:uppercase;">Всего</div>
+        </div>
+        <div style="padding:10px 16px;background:#e3f2fd;border:1px solid #bbdefb;border-radius:8px;min-width:100px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#1565c0;">{{ in_progress_count }}</div>
+            <div style="font-size:10px;color:#555;text-transform:uppercase;">В процессе</div>
+        </div>
+        <div style="padding:10px 16px;background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;min-width:100px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#e65100;">{{ ready_exam_count }}</div>
+            <div style="font-size:10px;color:#555;text-transform:uppercase;">Готовы к аттестации</div>
+        </div>
+        <div style="padding:10px 16px;background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;min-width:100px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#1e7e34;">{{ completed_count }}</div>
+            <div style="font-size:10px;color:#555;text-transform:uppercase;">Завершили</div>
+        </div>
+    </div>
+
+    <!-- Таблица прогресса -->
+    {% if rows %}
+    <div style="background:#fff;border:1px solid #e0e6ed;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+                <tr style="background:#f5f7fa;border-bottom:2px solid #e0e6ed;">
+                    <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:40px;">ID</th>
+                    <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:180px;">Слушатель</th>
+                    <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:120px;">Программа</th>
+                    <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;">Модуль / Прогресс</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Этапы</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Ср. балл</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Тесты %</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:130px;">Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr style="border-bottom:1px solid #eee;{% if row.status_key == 'completed' %}opacity:0.7;{% endif %}">
+                    <td style="padding:6px 10px;font-size:11px;color:#888;">{{ row.person_id }}</td>
+
+                    <td style="padding:6px 10px;">
+                        <a href="/persons/{{ row.person_id }}/" style="color:#2b6cb0;text-decoration:none;font-weight:600;font-size:12px;">
+                            {{ row.person_name }}
+                        </a>
+                    </td>
+
+                    <td style="padding:6px 10px;font-size:11px;color:#555;" title="{{ row.program_title }}">
+                        {{ row.program_code }}
+                    </td>
+
+                    <td style="padding:6px 10px;">
+                        <div style="font-size:11px;font-weight:600;margin-bottom:4px;">{{ row.module_title }}</div>
+                        <div style="position:relative;height:18px;background:#eef1f5;border-radius:9px;overflow:hidden;">
+                            <div style="position:absolute;top:0;left:0;height:100%;width:{{ row.progress_percent }}%;background:linear-gradient(90deg, #a8e6a3, #66bb6a);border-radius:9px;transition:width .3s;"></div>
+                            <div style="position:absolute;top:0;left:0;right:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#333;text-shadow:0 0 2px rgba(255,255,255,.8);">
+                                {{ row.progress_percent }}%
+                            </div>
+                        </div>
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;font-size:11px;">
+                        <span style="font-weight:700;color:#333;">{{ row.completed_steps }}</span>
+                        <span style="color:#999;">/</span>
+                        <span style="color:#888;">{{ row.total_steps }}</span>
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;font-size:11px;">
+                        {% if row.quiz_avg is not None %}
+                        <span style="font-weight:600;color:{% if row.quiz_avg >= 80 %}#1e7e34{% elif row.quiz_avg >= 50 %}#e65100{% else %}#c0392b{% endif %};">
+                            {{ row.quiz_avg }}
+                        </span>
+                        {% else %}
+                        <span style="color:#ccc;">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;font-size:11px;">
+                        {% if row.quiz_total_percent is not None %}
+                        <span style="font-weight:600;color:{% if row.quiz_total_percent >= 80 %}#1e7e34{% elif row.quiz_total_percent >= 50 %}#e65100{% else %}#c0392b{% endif %};">
+                            {{ row.quiz_total_percent }}%
+                        </span>
+                        {% else %}
+                        <span style="color:#ccc;">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;">
+                        <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;color:{{ row.status_color }};background:{{ row.status_bg }};">
+                            {{ row.status_label }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:#888;">
+        <div style="font-size:48px;margin-bottom:12px;">📊</div>
+        <div style="font-size:14px;">Нет назначенных модулей</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

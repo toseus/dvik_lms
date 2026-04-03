@@ -1145,6 +1145,7 @@ class MenuPermission(models.Model):
         ('menu_settings', 'Настройки меню'),
         ('impersonate_btn', 'Кнопка «Войти как слушатель»'),
         ('results', 'Результаты'),
+        ('progress', 'Прогресс'),
     ]
 
     ROLES = [

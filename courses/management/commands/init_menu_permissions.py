@@ -20,6 +20,7 @@ class Command(BaseCommand):
             'organizations': {'student': False, 'teacher': False, 'admin': True,  'superadmin': True},
             'contracts':     {'student': False, 'teacher': False, 'admin': True,  'superadmin': True},
             'orders':        {'student': False, 'teacher': False, 'admin': True,  'superadmin': True},
+            'progress':      {'student': False, 'teacher': True,  'admin': True,  'superadmin': True},
         }
 
         created = 0

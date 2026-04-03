@@ -3228,6 +3228,120 @@ def api_set_grade(request, pk):
 # ─────────────────────────────────────────────
 # Личный кабинет — Обучение
 # ─────────────────────────────────────────────
+# Прогресс обучения
+# ─────────────────────────────────────────────
+
+@login_required
+@menu_access_required('progress')
+def module_progress_list(request):
+    """Таблица прогресса прохождения модулей слушателями."""
+    assignments = ModuleAssignment.objects.filter(
+        is_active=True
+    ).select_related(
+        'person', 'module', 'module__program'
+    ).order_by('-assigned_at')
+
+    rows = []
+    for a in assignments:
+        person = a.person
+        module = a.module
+        program = module.program
+
+        total_steps = module.steps.filter(is_active=True).count()
+
+        progress = ModuleProgress.objects.filter(
+            person=person, module=module
+        ).first()
+
+        completed_steps = 0
+        if progress:
+            completed_steps = StepProgress.objects.filter(
+                module_progress=progress, status='completed'
+            ).count()
+
+        progress_percent = round(completed_steps / total_steps * 100) if total_steps > 0 else 0
+
+        # Средний балл промежуточных тестов
+        quiz_avg = None
+        quiz_scores = []
+        quiz_steps = module.steps.filter(type='quiz', is_active=True)
+        if quiz_steps.exists() and progress:
+            for qs in quiz_steps:
+                sp = StepProgress.objects.filter(
+                    module_progress=progress, step=qs, status='completed'
+                ).first()
+                if sp and sp.score is not None:
+                    quiz_scores.append(sp.score)
+            if quiz_scores:
+                quiz_avg = round(sum(quiz_scores) / len(quiz_scores), 1)
+
+        quiz_total_percent = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None
+
+        # Статус
+        has_final = module.steps.filter(type='final_exam', is_active=True).exists()
+        non_final_step_ids = module.steps.filter(is_active=True).exclude(type='final_exam').values_list('pk', flat=True)
+        non_final_count = len(non_final_step_ids)
+        completed_non_final = 0
+        if progress:
+            completed_non_final = StepProgress.objects.filter(
+                module_progress=progress,
+                step_id__in=non_final_step_ids,
+                status='completed'
+            ).count()
+
+        if progress and progress.is_completed:
+            status_label = 'Завершил'
+            status_color = '#1e7e34'
+            status_bg = '#d4edda'
+            status_key = 'completed'
+        elif has_final and non_final_count > 0 and completed_non_final >= non_final_count:
+            status_label = 'Готов к аттестации'
+            status_color = '#e65100'
+            status_bg = '#fff3e0'
+            status_key = 'ready_exam'
+        elif completed_steps > 0:
+            status_label = 'В процессе'
+            status_color = '#1565c0'
+            status_bg = '#e3f2fd'
+            status_key = 'in_progress'
+        else:
+            status_label = 'Выдан'
+            status_color = '#555'
+            status_bg = '#f5f5f5'
+            status_key = 'assigned'
+
+        rows.append({
+            'person_id': person.pk,
+            'person_name': f'{person.last_name} {person.first_name} {person.middle_name or ""}'.strip(),
+            'program_code': program.code if program else '',
+            'program_title': program.title if program else '',
+            'module_title': module.title,
+            'module_id': module.pk,
+            'total_steps': total_steps,
+            'completed_steps': completed_steps,
+            'progress_percent': progress_percent,
+            'quiz_avg': quiz_avg,
+            'quiz_total_percent': quiz_total_percent,
+            'status_label': status_label,
+            'status_color': status_color,
+            'status_bg': status_bg,
+            'status_key': status_key,
+            'assigned_at': a.assigned_at,
+        })
+
+    context = {
+        'rows': rows,
+        'total_assignments': len(rows),
+        'in_progress_count': sum(1 for r in rows if r['status_key'] == 'in_progress'),
+        'ready_exam_count': sum(1 for r in rows if r['status_key'] == 'ready_exam'),
+        'completed_count': sum(1 for r in rows if r['status_key'] == 'completed'),
+    }
+    return render(request, 'courses/progress_list.html', context)
+
+
+# ─────────────────────────────────────────────
+# ЛК Обучение
+# ─────────────────────────────────────────────
 
 @login_required
 @menu_access_required('learning')

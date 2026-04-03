@@ -125,6 +125,9 @@ urlpatterns = [
     path('api/program-lines/<int:pk>/module-status/', views.api_program_line_module_status, name='api_program_line_module_status'),
     path('api/program-lines/<int:pk>/set-grade/', views.api_set_grade, name='api_set_grade'),
 
+    # Прогресс обучения
+    path('progress/', views.module_progress_list, name='module_progress_list'),
+
     # ЛК Обучение
     path('learning/', views.student_learning, name='student_learning'),
     path('results/', views.learning_results, name='learning_results'),
