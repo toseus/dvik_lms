@@ -57,6 +57,7 @@ html, body {
 }
 
 .slide-topbar-title {
+  flex: 1;
   font-size: 14px;
   font-weight: 600;
   color: #e0eaf5;
@@ -64,6 +65,27 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.slide-topbar-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: #22c55e;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+  cursor: pointer;
+}
+.slide-topbar-complete:hover {
+  background: #16a34a;
 }
 
 /* ── Iframe ── */
@@ -110,6 +132,12 @@ html, body {
     Назад к модулю
   </a>
   <span class="slide-topbar-title">{{ step.title }}</span>
+  <button class="slide-topbar-complete" id="btnComplete" onclick="completeAndGoBack()">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 8.5l3.5 3.5 6.5-7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Завершить
+  </button>
 </div>
 
 <iframe
@@ -120,30 +148,34 @@ html, body {
 ></iframe>
 
 <script>
+function completeAndGoBack() {
+  var btn = document.getElementById('btnComplete');
+  btn.disabled = true;
+  btn.textContent = '...';
+  var stepId = '{{ step.pk }}';
+  var csrf = (document.cookie.match(/(?:^|;\s*)csrftoken_lms=([^;]*)/) || [])[1];
+  if (csrf) csrf = decodeURIComponent(csrf);
+  fetch('/api/progress/step/' + stepId + '/complete/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf || ''}
+  }).then(function() {
+    try {
+      var key = 'module_progress_{{ module.pk }}';
+      var ids = JSON.parse(localStorage.getItem(key) || '[]');
+      var sid = parseInt(stepId);
+      if (ids.indexOf(sid) === -1) ids.push(sid);
+      localStorage.setItem(key, JSON.stringify(ids));
+    } catch(ex) {}
+    window.location.href = '{{ back_url }}';
+  }).catch(function() {
+    window.location.href = '{{ back_url }}';
+  });
+}
+
 // Слушаем postMessage от iframe (completion_script внутри HTML-файла)
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'slideCompleted') {
-    // Отметить этап пройденным
-    var stepId = '{{ step.pk }}';
-    var csrf = (document.cookie.match(/(?:^|;\s*)csrftoken_lms=([^;]*)/) || [])[1];
-    if (csrf) csrf = decodeURIComponent(csrf);
-    fetch('/api/progress/step/' + stepId + '/complete/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf || ''}
-    }).then(function() {
-      // Сохранить в localStorage что этап пройден
-      try {
-        var key = 'module_progress_{{ module.pk }}';
-        var ids = JSON.parse(localStorage.getItem(key) || '[]');
-        var sid = parseInt(stepId);
-        if (ids.indexOf(sid) === -1) ids.push(sid);
-        localStorage.setItem(key, JSON.stringify(ids));
-      } catch(ex) {}
-      // Вернуться к модулю
-      window.location.href = '{{ back_url }}';
-    }).catch(function() {
-      window.location.href = '{{ back_url }}';
-    });
+    completeAndGoBack();
   }
 });
 </script>
