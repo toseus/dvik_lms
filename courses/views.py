@@ -3,7 +3,7 @@ import os
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission, ArchivedModuleResult
 from django.contrib.auth import authenticate, login, logout
@@ -1706,6 +1706,7 @@ def api_module_steps(request, pk):
             'exam_config': s.exam_config,
             'questions_count': s.questions.count() if s.type in ('quiz', 'slide') else 0,
             'slide_content': s.slide_content,
+            'slide_file_url': s.slide_file.url if s.slide_file else '',
             'is_active': s.is_active,
         })
     response = JsonResponse({'steps': data}, json_dumps_params={'ensure_ascii': False})
@@ -1869,7 +1870,15 @@ def module_slides(request, pk):
     """Прохождение слайд-презентации внутри одного этапа (pk = ModuleStep.pk)."""
     step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=pk)
 
-    # Парсим слайды из slide_content (JSON массив)
+    # Новый вариант: если есть HTML-файл — отдать его напрямую
+    if step.slide_file:
+        file_path = os.path.join(settings.MEDIA_ROOT, str(step.slide_file))
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            return HttpResponse(html_content, content_type='text/html')
+
+    # Fallback: старый вариант через slide_content (JSON)
     try:
         slides_data = json.loads(step.slide_content) if step.slide_content else []
     except (json.JSONDecodeError, TypeError):
@@ -1881,6 +1890,86 @@ def module_slides(request, pk):
         'module': step.module,
         'slides_json': slides_json,
         'total_slides': len(slides_data),
+    })
+
+
+@login_required
+@menu_access_required('modules')
+@require_POST
+def upload_slide_file(request, step_pk):
+    """Загрузка HTML-файла для этапа типа slide."""
+    step = get_object_or_404(ModuleStep, pk=step_pk)
+
+    if step.type != 'slide':
+        return JsonResponse({'error': 'Этап не является слайдом'}, status=400)
+
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error': 'Файл не выбран'}, status=400)
+
+    if not file.name.endswith('.html'):
+        return JsonResponse({'error': 'Только HTML-файлы'}, status=400)
+
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'slides')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f'step_{step.pk}.html'
+    filepath = os.path.join(upload_dir, filename)
+
+    content = file.read().decode('utf-8')
+
+    # Внедрить JS для связи с родительским окном (прохождение модуля)
+    completion_script = """
+<script>
+// === ДВИК СЭО: связь с системой обучения ===
+(function() {
+    function addCompletionButton() {
+        const slides = document.querySelectorAll('.slide');
+        if (!slides.length) return;
+        const lastSlide = slides[slides.length - 1];
+        if (lastSlide.querySelector('.sdo-complete-btn')) return;
+        const btn = document.createElement('button');
+        btn.className = 'sdo-complete-btn';
+        btn.textContent = '\\u2713 Завершить и вернуться';
+        btn.style.cssText = 'margin-top:2rem;padding:12px 32px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;display:block;margin-left:auto;margin-right:auto;font-family:inherit;';
+        btn.onclick = function() {
+            if (window.opener) {
+                try { localStorage.setItem('slideCompleted_' + getStepId(), 'true'); } catch(e) {}
+                window.close();
+            } else if (window.parent !== window) {
+                window.parent.postMessage({type: 'slideCompleted', stepId: getStepId()}, '*');
+            } else {
+                history.back();
+            }
+        };
+        lastSlide.appendChild(btn);
+    }
+    function getStepId() {
+        const match = window.location.pathname.match(/step[_/](\\d+)/);
+        return match ? match[1] : '0';
+    }
+    window.addEventListener('load', function() {
+        setTimeout(addCompletionButton, 500);
+    });
+})();
+</script>
+"""
+
+    if '</body>' in content:
+        content = content.replace('</body>', completion_script + '</body>')
+    else:
+        content += completion_script
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    step.slide_file = f'slides/{filename}'
+    step.save(update_fields=['slide_file'])
+
+    return JsonResponse({
+        'success': True,
+        'url': f'/media/slides/{filename}',
+        'filename': file.name,
     })
 
 

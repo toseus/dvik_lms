@@ -53,6 +53,7 @@ urlpatterns = [
     path('api/steps/<int:pk>/questions/', views.api_step_questions, name='api_step_questions'),
     path('api/steps/<int:pk>/questions/save/', views.api_step_questions_save, name='api_step_questions_save'),
     path('api/steps/<int:pk>/questions/import/', views.api_import_questions, name='api_import_questions'),
+    path('api/steps/<int:step_pk>/upload-slide-file/', views.upload_slide_file, name='upload_slide_file'),
 
     # Загрузка изображений
     path('api/modules/<int:pk>/upload-cover/', views.upload_module_cover, name='upload_module_cover'),

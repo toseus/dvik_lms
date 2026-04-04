@@ -338,23 +338,17 @@ function buildCard(s,i){
   } else if(s.type==='final_exam'){
     fields=renderExamConfig(s,i);
   } else if(s.type==='slide'){
-    const slideInfo = getSlideInfo(s.slide_content);
+    const hasFile = !!s.slide_file_url;
     fields=`<div class="edit-field">
       <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
-        <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#112240;color:#e8a838;border:1.5px solid #1a3a5c;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#1a3a5c'" onmouseout="this.style.background='#112240'">
-          📥 Импорт из HTML файла
-          <input type="file" accept=".html" style="display:none" onchange="parseSlideHtml(this,${i})">
-        </label>
-        <button class="step-btn-sm" onclick="insertSlideJsonTemplate(${i})" title="Вставить шаблон JSON" style="width:auto;padding:4px 10px;font-size:11px;">📋 Шаблон</button>
+        ${s.id?`<label style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#112240;color:#4fc3f7;border:1.5px solid #1a3a5c;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#1a3a5c'" onmouseout="this.style.background='#112240'">
+          📄 Загрузить HTML
+          <input type="file" accept=".html" style="display:none" onchange="uploadSlideFile(${s.id},this,${i})">
+        </label>`:`<span style="font-size:11px;color:var(--text-muted);">Сохраните этап, чтобы загрузить HTML</span>`}
+        ${hasFile?`<span style="font-size:11px;color:#22c55e;font-weight:600;">✓ Файл загружен</span>
+          <a href="${s.slide_file_url}" target="_blank" style="font-size:11px;color:#4fc3f7;">Просмотр</a>`:''}
         ${s.id?`<button class="step-btn-sm" onclick="window.open('/modules/step/${s.id}/slides/','_blank')" title="Предпросмотр слайдов" style="width:auto;padding:4px 10px;font-size:11px;">👁 Превью</button>`:''}
       </div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
-        Слайдов: <strong>${slideInfo.slides}</strong> · Вопросов: <strong>${slideInfo.quizzes}</strong>
-      </div>
-      <details style="margin-top:4px;">
-        <summary style="font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none;">Показать JSON</summary>
-        <textarea class="edit-textarea" data-slide-json="${i}" id="slideContent${i}" style="font-family:'JetBrains Mono',monospace;font-size:11px;height:150px;background:#0a1628;color:#e2e8f0;border:1px solid #1a3a5c;border-radius:8px;padding:12px;margin-top:4px;" onchange="steps[${i}].slide_content=this.value;markDirty()" placeholder='JSON массив слайдов...'>${esc(s.slide_content||'')}</textarea>
-      </details>
     </div>`;
   }
 
@@ -674,102 +668,26 @@ async function deleteQuestionImage(questionOrder) {
 }
 
 /* ═══ SLIDE HELPERS ═══ */
-const SLIDE_JSON_TEMPLATE = JSON.stringify([
-  {
-    title: "Слайд 1",
-    content: '<div class="slide-tag">Тема · раздел</div>\n<h1 class="slide-heading">Заголовок <span class="accent">слайда</span></h1>\n<p class="slide-text">Описательный текст слайда. Поддерживается <strong>жирный</strong> текст.</p>\n<div class="card-grid">\n  <div class="card"><div class="card-icon">📋</div><h3>Карточка</h3><p>Описание</p></div>\n  <div class="card"><div class="card-icon">🛡️</div><h3>Карточка 2</h3><p>Описание</p></div>\n</div>',
-    quiz: {question: "Пример вопроса?", options: ["Вариант А", "Вариант Б", "Вариант В"], correct: 0, feedback: "Правильный ответ!"}
-  }
-], null, 2);
-
-function getSlideInfo(content) {
-  try {
-    const arr = JSON.parse(content || '[]');
-    return {slides: arr.length, quizzes: arr.filter(s=>s.quiz).length};
-  } catch(e) { return {slides: 0, quizzes: 0}; }
-}
-
-function insertSlideJsonTemplate(i){
-  const ta=document.getElementById('slideContent'+i);
-  if(ta&&(!ta.value||confirm('Заменить текущий контент шаблоном?'))){
-    ta.value=SLIDE_JSON_TEMPLATE; steps[i].slide_content=SLIDE_JSON_TEMPLATE; markDirty(); renderSteps();
-  }
-}
-
-function parseSlideHtml(input, stepIdx){
+async function uploadSlideFile(stepId, input, stepIdx) {
+  if (!input.files.length) return;
   const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const html = e.target.result;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 1. Извлекаем quizzes из script
-      let quizzes = [];
-      const scripts = doc.querySelectorAll('script');
-      for (const script of scripts) {
-        const text = script.textContent;
-        const startMarker = 'const quizzes = [';
-        const startIdx = text.indexOf(startMarker);
-        if (startIdx === -1) continue;
-        let bracketCount = 0;
-        const arrStart = startIdx + startMarker.length - 1;
-        let arrEnd = -1;
-        for (let k = arrStart; k < text.length; k++) {
-          if (text[k] === '[') bracketCount++;
-          if (text[k] === ']') { bracketCount--; if (bracketCount === 0) { arrEnd = k + 1; break; } }
-        }
-        if (arrEnd > arrStart) {
-          const arrStr = text.substring(arrStart, arrEnd);
-          try { quizzes = (new Function('return ' + arrStr))(); } catch(e2) { console.error('Quiz parse error', e2); }
-        }
-        break;
-      }
-
-      // 2. Извлекаем слайды
-      const slideEls = doc.querySelectorAll('.slide[data-index]');
-      const slidesData = [];
-      let quizIdx = 0;
-      slideEls.forEach(function(slideEl) {
-        const inner = slideEl.querySelector('.slide-inner');
-        if (!inner) return;
-        // Пропускаем финальный слайд
-        if (inner.querySelector('.completion-circle') || inner.querySelector('.completion-text')) return;
-        // Клонируем и убираем кнопку
-        const clone = inner.cloneNode(true);
-        const btn = clone.querySelector('.confirm-btn');
-        const hasQuizBtn = btn && btn.getAttribute('onclick') && btn.getAttribute('onclick').indexOf('showQuiz') !== -1;
-        if (btn) btn.remove();
-        const idx = slidesData.length;
-        slidesData.push({
-          title: 'Слайд ' + (idx + 1),
-          content: clone.innerHTML.trim(),
-          quiz: hasQuizBtn && quizzes[quizIdx] ? quizzes[quizIdx] : null,
-        });
-        if (hasQuizBtn) quizIdx++;
-      });
-
-      // 3. Записываем в steps и textarea
-      const jsonStr = JSON.stringify(slidesData, null, 2);
-      steps[stepIdx].slide_content = jsonStr;
-      markDirty();
+  if (!file.name.endsWith('.html')) { alert('Только HTML-файлы'); input.value=''; return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const resp = await fetch(`/api/steps/${stepId}/upload-slide-file/`, {
+      method:'POST', headers:{'X-CSRFToken': CSRF}, body: fd
+    });
+    const data = await resp.json();
+    if (data.success) {
+      steps[stepIdx].slide_file_url = data.url;
       renderSteps();
-      // После рендера textarea может быть внутри <details> — раскроем и заполним
-      const ta = document.getElementById('slideContent'+stepIdx);
-      if (ta) ta.value = jsonStr;
-
-      const quizCount = slidesData.filter(function(s){return s.quiz;}).length;
-      toast('Импортировано: ' + slidesData.length + ' слайдов, ' + quizCount + ' вопросов');
-
-    } catch(err) {
-      alert('Ошибка при импорте: ' + err.message);
-      console.error(err);
+      toast('Загружено: ' + data.filename);
+    } else {
+      alert(data.error || 'Ошибка загрузки');
     }
-    input.value = '';
-  };
-  reader.readAsText(file, 'UTF-8');
+  } catch(e) { alert('Ошибка сети: ' + e.message); }
+  input.value='';
 }
 
 function openPreview(){

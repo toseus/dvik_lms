@@ -762,6 +762,7 @@ class ModuleStep(models.Model):
     pass_score = models.PositiveIntegerField(null=True, blank=True, verbose_name='Проходной балл (%)')
     slide_content = models.TextField(blank=True, verbose_name='Слайды (JSON)',
         help_text='JSON массив слайдов: [{"title":"...","content":"HTML...","quiz":{"question":"...","options":[...],"correct":0,"feedback":"..."}}]')
+    slide_file = models.FileField(upload_to='slides/', blank=True, null=True, verbose_name='HTML-файл слайдов')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     created_at = models.DateTimeField(auto_now_add=True)
 
