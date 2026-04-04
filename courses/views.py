@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission, ArchivedModuleResult
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -3241,7 +3241,51 @@ def module_progress_list(request):
     search_query = request.GET.get('q', '').strip()
     date_from = request.GET.get('date_from', '').strip()
     date_to = request.GET.get('date_to', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    archive_mode = request.GET.get('archive') == '1'
 
+    # ── Режим архива ──
+    if archive_mode:
+        if not search_query:
+            return render(request, 'courses/progress_list.html', {
+                'rows': [], 'archive_mode': True, 'archive_no_query': True,
+                'search_query': '', 'date_from': '', 'date_to': '',
+                'total_assignments': 0, 'in_progress_count': 0,
+                'ready_exam_count': 0, 'completed_count': 0, 'status_filter': '',
+            })
+        archived = ArchivedModuleResult.objects.filter(
+            Q(person__last_name__icontains=search_query) |
+            Q(person__first_name__icontains=search_query) |
+            Q(person__middle_name__icontains=search_query)
+        ).select_related('person', 'module', 'training_program').order_by('-archived_at')
+        rows = []
+        for ar in archived:
+            rows.append({
+                'person_id': ar.person.pk,
+                'person_name': f'{ar.person.last_name} {ar.person.first_name} {ar.person.middle_name or ""}'.strip(),
+                'program_code': ar.training_program.code if ar.training_program else '',
+                'program_title': ar.training_program.title if ar.training_program else '',
+                'module_title': ar.module.title,
+                'module_id': ar.module.pk,
+                'total_steps': ar.total_steps,
+                'completed_steps': ar.completed_steps,
+                'progress_percent': round(ar.completed_steps / ar.total_steps * 100) if ar.total_steps > 0 else 0,
+                'quiz_avg': ar.quiz_avg_score,
+                'quiz_total_percent': ar.final_score,
+                'status_key': 'archived',
+                'status_label': f'Архив \u00b7 {ar.manual_grade}' if ar.manual_grade else 'Архив',
+                'status_color': '#555',
+                'status_bg': '#e8e8e8',
+                'assigned_at': ar.assigned_at,
+            })
+        return render(request, 'courses/progress_list.html', {
+            'rows': rows, 'archive_mode': True, 'search_query': search_query,
+            'date_from': '', 'date_to': '', 'status_filter': '',
+            'total_assignments': len(rows), 'in_progress_count': 0,
+            'ready_exam_count': 0, 'completed_count': 0,
+        })
+
+    # ── Актуальный прогресс ──
     assignments = ModuleAssignment.objects.filter(
         is_active=True
     ).select_related(
@@ -3346,7 +3390,6 @@ def module_progress_list(request):
             status_key = 'assigned'
 
         rows.append({
-            'assignment_id': a.pk,
             'person_id': person.pk,
             'person_name': f'{person.last_name} {person.first_name} {person.middle_name or ""}'.strip(),
             'program_code': program.code if program else '',
@@ -3363,18 +3406,27 @@ def module_progress_list(request):
             'status_bg': status_bg,
             'status_key': status_key,
             'assigned_at': a.assigned_at,
-            'manual_grade': a.manual_grade,
         })
+
+    # Счётчики ДО фильтрации по статусу
+    total_assignments = len(rows)
+    in_progress_count = sum(1 for r in rows if r['status_key'] == 'in_progress')
+    ready_exam_count = sum(1 for r in rows if r['status_key'] == 'ready_exam')
+    completed_count = sum(1 for r in rows if r['status_key'] == 'completed')
+
+    if status_filter:
+        rows = [r for r in rows if r['status_key'] == status_filter]
 
     context = {
         'rows': rows,
-        'total_assignments': len(rows),
-        'in_progress_count': sum(1 for r in rows if r['status_key'] == 'in_progress'),
-        'ready_exam_count': sum(1 for r in rows if r['status_key'] == 'ready_exam'),
-        'completed_count': sum(1 for r in rows if r['status_key'] == 'completed'),
+        'total_assignments': total_assignments,
+        'in_progress_count': in_progress_count,
+        'ready_exam_count': ready_exam_count,
+        'completed_count': completed_count,
         'search_query': search_query,
         'date_from': date_from,
         'date_to': date_to,
+        'status_filter': status_filter,
     }
     return render(request, 'courses/progress_list.html', context)
 
@@ -3382,13 +3434,59 @@ def module_progress_list(request):
 @login_required
 @menu_access_required('progress')
 @require_POST
-def set_progress_grade(request, assignment_pk):
-    """Проставить оценку в прогрессе."""
-    assignment = get_object_or_404(ModuleAssignment, pk=assignment_pk)
+def archive_program_line_modules(request, program_line_pk):
+    """Архивировать все модули по позиции подготовки после проставления оценки."""
+    from django.db.models import Sum
+    from django.utils import timezone
+
+    program_line = get_object_or_404(Program, pk=program_line_pk)
     body = json.loads(request.body)
-    assignment.manual_grade = body.get('grade', '')
-    assignment.save(update_fields=['manual_grade'])
-    return JsonResponse({'ok': True, 'grade': assignment.manual_grade})
+    grade = body.get('grade', '')
+    if not grade:
+        return JsonResponse({'error': 'Оценка обязательна'}, status=400)
+
+    assignments = ModuleAssignment.objects.filter(
+        program_line=program_line, is_active=True
+    ).select_related('module', 'person', 'module__program')
+
+    archived_count = 0
+    for a in assignments:
+        person = a.person
+        module = a.module
+        progress = ModuleProgress.objects.filter(person=person, module=module).first()
+        total_steps = module.steps.filter(is_active=True).count()
+        completed_steps = 0
+        quiz_avg = None
+        if progress:
+            completed_steps = StepProgress.objects.filter(
+                module_progress=progress, status='completed'
+            ).count()
+            quiz_percents = []
+            for qs in module.steps.filter(type='quiz', is_active=True):
+                sp = StepProgress.objects.filter(
+                    module_progress=progress, step=qs, status='completed'
+                ).first()
+                if sp and sp.score is not None:
+                    max_score = qs.questions.aggregate(total=Sum('points'))['total'] or 0
+                    if max_score > 0:
+                        quiz_percents.append(min(round(sp.score / max_score * 100, 1), 100))
+            if quiz_percents:
+                quiz_avg = min(round(sum(quiz_percents) / len(quiz_percents), 1), 100)
+
+        ArchivedModuleResult.objects.create(
+            person=person, module=module, program_line=program_line,
+            training_program=module.program,
+            total_steps=total_steps, completed_steps=completed_steps,
+            quiz_avg_score=quiz_avg, manual_grade=grade,
+            assigned_at=a.assigned_at,
+            completed_at=progress.completed_at if progress else None,
+            archived_by=request.user,
+        )
+        a.is_active = False
+        a.save(update_fields=['is_active'])
+        archived_count += 1
+
+    return JsonResponse({'ok': True, 'archived': archived_count})
 
 
 # ─────────────────────────────────────────────

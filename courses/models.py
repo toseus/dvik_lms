@@ -928,6 +928,36 @@ class ModuleAssignment(models.Model):
         return f'{self.person} — {self.module}'
 
 
+class ArchivedModuleResult(models.Model):
+    """Архивный результат прохождения модулей — создаётся при проставлении оценки по позиции."""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE,
+        related_name='archived_results', verbose_name='Слушатель')
+    module = models.ForeignKey('LearningModule', on_delete=models.CASCADE,
+        verbose_name='Модуль')
+    program_line = models.ForeignKey('Program', null=True, blank=True, on_delete=models.SET_NULL,
+        verbose_name='Позиция подготовки')
+    training_program = models.ForeignKey('TrainingProgram', null=True, blank=True, on_delete=models.SET_NULL,
+        verbose_name='Программа обучения')
+    total_steps = models.IntegerField(default=0, verbose_name='Всего этапов')
+    completed_steps = models.IntegerField(default=0, verbose_name='Пройдено этапов')
+    quiz_avg_score = models.FloatField(null=True, blank=True, verbose_name='Ср. балл промежуточных')
+    final_score = models.FloatField(null=True, blank=True, verbose_name='Итоговый балл')
+    manual_grade = models.CharField(max_length=50, blank=True, default='', verbose_name='Оценка')
+    assigned_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата выдачи')
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата завершения')
+    archived_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата архивации')
+    archived_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+        verbose_name='Архивировал')
+
+    class Meta:
+        ordering = ['-archived_at']
+        verbose_name = 'Архивный результат'
+        verbose_name_plural = 'Архивные результаты'
+
+    def __str__(self):
+        return f'{self.person} — {self.module} (архив)'
+
+
 class ProgramDocument(models.Model):
     """Документ, прикреплённый к программе обучения."""
     program = models.ForeignKey('TrainingProgram', on_delete=models.CASCADE, related_name='documents', verbose_name='Программа')

@@ -127,7 +127,7 @@ urlpatterns = [
 
     # Прогресс обучения
     path('progress/', views.module_progress_list, name='module_progress_list'),
-    path('api/progress/<int:assignment_pk>/set-grade/', views.set_progress_grade, name='set_progress_grade'),
+    path('api/program-lines/<int:program_line_pk>/archive-modules/', views.archive_program_line_modules, name='archive_program_line_modules'),
 
     # ЛК Обучение
     path('learning/', views.student_learning, name='student_learning'),

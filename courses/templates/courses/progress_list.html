@@ -5,29 +5,50 @@
 {% block content %}
 {% csrf_token %}
 <div style="padding:16px 20px;">
-    <h1 style="font-size:20px;font-weight:700;margin-bottom:16px;">Прогресс обучения</h1>
 
-    <!-- Статистика -->
-    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-        <div style="padding:10px 16px;background:#fff;border:1px solid #e0e6ed;border-radius:8px;min-width:100px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#333;">{{ total_assignments }}</div>
-            <div style="font-size:10px;color:#888;text-transform:uppercase;">Всего</div>
-        </div>
-        <div style="padding:10px 16px;background:#e3f2fd;border:1px solid #bbdefb;border-radius:8px;min-width:100px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#1565c0;">{{ in_progress_count }}</div>
-            <div style="font-size:10px;color:#555;text-transform:uppercase;">В процессе</div>
-        </div>
-        <div style="padding:10px 16px;background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;min-width:100px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#e65100;">{{ ready_exam_count }}</div>
-            <div style="font-size:10px;color:#555;text-transform:uppercase;">Готовы к аттестации</div>
-        </div>
-        <div style="padding:10px 16px;background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;min-width:100px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#1e7e34;">{{ completed_count }}</div>
-            <div style="font-size:10px;color:#555;text-transform:uppercase;">Завершили</div>
-        </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h1 style="font-size:20px;font-weight:700;">Прогресс обучения</h1>
+        <button onclick="openArchiveSearch()"
+                style="padding:6px 14px;background:#fff;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">
+            Архив
+        </button>
     </div>
 
-    <!-- Поиск и фильтры -->
+    {% if archive_mode %}
+    <div style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;color:#e65100;font-weight:600;">Режим архива{% if search_query %}: {{ search_query }}{% endif %}</span>
+        <a href="/progress/" style="font-size:12px;color:#2b6cb0;text-decoration:none;font-weight:600;">&larr; Вернуться к актуальным</a>
+    </div>
+    {% endif %}
+
+    {% if not archive_mode %}
+    <!-- Статистика (кликабельные панели) -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <a href="/progress/{% if search_query %}?q={{ search_query }}{% endif %}"
+           style="padding:10px 16px;background:{% if not status_filter %}#2b6cb0{% else %}#fff{% endif %};border:1px solid {% if not status_filter %}#2b6cb0{% else %}#e0e6ed{% endif %};border-radius:8px;min-width:100px;text-align:center;text-decoration:none;cursor:pointer;">
+            <div style="font-size:24px;font-weight:800;color:{% if not status_filter %}#fff{% else %}#333{% endif %};">{{ total_assignments }}</div>
+            <div style="font-size:10px;color:{% if not status_filter %}rgba(255,255,255,.8){% else %}#888{% endif %};text-transform:uppercase;">Всего</div>
+        </a>
+        <a href="/progress/?status=in_progress{% if search_query %}&q={{ search_query }}{% endif %}"
+           style="padding:10px 16px;background:{% if status_filter == 'in_progress' %}#1565c0{% else %}#e3f2fd{% endif %};border:1px solid {% if status_filter == 'in_progress' %}#1565c0{% else %}#bbdefb{% endif %};border-radius:8px;min-width:100px;text-align:center;text-decoration:none;cursor:pointer;">
+            <div style="font-size:24px;font-weight:800;color:{% if status_filter == 'in_progress' %}#fff{% else %}#1565c0{% endif %};">{{ in_progress_count }}</div>
+            <div style="font-size:10px;color:{% if status_filter == 'in_progress' %}rgba(255,255,255,.8){% else %}#555{% endif %};text-transform:uppercase;">В процессе</div>
+        </a>
+        <a href="/progress/?status=ready_exam{% if search_query %}&q={{ search_query }}{% endif %}"
+           style="padding:10px 16px;background:{% if status_filter == 'ready_exam' %}#e65100{% else %}#fff3e0{% endif %};border:1px solid {% if status_filter == 'ready_exam' %}#e65100{% else %}#ffe0b2{% endif %};border-radius:8px;min-width:100px;text-align:center;text-decoration:none;cursor:pointer;">
+            <div style="font-size:24px;font-weight:800;color:{% if status_filter == 'ready_exam' %}#fff{% else %}#e65100{% endif %};">{{ ready_exam_count }}</div>
+            <div style="font-size:10px;color:{% if status_filter == 'ready_exam' %}rgba(255,255,255,.8){% else %}#555{% endif %};text-transform:uppercase;">Готовы к аттестации</div>
+        </a>
+        <a href="/progress/?status=completed{% if search_query %}&q={{ search_query }}{% endif %}"
+           style="padding:10px 16px;background:{% if status_filter == 'completed' %}#1e7e34{% else %}#d4edda{% endif %};border:1px solid {% if status_filter == 'completed' %}#1e7e34{% else %}#c3e6cb{% endif %};border-radius:8px;min-width:100px;text-align:center;text-decoration:none;cursor:pointer;">
+            <div style="font-size:24px;font-weight:800;color:{% if status_filter == 'completed' %}#fff{% else %}#1e7e34{% endif %};">{{ completed_count }}</div>
+            <div style="font-size:10px;color:{% if status_filter == 'completed' %}rgba(255,255,255,.8){% else %}#555{% endif %};text-transform:uppercase;">Завершили</div>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Поиск и period-bar -->
+    {% if not archive_mode %}
     <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end;flex-wrap:wrap;">
         <div style="flex:1;min-width:200px;">
             <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Поиск по ФИО / программе</label>
@@ -36,16 +57,34 @@
                    style="width:100%;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;font-family:inherit;"
                    onkeydown="if(event.key==='Enter')applyFilters()">
         </div>
-        <div style="min-width:140px;">
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Дата с</label>
-            <input type="date" id="progressDateFrom" value="{{ date_from }}"
-                   style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;">
+
+        <!-- Period bar -->
+        <div class="pb-bar" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;">С</span>
+            <div style="position:relative;">
+                <input type="text" id="pbFrom" placeholder="дд.мм.гггг"
+                       style="width:100px;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;"
+                       oninput="pbMask(this)" onblur="pbFromBlur()">
+                <button onclick="pbToggle('From')" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#888" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></svg>
+                </button>
+                <div id="pbPopupFrom" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:10px;margin-top:4px;"></div>
+            </div>
+
+            <span style="color:#aaa;">—</span>
+
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;">По</span>
+            <div style="position:relative;">
+                <input type="text" id="pbTo" placeholder="дд.мм.гггг"
+                       style="width:100px;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;"
+                       oninput="pbMask(this)" onblur="pbToBlur()">
+                <button onclick="pbToggle('To')" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#888" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></svg>
+                </button>
+                <div id="pbPopupTo" style="display:none;position:absolute;top:100%;right:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:10px;margin-top:4px;"></div>
+            </div>
         </div>
-        <div style="min-width:140px;">
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Дата по</label>
-            <input type="date" id="progressDateTo" value="{{ date_to }}"
-                   style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;">
-        </div>
+
         <div style="display:flex;gap:6px;">
             <button onclick="applyFilters()"
                     style="padding:7px 16px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">
@@ -57,6 +96,7 @@
             </button>
         </div>
     </div>
+    {% endif %}
 
     <!-- Таблица прогресса -->
     {% if rows %}
@@ -69,15 +109,14 @@
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:120px;">Программа</th>
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;">Модуль / Прогресс</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Этапы</th>
-                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Ср. балл</th>
-                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Тесты %</th>
-                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:90px;">Оценка</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:90px;">Промежуточная</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:80px;">Итоговая</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:130px;">Статус</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in rows %}
-                <tr style="border-bottom:1px solid #eee;{% if row.status_key == 'completed' %}opacity:0.7;{% endif %}">
+                <tr style="border-bottom:1px solid #eee;{% if row.status_key == 'completed' or row.status_key == 'archived' %}opacity:0.7;{% endif %}">
                     <td style="padding:6px 10px;font-size:11px;color:#888;">{{ row.person_id }}</td>
 
                     <td style="padding:6px 10px;">
@@ -112,7 +151,7 @@
                             {{ row.quiz_avg }}%
                         </span>
                         {% else %}
-                        <span style="color:#ccc;">—</span>
+                        <span style="color:#ccc;">&mdash;</span>
                         {% endif %}
                     </td>
 
@@ -122,21 +161,8 @@
                             {{ row.quiz_total_percent }}%
                         </span>
                         {% else %}
-                        <span style="color:#ccc;">—</span>
+                        <span style="color:#ccc;">&mdash;</span>
                         {% endif %}
-                    </td>
-
-                    <td style="padding:6px 10px;text-align:center;">
-                        <select data-assignment-id="{{ row.assignment_id }}"
-                                onchange="setProgressGrade(this)"
-                                style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:2px 4px;background:#fff;cursor:pointer;color:{% if row.manual_grade %}#2b6cb0{% else %}#999{% endif %};font-weight:{% if row.manual_grade %}600{% else %}400{% endif %};">
-                            <option value="" {% if not row.manual_grade %}selected{% endif %}>—</option>
-                            <option value="5 (отл.)" {% if row.manual_grade == '5 (отл.)' %}selected{% endif %}>5 (отл.)</option>
-                            <option value="4 (хор.)" {% if row.manual_grade == '4 (хор.)' %}selected{% endif %}>4 (хор.)</option>
-                            <option value="3 (удовл.)" {% if row.manual_grade == '3 (удовл.)' %}selected{% endif %}>3 (удовл.)</option>
-                            <option value="зачёт" {% if row.manual_grade == 'зачёт' %}selected{% endif %}>зачёт</option>
-                            <option value="не сдал" {% if row.manual_grade == 'не сдал' %}selected{% endif %}>не сдал</option>
-                        </select>
                     </td>
 
                     <td style="padding:6px 10px;text-align:center;">
@@ -151,44 +177,143 @@
     </div>
     {% else %}
     <div style="text-align:center;padding:40px;color:#888;">
-        <div style="font-size:48px;margin-bottom:12px;">📊</div>
+        {% if archive_mode and archive_no_query %}
+        <div style="font-size:14px;">Введите ФИО для поиска в архиве</div>
+        {% elif archive_mode %}
+        <div style="font-size:14px;">Архивных результатов не найдено</div>
+        {% else %}
         <div style="font-size:14px;">Нет назначенных модулей</div>
+        {% endif %}
     </div>
     {% endif %}
 </div>
 
+<!-- Модалка архива -->
+<div id="archiveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:10px;max-width:420px;width:100%;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.15);">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">Архив результатов</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px;">Введите ФИО слушателя для поиска архивных результатов</p>
+    <input type="text" id="archiveSearchInput" placeholder="Фамилия или ФИО..."
+           style="width:100%;padding:8px 12px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;font-family:inherit;margin-bottom:12px;box-sizing:border-box;"
+           onkeydown="if(event.key==='Enter')searchArchive()">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeArchiveModal()" style="padding:6px 14px;background:#fff;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;cursor:pointer;">Отмена</button>
+        <button onclick="searchArchive()" style="padding:6px 14px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Найти</button>
+    </div>
+  </div>
+</div>
+
 <script>
-function applyFilters() {
-    const q = document.getElementById('progressSearch').value.trim();
-    const df = document.getElementById('progressDateFrom').value;
-    const dt = document.getElementById('progressDateTo').value;
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (df) params.set('date_from', df);
-    if (dt) params.set('date_to', dt);
-    window.location.href = '/progress/' + (params.toString() ? '?' + params.toString() : '');
+/* ═══ Period-bar datepicker ═══ */
+const pbState = {from:'', to:'', openPopup:null, year:new Date().getFullYear(), month:new Date().getMonth()};
+const pbMonths = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const pbDays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+function pbFmt(d){return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+function pbParse(s){const p=s.split('.');if(p.length!==3)return null;const d=new Date(+p[2],+p[1]-1,+p[0]);return isNaN(d)?null:d;}
+function pbToISO(s){const d=pbParse(s);return d?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';}
+
+function pbMask(el){
+    let v=el.value.replace(/[^\d]/g,'');
+    if(v.length>2)v=v.slice(0,2)+'.'+v.slice(2);
+    if(v.length>5)v=v.slice(0,5)+'.'+v.slice(5);
+    if(v.length>10)v=v.slice(0,10);
+    el.value=v;
+}
+function pbFromBlur(){const v=document.getElementById('pbFrom').value;if(v.length===10){pbState.from=pbToISO(v);}}
+function pbToBlur(){const v=document.getElementById('pbTo').value;if(v.length===10){pbState.to=pbToISO(v);}}
+
+function pbToggle(which){
+    const popupId='pbPopup'+which;
+    const popup=document.getElementById(popupId);
+    if(pbState.openPopup===which){popup.style.display='none';pbState.openPopup=null;return;}
+    document.getElementById('pbPopupFrom').style.display='none';
+    document.getElementById('pbPopupTo').style.display='none';
+    pbState.openPopup=which;
+    pbRenderCal(which);
+    popup.style.display='block';
 }
 
-function clearFilters() {
-    window.location.href = '/progress/';
-}
-
-async function setProgressGrade(select) {
-    const assignmentId = select.dataset.assignmentId;
-    const grade = select.value;
-    select.style.color = grade ? '#2b6cb0' : '#999';
-    select.style.fontWeight = grade ? '600' : '400';
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-    try {
-        const resp = await fetch('/api/progress/' + assignmentId + '/set-grade/', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-            body: JSON.stringify({grade: grade})
-        });
-        if (!resp.ok) alert('Ошибка сохранения оценки');
-    } catch (e) {
-        alert('Ошибка сети');
+function pbRenderCal(which){
+    const popup=document.getElementById('pbPopup'+which);
+    const y=pbState.year, m=pbState.month;
+    const first=new Date(y,m,1), last=new Date(y,m+1,0);
+    let dow=(first.getDay()+6)%7;
+    let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+    html+='<button onclick="pbNavMonth(-1,\''+which+'\')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;">&#9664;</button>';
+    html+='<span style="font-size:12px;font-weight:600;">'+pbMonths[m]+' '+y+'</span>';
+    html+='<button onclick="pbNavMonth(1,\''+which+'\')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;">&#9654;</button>';
+    html+='</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,28px);gap:1px;text-align:center;">';
+    for(const d of pbDays)html+='<div style="font-size:9px;color:#999;padding:2px;">'+d+'</div>';
+    for(let i=0;i<dow;i++)html+='<div></div>';
+    for(let d=1;d<=last.getDate();d++){
+        const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        const isToday=iso===new Date().toISOString().slice(0,10);
+        html+='<div onclick="pbPickDate(\''+which+'\',\''+iso+'\')" style="padding:4px;font-size:11px;cursor:pointer;border-radius:4px;'+(isToday?'background:#e3f2fd;font-weight:700;':'')+'">'+d+'</div>';
     }
+    html+='</div>';
+    popup.innerHTML=html;
+}
+
+function pbNavMonth(dir,which){
+    pbState.month+=dir;
+    if(pbState.month<0){pbState.month=11;pbState.year--;}
+    if(pbState.month>11){pbState.month=0;pbState.year++;}
+    pbRenderCal(which);
+}
+
+function pbPickDate(which,iso){
+    const d=new Date(iso+'T00:00:00');
+    const formatted=pbFmt(d);
+    if(which==='From'){document.getElementById('pbFrom').value=formatted;pbState.from=iso;}
+    else{document.getElementById('pbTo').value=formatted;pbState.to=iso;}
+    document.getElementById('pbPopup'+which).style.display='none';
+    pbState.openPopup=null;
+}
+
+document.addEventListener('click',function(e){
+    if(pbState.openPopup && !e.target.closest('.pb-bar')){
+        document.getElementById('pbPopupFrom').style.display='none';
+        document.getElementById('pbPopupTo').style.display='none';
+        pbState.openPopup=null;
+    }
+});
+
+// Восстановить даты из URL
+(function(){
+    const params=new URLSearchParams(window.location.search);
+    const df=params.get('date_from'), dt=params.get('date_to');
+    if(df){const d=new Date(df+'T00:00:00');pbState.from=df;const el=document.getElementById('pbFrom');if(el)el.value=pbFmt(d);}
+    if(dt){const d=new Date(dt+'T00:00:00');pbState.to=dt;const el=document.getElementById('pbTo');if(el)el.value=pbFmt(d);}
+})();
+
+/* ═══ Фильтрация ═══ */
+function applyFilters(){
+    pbFromBlur();pbToBlur();
+    const q=(document.getElementById('progressSearch')?.value||'').trim();
+    const params=new URLSearchParams();
+    if(q)params.set('q',q);
+    if(pbState.from)params.set('date_from',pbState.from);
+    if(pbState.to)params.set('date_to',pbState.to);
+    const sf=new URLSearchParams(window.location.search).get('status');
+    if(sf)params.set('status',sf);
+    window.location.href='/progress/'+(params.toString()?'?'+params.toString():'');
+}
+function clearFilters(){window.location.href='/progress/';}
+
+/* ═══ Архив ═══ */
+function openArchiveSearch(){
+    document.getElementById('archiveModal').style.display='flex';
+    document.getElementById('archiveSearchInput').value='';
+    document.getElementById('archiveSearchInput').focus();
+}
+function closeArchiveModal(){document.getElementById('archiveModal').style.display='none';}
+function searchArchive(){
+    const q=document.getElementById('archiveSearchInput').value.trim();
+    if(!q){alert('Введите ФИО');return;}
+    closeArchiveModal();
+    window.location.href='/progress/?archive=1&q='+encodeURIComponent(q);
 }
 </script>
 {% endblock %}
