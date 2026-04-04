@@ -1,0 +1,151 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ step.title }} — ДВИК СЭО</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Golos Text', sans-serif;
+  background: #0b1929;
+}
+
+/* ── Полоска навигации ── */
+.slide-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: rgba(11, 25, 41, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(58, 123, 213, 0.2);
+}
+
+.slide-topbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+  cursor: pointer;
+}
+.slide-topbar-back:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.slide-topbar-back svg {
+  flex-shrink: 0;
+}
+
+.slide-topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0eaf5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ── Iframe ── */
+.slide-iframe {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(100% - 48px);
+  border: none;
+  background: #0a1628;
+}
+
+/* ── Мобильная адаптация ── */
+@media (max-width: 600px) {
+  .slide-topbar {
+    height: 44px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .slide-topbar-back {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .slide-topbar-title {
+    font-size: 13px;
+  }
+  .slide-iframe {
+    top: 44px;
+    height: calc(100% - 44px);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="slide-topbar">
+  <a href="{{ back_url }}" class="slide-topbar-back">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M10 12L6 8l4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Назад к модулю
+  </a>
+  <span class="slide-topbar-title">{{ step.title }}</span>
+</div>
+
+<iframe
+  class="slide-iframe"
+  id="slideFrame"
+  src="{{ raw_url }}"
+  allowfullscreen
+></iframe>
+
+<script>
+// Слушаем postMessage от iframe (completion_script внутри HTML-файла)
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'slideCompleted') {
+    // Отметить этап пройденным
+    var stepId = '{{ step.pk }}';
+    var csrf = (document.cookie.match(/(?:^|;\s*)csrftoken_lms=([^;]*)/) || [])[1];
+    if (csrf) csrf = decodeURIComponent(csrf);
+    fetch('/api/progress/step/' + stepId + '/complete/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf || ''}
+    }).then(function() {
+      // Сохранить в localStorage что этап пройден
+      try {
+        var key = 'module_progress_{{ module.pk }}';
+        var ids = JSON.parse(localStorage.getItem(key) || '[]');
+        var sid = parseInt(stepId);
+        if (ids.indexOf(sid) === -1) ids.push(sid);
+        localStorage.setItem(key, JSON.stringify(ids));
+      } catch(ex) {}
+      // Вернуться к модулю
+      window.location.href = '{{ back_url }}';
+    }).catch(function() {
+      window.location.href = '{{ back_url }}';
+    });
+  }
+});
+</script>
+</body>
+</html>

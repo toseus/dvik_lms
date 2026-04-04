@@ -43,6 +43,7 @@ urlpatterns = [
     path('modules/<int:pk>/delete/', views.module_delete, name='module_delete'),
     path('modules/<int:pk>/preview/', views.module_preview, name='module_preview'),
     path('modules/step/<int:pk>/slides/', views.module_slides, name='module_slides'),
+    path('modules/step/<int:pk>/slides/raw/', views.serve_slide_raw, name='serve_slide_raw'),
     path('modules/step/<int:step_pk>/quiz/preview/', views.module_quiz_preview, name='module_quiz_preview'),
 
     # API конструктора модулей

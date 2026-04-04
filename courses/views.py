@@ -1870,13 +1870,19 @@ def module_slides(request, pk):
     """Прохождение слайд-презентации внутри одного этапа (pk = ModuleStep.pk)."""
     step = get_object_or_404(ModuleStep.objects.select_related('module__program'), pk=pk)
 
-    # Новый вариант: если есть HTML-файл — отдать его напрямую
+    # Новый вариант: если есть HTML-файл — рендерим обёртку с iframe
     if step.slide_file:
         file_path = os.path.join(settings.MEDIA_ROOT, str(step.slide_file))
         if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            return HttpResponse(html_content, content_type='text/html')
+            from django.urls import reverse
+            raw_url = reverse('serve_slide_raw', args=[step.pk])
+            back_url = reverse('module_preview', args=[step.module.pk])
+            return render(request, 'modules/slide_frame.html', {
+                'step': step,
+                'module': step.module,
+                'raw_url': raw_url,
+                'back_url': back_url,
+            })
 
     # Fallback: старый вариант через slide_content (JSON)
     try:
@@ -1891,6 +1897,24 @@ def module_slides(request, pk):
         'slides_json': slides_json,
         'total_slides': len(slides_data),
     })
+
+
+@login_required
+@menu_access_any('learning', 'modules')
+def serve_slide_raw(request, pk):
+    """Отдаёт сырой HTML-файл слайда для загрузки в iframe."""
+    from django.views.decorators.clickjacking import xframe_options_sameorigin
+    step = get_object_or_404(ModuleStep, pk=pk)
+    if not step.slide_file:
+        return HttpResponse('Файл не найден', status=404)
+    file_path = os.path.join(settings.MEDIA_ROOT, str(step.slide_file))
+    if not os.path.exists(file_path):
+        return HttpResponse('Файл не найден', status=404)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    response = HttpResponse(html_content, content_type='text/html')
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    return response
 
 
 @login_required

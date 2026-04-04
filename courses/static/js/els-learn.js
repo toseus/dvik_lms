@@ -75,7 +75,7 @@ function getScoreText(stepId){try{var sc=JSON.parse(localStorage.getItem('module
 /* ══════ Открыть шаг ══════ */
 function openStep(idx){
   var step=allSteps[idx];if(!step)return;
-  if(step.type==='slide'){if(step.id)window.open('/modules/step/'+step.id+'/slides/','_blank');var el=document.getElementById('confirm-'+idx);if(el)el.classList.add('visible');return;}
+  if(step.type==='slide'){if(step.id)window.location.href='/modules/step/'+step.id+'/slides/';return;}
   if(step.type==='quiz'||step.type==='final_exam'){if(step.id){localStorage.removeItem('quiz_progress_'+step.id);window.location.href='/modules/step/'+step.id+'/quiz/preview/';}return;}
   if(step.url)window.open(step.url,'_blank');var el2=document.getElementById('confirm-'+idx);if(el2)el2.classList.add('visible');
 }
