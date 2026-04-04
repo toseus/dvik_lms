@@ -3,6 +3,7 @@
 {% block title %}Прогресс обучения{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div style="padding:16px 20px;">
     <h1 style="font-size:20px;font-weight:700;margin-bottom:16px;">Прогресс обучения</h1>
 
@@ -26,6 +27,37 @@
         </div>
     </div>
 
+    <!-- Поиск и фильтры -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Поиск по ФИО / программе</label>
+            <input type="text" id="progressSearch" value="{{ search_query }}"
+                   placeholder="Введите ФИО или код программы..."
+                   style="width:100%;padding:7px 10px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;font-family:inherit;"
+                   onkeydown="if(event.key==='Enter')applyFilters()">
+        </div>
+        <div style="min-width:140px;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Дата с</label>
+            <input type="date" id="progressDateFrom" value="{{ date_from }}"
+                   style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;">
+        </div>
+        <div style="min-width:140px;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px;">Дата по</label>
+            <input type="date" id="progressDateTo" value="{{ date_to }}"
+                   style="width:100%;padding:6px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;font-family:inherit;">
+        </div>
+        <div style="display:flex;gap:6px;">
+            <button onclick="applyFilters()"
+                    style="padding:7px 16px;background:#2b6cb0;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">
+                Найти
+            </button>
+            <button onclick="clearFilters()"
+                    style="padding:7px 12px;background:#fff;color:#555;border:1px solid #d0d5dd;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">
+                Сбросить
+            </button>
+        </div>
+    </div>
+
     <!-- Таблица прогресса -->
     {% if rows %}
     <div style="background:#fff;border:1px solid #e0e6ed;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
@@ -39,6 +71,7 @@
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Этапы</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Ср. балл</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Тесты %</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:90px;">Оценка</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:130px;">Статус</th>
                 </tr>
             </thead>
@@ -76,7 +109,7 @@
                     <td style="padding:6px 10px;text-align:center;font-size:11px;">
                         {% if row.quiz_avg is not None %}
                         <span style="font-weight:600;color:{% if row.quiz_avg >= 80 %}#1e7e34{% elif row.quiz_avg >= 50 %}#e65100{% else %}#c0392b{% endif %};">
-                            {{ row.quiz_avg }}
+                            {{ row.quiz_avg }}%
                         </span>
                         {% else %}
                         <span style="color:#ccc;">—</span>
@@ -91,6 +124,19 @@
                         {% else %}
                         <span style="color:#ccc;">—</span>
                         {% endif %}
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;">
+                        <select data-assignment-id="{{ row.assignment_id }}"
+                                onchange="setProgressGrade(this)"
+                                style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:2px 4px;background:#fff;cursor:pointer;color:{% if row.manual_grade %}#2b6cb0{% else %}#999{% endif %};font-weight:{% if row.manual_grade %}600{% else %}400{% endif %};">
+                            <option value="" {% if not row.manual_grade %}selected{% endif %}>—</option>
+                            <option value="5 (отл.)" {% if row.manual_grade == '5 (отл.)' %}selected{% endif %}>5 (отл.)</option>
+                            <option value="4 (хор.)" {% if row.manual_grade == '4 (хор.)' %}selected{% endif %}>4 (хор.)</option>
+                            <option value="3 (удовл.)" {% if row.manual_grade == '3 (удовл.)' %}selected{% endif %}>3 (удовл.)</option>
+                            <option value="зачёт" {% if row.manual_grade == 'зачёт' %}selected{% endif %}>зачёт</option>
+                            <option value="не сдал" {% if row.manual_grade == 'не сдал' %}selected{% endif %}>не сдал</option>
+                        </select>
                     </td>
 
                     <td style="padding:6px 10px;text-align:center;">
@@ -110,4 +156,39 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function applyFilters() {
+    const q = document.getElementById('progressSearch').value.trim();
+    const df = document.getElementById('progressDateFrom').value;
+    const dt = document.getElementById('progressDateTo').value;
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (df) params.set('date_from', df);
+    if (dt) params.set('date_to', dt);
+    window.location.href = '/progress/' + (params.toString() ? '?' + params.toString() : '');
+}
+
+function clearFilters() {
+    window.location.href = '/progress/';
+}
+
+async function setProgressGrade(select) {
+    const assignmentId = select.dataset.assignmentId;
+    const grade = select.value;
+    select.style.color = grade ? '#2b6cb0' : '#999';
+    select.style.fontWeight = grade ? '600' : '400';
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    try {
+        const resp = await fetch('/api/progress/' + assignmentId + '/set-grade/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify({grade: grade})
+        });
+        if (!resp.ok) alert('Ошибка сохранения оценки');
+    } catch (e) {
+        alert('Ошибка сети');
+    }
+}
+</script>
 {% endblock %}

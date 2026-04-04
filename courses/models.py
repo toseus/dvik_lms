@@ -916,6 +916,7 @@ class ModuleAssignment(models.Model):
         related_name='assigned_modules', verbose_name='Кто выдал')
     assigned_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата выдачи')
     is_active = models.BooleanField(default=True, verbose_name='Активно')
+    manual_grade = models.CharField(max_length=50, blank=True, default='', verbose_name='Оценка')
 
     class Meta:
         unique_together = ['person', 'module', 'program_line']

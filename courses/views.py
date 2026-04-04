@@ -3235,11 +3235,41 @@ def api_set_grade(request, pk):
 @menu_access_required('progress')
 def module_progress_list(request):
     """Таблица прогресса прохождения модулей слушателями."""
+    from django.db.models import Q, Sum
+    from datetime import datetime as dt
+
+    search_query = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
     assignments = ModuleAssignment.objects.filter(
         is_active=True
     ).select_related(
         'person', 'module', 'module__program'
-    ).order_by('-assigned_at')
+    )
+
+    if search_query:
+        assignments = assignments.filter(
+            Q(person__last_name__icontains=search_query) |
+            Q(person__first_name__icontains=search_query) |
+            Q(person__middle_name__icontains=search_query) |
+            Q(module__program__code__icontains=search_query) |
+            Q(module__program__title__icontains=search_query) |
+            Q(module__title__icontains=search_query)
+        )
+
+    if date_from:
+        try:
+            assignments = assignments.filter(assigned_at__date__gte=dt.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            assignments = assignments.filter(assigned_at__date__lte=dt.strptime(date_to, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    assignments = assignments.order_by('-assigned_at')
 
     rows = []
     for a in assignments:
@@ -3261,21 +3291,26 @@ def module_progress_list(request):
 
         progress_percent = round(completed_steps / total_steps * 100) if total_steps > 0 else 0
 
-        # Средний балл промежуточных тестов
+        # Средний балл промежуточных тестов (в процентах)
         quiz_avg = None
-        quiz_scores = []
+        quiz_total_percent = None
         quiz_steps = module.steps.filter(type='quiz', is_active=True)
         if quiz_steps.exists() and progress:
+            quiz_percents = []
             for qs in quiz_steps:
                 sp = StepProgress.objects.filter(
                     module_progress=progress, step=qs, status='completed'
                 ).first()
                 if sp and sp.score is not None:
-                    quiz_scores.append(sp.score)
-            if quiz_scores:
-                quiz_avg = round(sum(quiz_scores) / len(quiz_scores), 1)
-
-        quiz_total_percent = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None
+                    max_score = qs.questions.aggregate(total=Sum('points'))['total'] or 0
+                    if max_score > 0:
+                        pct = min(round(sp.score / max_score * 100, 1), 100)
+                    else:
+                        pct = min(float(sp.score), 100)
+                    quiz_percents.append(pct)
+            if quiz_percents:
+                quiz_avg = min(round(sum(quiz_percents) / len(quiz_percents), 1), 100)
+                quiz_total_percent = quiz_avg
 
         # Статус
         has_final = module.steps.filter(type='final_exam', is_active=True).exists()
@@ -3311,6 +3346,7 @@ def module_progress_list(request):
             status_key = 'assigned'
 
         rows.append({
+            'assignment_id': a.pk,
             'person_id': person.pk,
             'person_name': f'{person.last_name} {person.first_name} {person.middle_name or ""}'.strip(),
             'program_code': program.code if program else '',
@@ -3327,6 +3363,7 @@ def module_progress_list(request):
             'status_bg': status_bg,
             'status_key': status_key,
             'assigned_at': a.assigned_at,
+            'manual_grade': a.manual_grade,
         })
 
     context = {
@@ -3335,8 +3372,23 @@ def module_progress_list(request):
         'in_progress_count': sum(1 for r in rows if r['status_key'] == 'in_progress'),
         'ready_exam_count': sum(1 for r in rows if r['status_key'] == 'ready_exam'),
         'completed_count': sum(1 for r in rows if r['status_key'] == 'completed'),
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     return render(request, 'courses/progress_list.html', context)
+
+
+@login_required
+@menu_access_required('progress')
+@require_POST
+def set_progress_grade(request, assignment_pk):
+    """Проставить оценку в прогрессе."""
+    assignment = get_object_or_404(ModuleAssignment, pk=assignment_pk)
+    body = json.loads(request.body)
+    assignment.manual_grade = body.get('grade', '')
+    assignment.save(update_fields=['manual_grade'])
+    return JsonResponse({'ok': True, 'grade': assignment.manual_grade})
 
 
 # ─────────────────────────────────────────────
