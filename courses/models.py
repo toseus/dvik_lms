@@ -417,6 +417,12 @@ class Program(models.Model):
     payer_company = models.ForeignKey('Company', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='trainings', verbose_name='Плательщик')
     group_id_legacy = models.IntegerField(null=True, blank=True, verbose_name='ID группы (Access)')
+    group = models.ForeignKey(
+        'TrainingGroup', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='program_lines',
+        verbose_name='Учебная группа'
+    )
     department_id_legacy = models.IntegerField(null=True, blank=True, verbose_name='ID подразделения (Access)')
 
     # === Основные поля ===
@@ -727,6 +733,8 @@ class LearningModule(models.Model):
     order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
     description = models.TextField(blank=True, verbose_name='Описание')
     cover_image = models.CharField(max_length=500, blank=True, default='', verbose_name='Обложка модуля (URL)')
+    is_required = models.BooleanField(default=True, verbose_name='Обязательный модуль',
+        help_text='Обязательные модули учитываются при расчёте прогресса обучения')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1178,6 +1186,7 @@ class MenuPermission(models.Model):
         ('impersonate_btn', 'Кнопка «Войти как слушатель»'),
         ('results', 'Результаты'),
         ('progress', 'Прогресс'),
+        ('groups', 'Группы'),
     ]
 
     ROLES = [
@@ -1199,6 +1208,53 @@ class MenuPermission(models.Model):
 
     def __str__(self):
         return f'{self.get_menu_item_display()} — {self.get_role_display()} — {"✓" if self.is_visible else "✗"}'
+
+
+class TrainingGroup(models.Model):
+    """Учебная группа."""
+    training_program = models.ForeignKey(
+        'TrainingProgram', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='groups',
+        verbose_name='Программа обучения'
+    )
+    date_from = models.DateField(null=True, blank=True, verbose_name='Дата начала')
+    date_to = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
+    group_number = models.CharField(max_length=100, blank=True, verbose_name='Номер группы')
+    finish_date = models.DateField(null=True, blank=True, verbose_name='Дата завершения')
+    department = models.ForeignKey(
+        'Department', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name='Подразделение'
+    )
+    notes = models.CharField(max_length=500, blank=True, verbose_name='Примечания')
+    learning_status = models.CharField(max_length=10, blank=True, default='Да', verbose_name='Статус обучения')
+    student_limit = models.PositiveIntegerField(default=48, verbose_name='Лимит слушателей')
+    elog_status = models.IntegerField(null=True, blank=True, verbose_name='Статус Elog')
+    program_name = models.CharField(max_length=500, blank=True, verbose_name='Название программы (Access)')
+    rank = models.CharField(max_length=200, blank=True, verbose_name='Звание')
+    qual_rank = models.CharField(max_length=200, blank=True, verbose_name='Квалификационное звание')
+    qualification = models.CharField(max_length=200, blank=True, verbose_name='Квалификация')
+    qual_task = models.CharField(max_length=200, blank=True, verbose_name='Квалификационное задание')
+    issue_date = models.DateField(null=True, blank=True, verbose_name='Дата выдачи')
+    protocol_number = models.CharField(max_length=100, blank=True, verbose_name='Номер протокола')
+    organization = models.ForeignKey(
+        'Company', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name='Организация'
+    )
+    in_low_no = models.CharField(max_length=100, blank=True, verbose_name='Вх. номер')
+    out_low_no = models.CharField(max_length=100, blank=True, verbose_name='Исх. номер')
+    legacy_id = models.IntegerField(null=True, blank=True, unique=True, verbose_name='ID из Access (idgr)')
+
+    class Meta:
+        ordering = ['-date_from']
+        verbose_name = 'Учебная группа'
+        verbose_name_plural = 'Учебные группы'
+
+    def __str__(self):
+        code = self.training_program.code if self.training_program else '—'
+        return f'{code} ({self.date_from} — {self.date_to})'
 
 
 class RoleIPRestriction(models.Model):

@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission, ArchivedModuleResult
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, OrganizationAssignment, PersonOrganization, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, Space, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Department, WorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, QuizAnswerRecord, MenuPermission, ArchivedModuleResult, TrainingGroup
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.contrib import messages
@@ -1747,7 +1747,7 @@ def api_module_steps(request, pk):
             'slide_file_url': s.slide_file.url if s.slide_file else '',
             'is_active': s.is_active,
         })
-    response = JsonResponse({'steps': data}, json_dumps_params={'ensure_ascii': False})
+    response = JsonResponse({'steps': data, 'is_required': module.is_required}, json_dumps_params={'ensure_ascii': False})
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
@@ -1773,6 +1773,9 @@ def api_module_steps_save(request, pk):
     if 'cover_image' in data:
         module.cover_image = data['cover_image']
         updated_fields.append('cover_image')
+    if 'is_required' in data:
+        module.is_required = data.get('is_required', True)
+        updated_fields.append('is_required')
     if updated_fields:
         module.save(update_fields=updated_fields)
 
@@ -3440,7 +3443,7 @@ def module_progress_list(request):
     assignments = ModuleAssignment.objects.filter(
         is_active=True
     ).select_related(
-        'person', 'module', 'module__program'
+        'person', 'module', 'module__program', 'program_line'
     )
 
     if search_query:
@@ -3455,12 +3458,12 @@ def module_progress_list(request):
 
     if date_from:
         try:
-            assignments = assignments.filter(assigned_at__date__gte=dt.strptime(date_from, '%Y-%m-%d').date())
+            assignments = assignments.filter(program_line__date_end__gte=dt.strptime(date_from, '%Y-%m-%d').date())
         except ValueError:
             pass
     if date_to:
         try:
-            assignments = assignments.filter(assigned_at__date__lte=dt.strptime(date_to, '%Y-%m-%d').date())
+            assignments = assignments.filter(program_line__date_end__lte=dt.strptime(date_to, '%Y-%m-%d').date())
         except ValueError:
             pass
 
@@ -3557,6 +3560,7 @@ def module_progress_list(request):
             'status_bg': status_bg,
             'status_key': status_key,
             'assigned_at': a.assigned_at,
+            'date_end': a.program_line.date_end if a.program_line else None,
         })
 
     # Счётчики ДО фильтрации по статусу
@@ -3878,3 +3882,346 @@ def api_update_menu_permission(request):
         defaults={'is_visible': is_visible}
     )
     return JsonResponse({'success': True})
+
+
+# ─────────────────────────────────────────────
+# Группы
+# ─────────────────────────────────────────────
+@login_required
+@menu_access_required('groups')
+def group_list(request):
+    """Раздел управления группами — двухколоночный layout."""
+    from django.db.models import Count, Q as DQ
+    groups = TrainingGroup.objects.select_related(
+        'training_program', 'department'
+    ).annotate(
+        student_count=Count('program_lines', filter=DQ(program_lines__is_active=True))
+    ).order_by('-date_from')[:500]
+
+    return render(request, 'groups/list.html', {'groups': groups})
+
+
+@login_required
+@menu_access_required('groups')
+def api_group_students(request, group_pk):
+    """API: список слушателей выбранной группы(групп) с прогрессом модулей."""
+    from django.db.models import Q, Sum
+
+    group_ids = request.GET.get('ids', str(group_pk)).split(',')
+    group_ids = [int(x) for x in group_ids if x.isdigit()]
+
+    programs = Program.objects.filter(
+        group_id__in=group_ids,
+        is_active=True
+    ).select_related(
+        'person', 'training_program', 'order', 'group'
+    ).order_by('person__last_name', 'person__first_name', 'person__middle_name')
+
+    rows = []
+    for idx, prog in enumerate(programs, 1):
+        person = prog.person
+        if not person:
+            continue
+
+        assignments = ModuleAssignment.objects.filter(
+            person=person,
+            program_line=prog,
+            is_active=True,
+            module__is_required=True
+        ).select_related('module')
+
+        total_modules = assignments.count()
+        completed_modules = 0
+        total_required_steps = 0
+        completed_required_steps = 0
+        quiz_scores = []
+        final_score = None
+
+        for a in assignments:
+            module = a.module
+            steps = module.steps.filter(is_active=True)
+            step_count = steps.count()
+            total_required_steps += step_count
+
+            mp = ModuleProgress.objects.filter(person=person, module=module).first()
+            if mp:
+                completed = StepProgress.objects.filter(
+                    module_progress=mp, status='completed'
+                ).count()
+                completed_required_steps += completed
+                if mp.is_completed:
+                    completed_modules += 1
+
+                for qs in steps.filter(type='quiz'):
+                    sp = StepProgress.objects.filter(
+                        module_progress=mp, step=qs, status='completed'
+                    ).first()
+                    if sp and sp.score is not None:
+                        max_s = qs.questions.aggregate(t=Sum('points'))['t'] or 0
+                        if max_s > 0:
+                            quiz_scores.append(min(round(sp.score / max_s * 100, 1), 100))
+
+                result = ModuleResult.objects.filter(
+                    person=person, module=module, is_preview=False
+                ).first()
+                if result and result.final_exam_score is not None:
+                    final_score = result.final_exam_score
+
+        progress_percent = round(completed_required_steps / total_required_steps * 100) if total_required_steps > 0 else 0
+        quiz_avg = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None
+
+        rows.append({
+            'num': idx,
+            'person_id': person.pk,
+            'last_name': person.last_name or '',
+            'first_name': person.first_name or '',
+            'middle_name': person.middle_name or '',
+            'date_start': prog.date_start.strftime('%d.%m.%Y') if prog.date_start else '',
+            'date_end': prog.date_end.strftime('%d.%m.%Y') if prog.date_end else '',
+            'cert_number': prog.cert_number or '',
+            'reg_number': prog.reg_number or '',
+            'total_modules': total_modules,
+            'completed_modules': completed_modules,
+            'quiz_avg': quiz_avg,
+            'final_score': final_score,
+            'progress_percent': progress_percent,
+            'total_required_steps': total_required_steps,
+            'completed_required_steps': completed_required_steps,
+            'grade': prog.grade or '',
+            'amount': float(prog.amount) if prog.amount else 0,
+            'payment_date': prog.payment_date.strftime('%d.%m.%Y') if prog.payment_date else '',
+            'program_line_id': prog.pk,
+        })
+
+    return JsonResponse({'students': rows}, json_dumps_params={'ensure_ascii': False})
+
+
+@login_required
+@menu_access_required('groups')
+@require_POST
+def api_group_set_grade(request, program_line_pk):
+    """API: установить/снять оценку по подготовке."""
+    prog = get_object_or_404(Program, pk=program_line_pk)
+    data = json.loads(request.body)
+    prog.grade = data.get('grade', '')
+    prog.save(update_fields=['grade'])
+    return JsonResponse({'ok': True, 'grade': prog.grade})
+
+
+@login_required
+@menu_access_required('groups')
+def api_group_dates(request):
+    """API: список дат с количеством подготовок по условию и периоду."""
+    from django.db.models import Count, F
+    from datetime import datetime as dt, timedelta
+
+    condition = request.GET.get('condition', 'date_start')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    try:
+        d_from = dt.strptime(date_from, '%Y-%m-%d').date()
+        d_to = dt.strptime(date_to, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({'dates': []})
+
+    # Условие «На учёбе» — перебор дней
+    if condition == 'studying':
+        dates = []
+        current = d_from
+        while current <= d_to:
+            cnt = Program.objects.filter(
+                is_active=True, date_start__lte=current, date_end__gte=current
+            ).count()
+            if cnt > 0:
+                dates.append({'date': str(current), 'count': cnt})
+            current += timedelta(days=1)
+        return JsonResponse({'dates': dates})
+
+    programs = Program.objects.filter(is_active=True)
+
+    if condition == 'registered':
+        programs = programs.filter(
+            order__date__gte=d_from, order__date__lte=d_to
+        ).annotate(target_date=F('order__date'))
+    elif condition == 'date_start':
+        programs = programs.filter(
+            date_start__gte=d_from, date_start__lte=d_to
+        ).annotate(target_date=F('date_start'))
+    elif condition == 'date_end':
+        programs = programs.filter(
+            date_end__gte=d_from, date_end__lte=d_to
+        ).annotate(target_date=F('date_end'))
+    elif condition == 'print':
+        programs = programs.filter(
+            date_end__gte=d_from, date_end__lte=d_to
+        ).exclude(grade='').annotate(target_date=F('date_end'))
+    else:
+        return JsonResponse({'dates': []})
+
+    date_counts = (
+        programs.filter(target_date__isnull=False)
+        .values('target_date')
+        .annotate(count=Count('pk'))
+        .order_by('target_date')
+    )
+    dates = [{'date': str(d['target_date']), 'count': d['count']} for d in date_counts]
+    return JsonResponse({'dates': dates})
+
+
+@login_required
+@menu_access_required('groups')
+def api_group_by_date(request):
+    """API: группы и подготовки на конкретную дату по условию."""
+    from django.db.models import Sum
+    from datetime import datetime as dt
+
+    condition = request.GET.get('condition', 'date_start')
+    date_str = request.GET.get('date', '')
+    group_ids_str = request.GET.get('groups', '')
+
+    try:
+        target_date = dt.strptime(date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({'groups': [], 'students': []})
+
+    programs = Program.objects.filter(is_active=True).select_related(
+        'person', 'training_program', 'order', 'group', 'group__training_program', 'group__department'
+    )
+
+    if condition == 'registered':
+        programs = programs.filter(order__date=target_date)
+    elif condition == 'date_start':
+        programs = programs.filter(date_start=target_date)
+    elif condition == 'date_end':
+        programs = programs.filter(date_end=target_date)
+    elif condition == 'studying':
+        programs = programs.filter(date_start__lte=target_date, date_end__gte=target_date)
+    elif condition == 'print':
+        programs = programs.filter(date_end=target_date).exclude(grade='')
+
+    if group_ids_str:
+        gids = [int(x) for x in group_ids_str.split(',') if x.isdigit()]
+        if gids:
+            programs = programs.filter(group_id__in=gids)
+
+    programs = programs.order_by('person__last_name', 'person__first_name', 'person__middle_name')
+
+    # Собрать уникальные группы
+    groups_dict = {}
+    for p in programs:
+        if p.group_id and p.group_id not in groups_dict:
+            g = p.group
+            tp = g.training_program
+            groups_dict[g.pk] = {
+                'id': g.pk,
+                'tp_id': tp.pk if tp else None,
+                'code': tp.code if tp else '—',
+                'title': (tp.title[:60] if tp else g.program_name[:60]) if (tp or g.program_name) else '',
+                'date_from': g.date_from.strftime('%d.%m.%Y') if g.date_from else '',
+                'date_to': g.date_to.strftime('%d.%m.%Y') if g.date_to else '',
+                'student_count': 0,
+                'notes': g.notes,
+                'department': g.department.name if g.department else '',
+                'department_id': g.department_id,
+            }
+
+    # Собрать подготовки
+    rows = []
+    for idx, prog in enumerate(programs, 1):
+        person = prog.person
+        if not person:
+            continue
+
+        if prog.group_id and prog.group_id in groups_dict:
+            groups_dict[prog.group_id]['student_count'] += 1
+
+        # Модули — только обязательные
+        assignments = ModuleAssignment.objects.filter(
+            person=person, program_line=prog, is_active=True,
+            module__is_required=True
+        ).select_related('module')
+
+        total_modules = assignments.count()
+        completed_modules = 0
+        total_req_steps = 0
+        completed_req_steps = 0
+        quiz_scores = []
+        final_score = None
+
+        for a in assignments:
+            module = a.module
+            steps = module.steps.filter(is_active=True)
+            step_count = steps.count()
+            total_req_steps += step_count
+
+            mp = ModuleProgress.objects.filter(person=person, module=module).first()
+            if mp:
+                compl = StepProgress.objects.filter(
+                    module_progress=mp, status='completed'
+                ).count()
+                completed_req_steps += compl
+                if mp.is_completed:
+                    completed_modules += 1
+
+                for qs in steps.filter(type='quiz'):
+                    sp = StepProgress.objects.filter(
+                        module_progress=mp, step=qs, status='completed'
+                    ).first()
+                    if sp and sp.score is not None:
+                        max_s = qs.questions.aggregate(t=Sum('points'))['t'] or 0
+                        if max_s > 0:
+                            quiz_scores.append(min(round(sp.score / max_s * 100, 1), 100))
+
+                result = ModuleResult.objects.filter(
+                    person=person, module=module, is_preview=False
+                ).first()
+                if result and result.final_exam_score is not None:
+                    final_score = result.final_exam_score
+
+        progress_pct = round(completed_req_steps / total_req_steps * 100) if total_req_steps > 0 else 0
+        quiz_avg = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None
+
+        rows.append({
+            'num': idx,
+            'person_id': person.pk,
+            'last_name': person.last_name or '',
+            'first_name': person.first_name or '',
+            'middle_name': person.middle_name or '',
+            'date_start': prog.date_start.strftime('%d.%m.%y') if prog.date_start else '',
+            'date_end': prog.date_end.strftime('%d.%m.%y') if prog.date_end else '',
+            'cert_number': prog.cert_number or '',
+            'reg_number': prog.reg_number or '',
+            'total_modules': total_modules,
+            'completed_modules': completed_modules,
+            'quiz_avg': quiz_avg,
+            'final_score': final_score,
+            'progress_percent': progress_pct,
+            'grade': prog.grade or '',
+            'amount': float(prog.amount) if prog.amount else 0,
+            'payment_date': prog.payment_date.strftime('%d.%m.%y') if prog.payment_date else '',
+            'order_date': prog.order.date.strftime('%d.%m.%y') if prog.order and prog.order.date else '',
+            'program_line_id': prog.pk,
+            'group_id': prog.group_id,
+            'is_printed': prog.print_date is not None,
+        })
+
+    return JsonResponse({
+        'groups': list(groups_dict.values()),
+        'students': rows,
+    }, json_dumps_params={'ensure_ascii': False})
+
+
+@login_required
+@menu_access_required('groups')
+@require_POST
+def api_set_printed(request, program_line_pk):
+    """Переключить отметку печати на подготовке."""
+    from django.utils import timezone
+    prog = get_object_or_404(Program, pk=program_line_pk)
+    if prog.print_date:
+        prog.print_date = None
+    else:
+        prog.print_date = timezone.now().date()
+    prog.save(update_fields=['print_date'])
+    return JsonResponse({'ok': True, 'is_printed': prog.print_date is not None})

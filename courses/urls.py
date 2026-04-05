@@ -131,6 +131,14 @@ urlpatterns = [
     path('progress/', views.module_progress_list, name='module_progress_list'),
     path('api/program-lines/<int:program_line_pk>/archive-modules/', views.archive_program_line_modules, name='archive_program_line_modules'),
 
+    # Группы
+    path('groups/', views.group_list, name='group_list'),
+    path('api/groups/<int:group_pk>/students/', views.api_group_students, name='api_group_students'),
+    path('api/groups/set-grade/<int:program_line_pk>/', views.api_group_set_grade, name='api_group_set_grade'),
+    path('api/groups/dates/', views.api_group_dates, name='api_group_dates'),
+    path('api/groups/by-date/', views.api_group_by_date, name='api_group_by_date'),
+    path('api/program-lines/<int:program_line_pk>/set-printed/', views.api_set_printed, name='api_set_printed'),
+
     # ЛК Обучение
     path('learning/', views.student_learning, name='student_learning'),
     path('results/', views.learning_results, name='learning_results'),

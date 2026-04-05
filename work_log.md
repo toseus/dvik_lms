@@ -5,6 +5,63 @@
 
 ---
 
+### 2026-04-05 — Модуль «Группы»: 3-колоночный интерфейс с фильтрацией
+
+**Что сделано:** Создан полноценный раздел «Группы» для управления учебными группами. Модель `TrainingGroup` с импортом 51024 групп из Access (Excel). Привязка 125882 подготовок к группам. Интерфейс — три колонки: фильтры (условие, период, подразделения), список групп (выбор кликом), таблица подготовок (звёздочки, оценки, печать, оплата). 5 условий фильтрации: оформились, дата начала/окончания, на учёбе, печать. Колонки таблицы с фикс. шириной. Кастомный датапикер с popup-календарём.
+
+**Файлы:**
+- `courses/models.py` — TrainingGroup, LearningModule.is_required, Program.group FK, MenuPermission.groups
+- `courses/views.py` — group_list, api_group_dates, api_group_by_date, api_group_students, api_group_set_grade, api_set_printed
+- `courses/urls.py` — 6 маршрутов для групп
+- `courses/templates/groups/list.html` — 3-колоночный шаблон
+- `courses/templates/base/base.html` — пункт меню «Группы»
+- `courses/management/commands/` — import_groups.py, link_groups.py
+
+---
+
+### 2026-04-05 — Ограничение доступа по IP при логине
+
+**Что сделано:** При авторизации система проверяет IP клиента по роли. Слушатели заходят откуда угодно. Преподаватели, админы, суперадмины — только с разрешённых IP из БД. Модели RoleIPRestriction и AllowedIP. Управление через админку Django.
+
+**Файлы:**
+- `courses/models.py` — RoleIPRestriction, AllowedIP
+- `courses/views.py` — _check_ip_restriction, _get_client_ip в login_view
+- `courses/admin.py` — RoleIPRestrictionAdmin, AllowedIPAdmin
+- `courses/management/commands/init_ip_restrictions.py`
+
+---
+
+### 2026-04-05 — 5 доработок: прогресс, логин, конструктор модулей
+
+**Что сделано:**
+1. Прогресс: колонка «Дата окончания» из Program.date_end, фильтр по ней вместо assigned_at
+2. Логин: убрана подсказка СНИЛС
+3. Логин: версия системы v2.2 и дата обновления из context processor
+4. Конструктор модулей: чекбокс «Обязательный модуль» (is_required), учитывается при расчёте прогресса в группах
+
+**Файлы:**
+- `courses/models.py` — LearningModule.is_required
+- `courses/views.py` — module_progress_list (date_end, program_line), api_module_steps (is_required)
+- `courses/templates/courses/progress_list.html` — колонка «Дата окончания»
+- `courses/templates/auth/login.html` — убран СНИЛС, добавлена версия
+- `courses/templates/modules/edit.html` — чекбокс is_required
+
+---
+
+### 2026-04-05 — Слайды: iframe-обёртка с навигацией вместо новой вкладки
+
+**Что сделано:** Слайд-этапы теперь открываются в текущей вкладке внутри iframe-обёртки вместо `window.open` в новой вкладке. Сверху — тёмная полоска 48px с кнопкой «← Назад к модулю», названием этапа и зелёной кнопкой «Завершить». Ниже — iframe с загруженным HTML на весь экран. Кнопка «Завершить» отмечает этап пройденным через API, сохраняет прогресс в localStorage и возвращает к модулю. Также работает автозавершение через postMessage от completion-скрипта внутри HTML-файла.
+
+**Файлы:**
+- `courses/views.py` — `module_slides` рендерит `slide_frame.html`; новый `serve_slide_raw` отдаёт HTML для iframe с `X-Frame-Options: SAMEORIGIN`
+- `courses/urls.py` — маршрут `/modules/step/<pk>/slides/raw/`
+- `courses/templates/modules/slide_frame.html` — новый шаблон обёртки
+- `courses/static/js/els-learn.js` — `window.location.href` вместо `window.open`
+
+**Коммиты:** `1edcf7c`, `0c6a037`
+
+---
+
 ### 2026-04-04 — Слайды: загрузка HTML-файлов напрямую (без парсинга в JSON)
 
 **Что сделано:** Полностью переработан механизм слайдов в конструкторе модулей. Раньше HTML-файл парсился на клиенте, разбирался на отдельные слайды и сохранялся как JSON в поле `slide_content`. Теперь автор загружает готовый HTML-файл целиком — он сохраняется на сервере в `media/slides/step_{id}.html` и отдаётся слушателю как есть, без промежуточных преобразований. Старый JSON-механизм сохранён как fallback для ранее созданных слайдов.

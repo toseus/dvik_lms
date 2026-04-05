@@ -1,0 +1,696 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}Группы — ДВИК СЭО{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════ Layout ══════ */
+.groups-layout { display:flex; height:calc(100vh - 56px); overflow:hidden; }
+
+/* ══════ Левая панель — Фильтры ══════ */
+.filter-panel {
+  width:144px; min-width:144px;
+  border-right:1px solid #e0eaf5;
+  padding:10px; overflow-y:auto; height:100%;
+  background:#fafbfd; font-size:13px;
+}
+.filter-label { display:block; font-size:11px; font-weight:600; color:#6b7b8d; margin:10px 0 4px; text-transform:uppercase; }
+.filter-label:first-child { margin-top:0; }
+.filter-select {
+  width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:5px;
+  font-size:12px; font-family:inherit; background:#fff; outline:none;
+}
+.filter-select:focus { border-color:#1565c0; }
+.filter-date {
+  width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:5px;
+  font-size:12px; font-family:inherit; outline:none; text-align:center;
+}
+.filter-date:focus { border-color:#1565c0; }
+.filter-apply-btn {
+  width:100%; margin-top:10px; padding:7px; background:#0f62ae; color:#fff;
+  border:none; border-radius:5px; font-size:12px; font-weight:600;
+  font-family:inherit; cursor:pointer; transition:background .15s;
+}
+.filter-apply-btn:hover { background:#0a4d8c; }
+
+/* Список дат */
+.dates-divider { font-size:10px; color:#8899aa; text-transform:uppercase; margin:12px 0 6px; padding-top:8px; border-top:1px solid #e0eaf5; }
+.dates-list { margin-top:4px; }
+.date-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:5px 8px; border-radius:4px; cursor:pointer; font-size:12px;
+  transition:background .1s; margin-bottom:1px;
+}
+.date-item:hover { background:#e3f2fd; }
+.date-item.selected { background:#1565c0; color:#fff; }
+.date-count { font-weight:700; font-size:11px; }
+
+/* ══════ Средняя панель — Группы ══════ */
+.groups-panel {
+  width:280px; min-width:280px;
+  border-right:1px solid #e0eaf5;
+  overflow-y:auto; height:100%;
+  background:#fff;
+}
+.groups-header {
+  position:sticky; top:0; z-index:2;
+  padding:8px 10px; background:#f5f8fc;
+  border-bottom:1px solid #e0eaf5;
+  font-size:12px;
+}
+.groups-header { display:flex; align-items:center; justify-content:space-between; }
+.groups-toggle-btn {
+  padding:3px 10px; font-size:11px; font-weight:600; font-family:inherit;
+  background:#fff; border:1px solid #d0d5dd; border-radius:4px; cursor:pointer;
+  color:#555; transition:all .12s;
+}
+.groups-toggle-btn:hover { background:#e3f2fd; border-color:#1565c0; color:#1565c0; }
+.groups-list { }
+.group-item {
+  display:flex; gap:8px; padding:6px 10px;
+  border-bottom:1px solid #f0f4f8; cursor:pointer;
+  transition:background .1s; align-items:flex-start;
+  border-left:3px solid transparent;
+}
+.group-item:hover { background:#f0f5fb; }
+.group-item.selected { background:#e3f2fd; border-left-color:#1565c0; }
+.group-info { flex:1; min-width:0; }
+.group-code { font-size:11px; font-weight:600; color:#1a2433; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.group-dates { font-size:12px; color:#1565c0; font-weight:700; white-space:nowrap; }
+.group-meta { font-size:10px; color:#8899aa; margin-top:1px; display:flex; gap:6px; }
+.group-notes { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px; }
+.groups-empty { text-align:center; color:#8899aa; padding:30px 10px; font-size:12px; }
+
+/* ══════ Правая панель — Подготовки ══════ */
+.students-panel { flex:1; overflow:auto; height:100%; padding:8px; }
+.students-table {
+  table-layout:fixed; width:790px; border-collapse:collapse; font-size:13px;
+}
+.students-table th {
+  position:sticky; top:0; z-index:1;
+  background:#f5f8fc; padding:5px 6px; text-align:left;
+  font-size:10px; font-weight:600; color:#6b7b8d; text-transform:uppercase;
+  border-bottom:2px solid #e0eaf5;
+}
+.students-table td {
+  padding:4px 6px; vertical-align:middle; line-height:1.3;
+  border-bottom:1px solid #f0f4f8; overflow:hidden; text-overflow:ellipsis;
+}
+.students-table tr:hover td { background:#f9fbfd; }
+
+.cell-two-lines { white-space:normal; }
+.cell-line2 { font-size:11px; color:#6b7b8d; }
+
+/* ФИО */
+.name-main { font-weight:600; color:#1a2433; font-size:12px; }
+.name-main a { color:inherit; text-decoration:none; }
+.name-main a:hover { color:#1565c0; text-decoration:underline; }
+
+/* Прогресс-бар */
+.module-cell { position:relative; background:#f5f5f5; }
+.module-cell .progress-bg {
+  position:absolute; top:0; left:0; bottom:0;
+  background:rgba(16,124,16,0.15); transition:width .3s;
+}
+.module-cell .progress-text { position:relative; z-index:1; font-size:11px; white-space:nowrap; }
+
+/* Оценка */
+.grade-cell { cursor:pointer; position:relative; }
+.grade-cell:hover { background:#e3f2fd; }
+.grade-popup {
+  position:absolute; top:100%; left:0;
+  background:#fff; border:1px solid #e0eaf5; border-radius:6px;
+  box-shadow:0 4px 16px rgba(0,0,0,.15); z-index:100; min-width:140px;
+  display:none;
+}
+.grade-popup.open { display:block; }
+.grade-option { padding:5px 10px; cursor:pointer; font-size:12px; }
+.grade-option:hover { background:#e3f2fd; }
+
+/* Печать */
+.print-btn {
+  width:28px; height:28px; border:1px solid #d0d5dd; border-radius:4px;
+  background:#f5f5f5; color:#888; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.print-btn:hover { background:#e8e8e8; }
+.print-btn.printed { background:#d4edda; border-color:#8fcb8f; color:#1e7e34; }
+
+/* Оплата */
+.payment-paid { color:#1e7e34; background:#edf7ed; padding:1px 4px; border-radius:3px; }
+.payment-debt { color:#c62828; font-weight:600; }
+
+/* Подразделения */
+.dep-list { margin-top:8px; border-top:1px solid #e0eaf5; padding-top:6px; }
+.dep-item {
+  padding:4px 8px; font-size:11px; cursor:pointer; border-radius:4px;
+  color:#555; transition:background .1s; margin-bottom:1px;
+}
+.dep-item:hover { background:#e3f2fd; }
+.dep-item.selected { background:#1565c0; color:#fff; }
+
+.empty-msg { text-align:center; color:#8899aa; padding:40px; font-size:13px; }
+
+/* Звёздочки */
+.star-btn {
+  cursor:pointer; display:inline-block; width:16px; height:16px; vertical-align:middle;
+  color:#ccc; transition:color .12s, transform .12s; user-select:none;
+}
+.star-btn:hover { color:#f5c400; }
+.star-btn.on { color:#f5c400; transform:scale(1.1); }
+.star-btn svg { width:16px; height:16px; fill:currentColor; }
+tr.starred td { background:#fffef5; }
+
+/* Датапикер поля */
+.pb-row { display:flex; align-items:center; gap:6px; margin-top:8px; }
+.pb-label { font-size:11px; font-weight:600; color:#6b7b8d; text-transform:uppercase; min-width:18px; }
+.pb-field { position:relative; flex:1; }
+.pb-field input {
+  width:100%; padding:6px 24px 6px 6px; border:1px solid #d0d5dd; border-radius:5px;
+  font-size:11px; font-family:inherit; outline:none; text-align:center;
+}
+.pb-field input:focus { border-color:#1565c0; }
+.pb-ico-btn {
+  position:absolute; right:1px; top:50%; transform:translateY(-50%);
+  background:none; border:none; cursor:pointer; padding:2px;
+}
+.pb-popup {
+  display:none; position:fixed; z-index:9999;
+  background:#fff; border:1px solid #ddd; border-radius:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.15); padding:10px;
+  width:220px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="groups-layout">
+  <!-- ══════ Левая: Фильтры ══════ -->
+  <div class="filter-panel">
+    <label class="filter-label">Условие</label>
+    <select id="filterCondition" class="filter-select">
+      <option value="registered">Оформились</option>
+      <option value="date_start" selected>Дата начала</option>
+      <option value="date_end">Дата окончания</option>
+      <option value="studying">На учёбе</option>
+      <option value="print">Печать</option>
+    </select>
+
+    <div class="pb-row">
+      <span class="pb-label">С</span>
+      <div class="pb-field">
+        <input type="text" id="pbFrom" placeholder="дд.мм.гггг"
+               oninput="pbMask(this)" onblur="pbFromBlur()">
+        <button class="pb-ico-btn" onclick="pbToggle('From')">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#888" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></svg>
+        </button>
+        <div class="pb-popup" id="pbPopupFrom"></div>
+      </div>
+    </div>
+
+    <div class="pb-row">
+      <span class="pb-label">По</span>
+      <div class="pb-field">
+        <input type="text" id="pbTo" placeholder="дд.мм.гггг"
+               oninput="pbMask(this)" onblur="pbToBlur()">
+        <button class="pb-ico-btn" onclick="pbToggle('To')">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#888" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></svg>
+        </button>
+        <div class="pb-popup" id="pbPopupTo"></div>
+      </div>
+    </div>
+
+    <button class="filter-apply-btn" onclick="applyFilter()">Применить</button>
+
+    <div class="dates-divider" id="datesDivider" style="display:none;">Даты</div>
+    <div class="dates-list" id="datesList"></div>
+
+    <div class="dep-list" id="depList" style="display:none;"></div>
+  </div>
+
+  <!-- ══════ Средняя: Группы ══════ -->
+  <div class="groups-panel" id="groupsPanel">
+    <div class="groups-header">
+      <span style="font-size:11px;font-weight:600;color:#6b7b8d;text-transform:uppercase;">Группы</span>
+      <button class="groups-toggle-btn" id="toggleAllBtn" onclick="toggleAllGroups()">Все</button>
+    </div>
+    <div class="groups-list" id="groupsList">
+      <div class="groups-empty">Выберите дату слева</div>
+    </div>
+  </div>
+
+  <!-- ══════ Правая: Подготовки ══════ -->
+  <div class="students-panel">
+    <table class="students-table">
+      <thead>
+        <tr>
+          <th style="width:22px;text-align:center;"><span class="star-btn" id="thStar" onclick="toggleAllStars()"><svg viewBox="0 0 20 20"><polygon points="10,2 12.5,7.5 18,8 14,12 15,18 10,15 5,18 6,12 2,8 7.5,7.5"/></svg></span></th>
+          <th style="width:28px;">#</th>
+          <th style="width:55px;">Оформл.</th>
+          <th style="width:170px;">ФИО</th>
+          <th style="width:85px;">Сроки</th>
+          <th style="width:95px;">N Св-ва / Рег N</th>
+          <th style="width:150px;">Модули</th>
+          <th style="width:75px;">Оценка</th>
+          <th style="width:30px;text-align:center;">&#x1F5A8;</th>
+          <th style="width:80px;">К оплате</th>
+        </tr>
+      </thead>
+      <tbody id="studentsBody">
+        <tr><td colspan="10" class="empty-msg">Выберите дату и группу</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+let currentGroups = [];
+let currentStudents = [];
+let selectedDateStr = '';
+
+/* ══════ Period-bar datepicker ══════ */
+const pbState = {from:'', to:'', openPopup:null, year:new Date().getFullYear(), month:new Date().getMonth()};
+const pbMonths = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const pbDaysH = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+function pbFmt(d){return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+function pbParse(s){const p=s.split('.');if(p.length!==3)return null;const d=new Date(+p[2],+p[1]-1,+p[0]);return isNaN(d)?null:d;}
+function pbToISO(s){const d=pbParse(s);return d?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';}
+
+function pbMask(el){
+  let v=el.value.replace(/[^\d]/g,'');
+  if(v.length>2)v=v.slice(0,2)+'.'+v.slice(2);
+  if(v.length>5)v=v.slice(0,5)+'.'+v.slice(5);
+  if(v.length>10)v=v.slice(0,10);
+  el.value=v;
+}
+function pbFromBlur(){
+  const v=document.getElementById('pbFrom').value;
+  if(v.length===10){
+    pbState.from=pbToISO(v);
+    // Всегда копировать в «По»
+    const toEl=document.getElementById('pbTo');
+    toEl.value=v; pbState.to=pbToISO(v);
+  }
+}
+function pbToBlur(){const v=document.getElementById('pbTo').value;if(v.length===10){pbState.to=pbToISO(v);}}
+
+function pbToggle(which){
+  const popupId='pbPopup'+which;
+  const popup=document.getElementById(popupId);
+  if(pbState.openPopup===which){popup.style.display='none';pbState.openPopup=null;return;}
+  document.getElementById('pbPopupFrom').style.display='none';
+  document.getElementById('pbPopupTo').style.display='none';
+  pbState.openPopup=which;
+  pbRenderCal(which);
+  // Позиционирование fixed popup рядом с полем
+  const input=document.getElementById(which==='From'?'pbFrom':'pbTo');
+  const rect=input.getBoundingClientRect();
+  popup.style.top=(rect.bottom+4)+'px';
+  popup.style.left=rect.left+'px';
+  popup.style.display='block';
+}
+
+function pbRenderCal(which){
+  const popup=document.getElementById('pbPopup'+which);
+  const y=pbState.year, m=pbState.month;
+  const first=new Date(y,m,1), last=new Date(y,m+1,0);
+  let dow=(first.getDay()+6)%7;
+  let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+  html+='<button type="button" onclick="event.stopPropagation();pbNavMonth(-1,\''+which+'\')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;">&#9664;</button>';
+  html+='<span style="font-size:12px;font-weight:600;">'+pbMonths[m]+' '+y+'</span>';
+  html+='<button type="button" onclick="event.stopPropagation();pbNavMonth(1,\''+which+'\')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;">&#9654;</button>';
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(7,28px);gap:1px;text-align:center;">';
+  for(const d of pbDaysH)html+='<div style="font-size:9px;color:#999;padding:2px;">'+d+'</div>';
+  for(let i=0;i<dow;i++)html+='<div></div>';
+  for(let d=1;d<=last.getDate();d++){
+    const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday=iso===new Date().toISOString().slice(0,10);
+    html+='<div onclick="pbPickDate(\''+which+'\',\''+iso+'\')" style="padding:4px;font-size:11px;cursor:pointer;border-radius:4px;'+(isToday?'background:#e3f2fd;font-weight:700;':'')+'">'+d+'</div>';
+  }
+  html+='</div>';
+  popup.innerHTML=html;
+}
+
+function pbNavMonth(dir,which){
+  pbState.month+=dir;
+  if(pbState.month<0){pbState.month=11;pbState.year--;}
+  if(pbState.month>11){pbState.month=0;pbState.year++;}
+  pbRenderCal(which);
+}
+
+function pbPickDate(which,iso){
+  const d=new Date(iso+'T00:00:00');
+  const formatted=pbFmt(d);
+  if(which==='From'){
+    document.getElementById('pbFrom').value=formatted;pbState.from=iso;
+    // Всегда копировать в «По»
+    document.getElementById('pbTo').value=formatted;pbState.to=iso;
+  } else {
+    document.getElementById('pbTo').value=formatted;pbState.to=iso;
+  }
+  document.getElementById('pbPopup'+which).style.display='none';
+  pbState.openPopup=null;
+}
+
+// Закрытие popup по клику вне
+document.addEventListener('click',function(e){
+  if(pbState.openPopup && !e.target.closest('.pb-field') && !e.target.closest('.pb-popup')){
+    document.getElementById('pbPopupFrom').style.display='none';
+    document.getElementById('pbPopupTo').style.display='none';
+    pbState.openPopup=null;
+  }
+});
+
+function fmtShortDate(iso) {
+  const p = iso.split('-');
+  return p[2] + '.' + p[1];
+}
+
+/* ── Применить фильтр ── */
+async function applyFilter() {
+  pbFromBlur(); pbToBlur();
+  const condition = document.getElementById('filterCondition').value;
+  const dateFrom = pbState.from;
+  const dateTo = pbState.to;
+  if (!dateFrom || !dateTo) { alert('Укажите период'); return; }
+
+  document.getElementById('datesDivider').style.display = '';
+  document.getElementById('datesList').innerHTML = '<div style="color:#aaa;font-size:11px;padding:4px;">Загрузка...</div>';
+
+  const resp = await fetch('/api/groups/dates/?condition=' + condition + '&date_from=' + dateFrom + '&date_to=' + dateTo);
+  const data = await resp.json();
+  renderDates(data.dates);
+
+  // Автовыбор первой даты
+  if (data.dates.length > 0) {
+    const firstEl = document.querySelector('.date-item');
+    if (firstEl) selectDate(data.dates[0].date, firstEl);
+  }
+}
+
+function renderDates(dates) {
+  const el = document.getElementById('datesList');
+  if (!dates.length) {
+    el.innerHTML = '<div style="color:#aaa;font-size:11px;padding:4px;">Нет данных</div>';
+    return;
+  }
+  el.innerHTML = dates.map(d =>
+    '<div class="date-item" data-date="' + d.date + '" onclick="selectDate(\'' + d.date + '\', this)">' +
+      '<span class="date-label">' + fmtShortDate(d.date) + '</span>' +
+      '<span class="date-count">' + d.count + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+/* ── Выбор даты ── */
+async function selectDate(dateStr, el) {
+  selectedDateStr = dateStr;
+  document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+
+  const condition = document.getElementById('filterCondition').value;
+  const resp = await fetch('/api/groups/by-date/?condition=' + condition + '&date=' + dateStr);
+  const data = await resp.json();
+
+  currentGroups = data.groups;
+  allGroupsForDate = data.groups;
+  currentStudents = data.students;
+
+  // Сбросить выделение и фильтры
+  selectedGroupIds = new Set();
+  starredSet = new Set();
+  selectedDepId = '';
+  buildDepFilter(data.groups);
+  renderGroups(data.groups);
+  renderStudents([]);
+}
+
+/* ── Группы ── */
+let allGroupsForDate = []; // все группы на выбранную дату (до фильтра подразделения)
+
+function renderGroups(groups) {
+  const el = document.getElementById('groupsList');
+  if (!groups.length) {
+    el.innerHTML = '<div class="groups-empty">Нет групп</div>';
+    return;
+  }
+  el.innerHTML = groups.map(g =>
+    '<div class="group-item" data-id="' + g.id + '" data-dep="' + (g.department_id || '') + '" onclick="toggleGroupSel(this,' + g.id + ')">' +
+      '<div class="group-info">' +
+        '<div class="group-code">' + (g.tp_id ? g.tp_id+'|' : '') + esc(g.code) + '</div>' +
+        '<div class="group-dates">' + shortDate(g.date_from) + ' — ' + shortDate(g.date_to) + '</div>' +
+        '<div class="group-meta"><span>' + g.student_count + ' чел.</span>' +
+          (g.notes ? '<span class="group-notes">' + esc(g.notes) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+let selectedGroupIds = new Set();
+
+function toggleGroupSel(el, id) {
+  if (selectedGroupIds.has(id)) {
+    selectedGroupIds.delete(id);
+    el.classList.remove('selected');
+  } else {
+    selectedGroupIds.add(id);
+    el.classList.add('selected');
+  }
+  filterByGroups();
+}
+
+let selectedDepId = '';
+
+function buildDepFilter(groups) {
+  const deps = {};
+  groups.forEach(g => {
+    if (g.department_id && g.department) {
+      deps[g.department_id] = g.department;
+    }
+  });
+  const el = document.getElementById('depList');
+  const sorted = Object.entries(deps).sort((a,b) => a[1].localeCompare(b[1]));
+  if (!sorted.length) { el.style.display='none'; return; }
+  el.innerHTML = '<div class="dep-item' + (!selectedDepId ? ' selected' : '') + '" data-dep="" onclick="selectDep(this,\'\')">Все</div>' +
+    sorted.map(([id,name]) => '<div class="dep-item" data-dep="'+id+'" onclick="selectDep(this,\''+id+'\')">'+esc(name)+'</div>').join('');
+  el.style.display = '';
+  selectedDepId = '';
+}
+
+function selectDep(el, depId) {
+  selectedDepId = depId;
+  document.querySelectorAll('.dep-item').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  filterGroupsByDep();
+}
+
+function filterGroupsByDep() {
+  document.querySelectorAll('.group-item').forEach(el => {
+    if (!selectedDepId || el.dataset.dep === selectedDepId) {
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+      const id = +el.dataset.id;
+      selectedGroupIds.delete(id);
+      el.classList.remove('selected');
+    }
+  });
+  filterByGroups();
+}
+
+function toggleAllGroups() {
+  // Если все видимые выделены — снять, иначе — выделить все видимые
+  const visible = [...document.querySelectorAll('.group-item')].filter(el => el.style.display !== 'none');
+  const allSel = visible.length > 0 && visible.every(el => el.classList.contains('selected'));
+  visible.forEach(el => {
+    const id = +el.dataset.id;
+    if (allSel) {
+      selectedGroupIds.delete(id);
+      el.classList.remove('selected');
+    } else {
+      selectedGroupIds.add(id);
+      el.classList.add('selected');
+    }
+  });
+  filterByGroups();
+}
+
+function filterByGroups() {
+  if (!selectedGroupIds.size) {
+    renderStudents([]);
+    return;
+  }
+  const ids = [...selectedGroupIds];
+  const filtered = currentStudents.filter(s => ids.includes(s.group_id));
+  renderStudents(filtered);
+}
+
+/* ── Слушатели ── */
+function renderStudents(students) {
+  const body = document.getElementById('studentsBody');
+  if (!students.length) {
+    body.innerHTML = '<tr><td colspan="10" class="empty-msg">Нет слушателей</td></tr>';
+    return;
+  }
+  let html = '';
+  students.forEach((s, i) => {
+    const pct = s.progress_percent || 0;
+    const modText = s.total_modules > 0
+      ? s.completed_modules + '/' + s.total_modules +
+        (s.quiz_avg !== null ? ' | ' + s.quiz_avg + '%' : '') +
+        (s.final_score !== null ? ' | ' + s.final_score + '%' : '')
+      : '—';
+
+    let payHtml = '';
+    if (s.amount > 0) {
+      if (s.payment_date) {
+        payHtml = '<span class="payment-paid">' + s.amount.toLocaleString('ru') + ' &#x1F4B0;</span>';
+      } else {
+        payHtml = '<span class="payment-debt">' + s.amount.toLocaleString('ru') + '</span>';
+      }
+    } else {
+      payHtml = '<span style="color:#ccc">—</span>';
+    }
+
+    const printCls = s.is_printed ? ' printed' : '';
+
+    const isStarred = starredSet.has(s.program_line_id);
+    html += '<tr data-plid="' + s.program_line_id + '"' + (isStarred ? ' class="starred"' : '') + '>' +
+      '<td style="text-align:center;"><span class="star-btn' + (isStarred ? ' on' : '') + '" onclick="toggleStar(' + s.program_line_id + ',this)">' + STAR_SVG + '</span></td>' +
+      '<td style="color:#8899aa;font-size:11px;">' + (i + 1) + '</td>' +
+      '<td style="font-size:11px;color:#555;">' + (s.order_date || '—') + '</td>' +
+      '<td class="cell-two-lines"><div class="name-main"><a href="/persons/' + s.person_id + '/">' + esc(s.last_name) + ' ' + esc(s.first_name) + '</a></div>' +
+        (s.middle_name ? '<div class="cell-line2">' + esc(s.middle_name) + '</div>' : '') + '</td>' +
+      '<td class="cell-two-lines"><div style="font-size:11px;">' + (s.date_start || '—') + '</div><div class="cell-line2">' + (s.date_end || '') + '</div></td>' +
+      '<td class="cell-two-lines"><div style="font-size:12px;">' + esc(s.cert_number || '—') + '</div><div class="cell-line2">' + esc(s.reg_number || '') + '</div></td>' +
+      '<td class="module-cell"><div class="progress-bg" style="width:' + pct + '%;"></div><div class="progress-text">' + modText + '</div></td>' +
+      '<td class="grade-cell" onclick="showGradePopup(this,' + s.program_line_id + ')">' +
+        '<span class="grade-val">' + (s.grade || '<span style="color:#ccc">—</span>') + '</span>' +
+        '<div class="grade-popup" id="gp-' + s.program_line_id + '">' + gradeOptions(s.program_line_id) + '</div>' +
+      '</td>' +
+      '<td style="text-align:center;"><button class="print-btn' + printCls + '" onclick="togglePrint(' + s.program_line_id + ',this)">' +
+        '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 8V2h11v6M1 8h14v5H1z"/><path d="M4 13h8v-3H4z" fill="#fff"/><circle cx="12" cy="10" r=".8"/></svg>' +
+      '</button></td>' +
+      '<td>' + payHtml + '</td>' +
+    '</tr>';
+  });
+  body.innerHTML = html;
+  updateThStar();
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function shortDate(s) { if (!s) return ''; const p = s.split('.'); return p.length >= 2 ? p[0] + '.' + p[1] : s; }
+
+/* ── Звёздочки ── */
+const STAR_SVG = '<svg viewBox="0 0 20 20"><polygon points="10,2 12.5,7.5 18,8 14,12 15,18 10,15 5,18 6,12 2,8 7.5,7.5"/></svg>';
+let starredSet = new Set();
+
+function toggleStar(plId, el) {
+  event.stopPropagation();
+  if (starredSet.has(plId)) {
+    starredSet.delete(plId);
+    el.classList.remove('on');
+    el.closest('tr').classList.remove('starred');
+  } else {
+    starredSet.add(plId);
+    el.classList.add('on');
+    el.closest('tr').classList.add('starred');
+  }
+  updateThStar();
+}
+
+function toggleAllStars() {
+  const rows = document.querySelectorAll('#studentsBody tr[data-plid]');
+  const allOn = rows.length > 0 && [...rows].every(r => starredSet.has(+r.dataset.plid));
+  rows.forEach(r => {
+    const plId = +r.dataset.plid;
+    const star = r.querySelector('.star-btn');
+    if (allOn) {
+      starredSet.delete(plId);
+      if (star) star.classList.remove('on');
+      r.classList.remove('starred');
+    } else {
+      starredSet.add(plId);
+      if (star) star.classList.add('on');
+      r.classList.add('starred');
+    }
+  });
+  updateThStar();
+}
+
+function updateThStar() {
+  const th = document.getElementById('thStar');
+  const rows = document.querySelectorAll('#studentsBody tr[data-plid]');
+  if (!rows.length) { th.classList.remove('on'); return; }
+  const total = rows.length;
+  const cnt = [...rows].filter(r => starredSet.has(+r.dataset.plid)).length;
+  th.classList.toggle('on', cnt > 0);
+}
+
+/* ── Оценка ── */
+const GRADES = ['5 (отл.)', '4 (хор.)', '3 (удовл.)', 'зачёт', 'не сдал'];
+
+function gradeOptions(plId) {
+  let h = '';
+  GRADES.forEach(g => {
+    h += '<div class="grade-option" onclick="setGrade(event,' + plId + ',\'' + g + '\')">' + g + '</div>';
+  });
+  h += '<div class="grade-option" style="color:#c62828;" onclick="setGrade(event,' + plId + ',\'\')">— отменить —</div>';
+  return h;
+}
+
+function showGradePopup(td, plId) {
+  document.querySelectorAll('.grade-popup.open').forEach(p => p.classList.remove('open'));
+  const popup = document.getElementById('gp-' + plId);
+  if (popup) popup.classList.add('open');
+}
+
+async function setGrade(e, plId, grade) {
+  e.stopPropagation();
+  document.querySelectorAll('.grade-popup.open').forEach(p => p.classList.remove('open'));
+  await fetch('/api/groups/set-grade/' + plId + '/', {
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+    body:JSON.stringify({grade:grade})
+  });
+  // Обновить в currentStudents
+  const s = currentStudents.find(x => x.program_line_id === plId);
+  if (s) s.grade = grade;
+  filterByGroups();
+}
+
+/* ── Печать ── */
+async function togglePrint(plId, btn) {
+  const resp = await fetch('/api/program-lines/' + plId + '/set-printed/', {
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}
+  });
+  const data = await resp.json();
+  btn.classList.toggle('printed', data.is_printed);
+  const s = currentStudents.find(x => x.program_line_id === plId);
+  if (s) s.is_printed = data.is_printed;
+}
+
+/* ── Закрытие popup по клику вне ── */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.grade-cell')) {
+    document.querySelectorAll('.grade-popup.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
+/* ── Инициализация: сегодняшняя дата ── */
+(function(){
+  const today = new Date();
+  const f = pbFmt(today);
+  document.getElementById('pbFrom').value = f;
+  document.getElementById('pbTo').value = f;
+  const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  pbState.from = iso;
+  pbState.to = iso;
+})();
+</script>
+{% endblock %}

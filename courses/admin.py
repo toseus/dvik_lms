@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission, QuizAnswerRecord, RoleIPRestriction, AllowedIP
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission, QuizAnswerRecord, RoleIPRestriction, AllowedIP, TrainingGroup
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
 
@@ -470,6 +470,15 @@ class QuizAnswerRecordAdmin(admin.ModelAdmin):
     list_display = ['person', 'step', 'question', 'is_correct', 'score', 'answered_at']
     list_filter = ['is_correct', 'step']
     raw_id_fields = ['person', 'step', 'question']
+
+
+@admin.register(TrainingGroup)
+class TrainingGroupAdmin(admin.ModelAdmin):
+    list_display = ['legacy_id', 'training_program', 'date_from', 'date_to', 'notes', 'student_limit']
+    list_filter = ['learning_status', 'department']
+    search_fields = ['training_program__code', 'training_program__title', 'notes', 'group_number']
+    raw_id_fields = ['training_program', 'organization']
+    readonly_fields = ['legacy_id']
 
 
 @admin.register(RoleIPRestriction)

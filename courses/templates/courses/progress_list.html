@@ -107,6 +107,7 @@
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:40px;">ID</th>
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:180px;">Слушатель</th>
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:120px;">Программа</th>
+                    <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:100px;">Дата окончания</th>
                     <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;">Модуль / Прогресс</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:70px;">Этапы</th>
                     <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#555;width:90px;">Промежуточная</th>
@@ -127,6 +128,10 @@
 
                     <td style="padding:6px 10px;font-size:11px;color:#555;" title="{{ row.program_title }}">
                         {{ row.program_code }}
+                    </td>
+
+                    <td style="padding:6px 10px;text-align:center;font-size:11px;color:#555;">
+                        {% if row.date_end %}{{ row.date_end|date:"d.m.Y" }}{% else %}&mdash;{% endif %}
                     </td>
 
                     <td style="padding:6px 10px;">

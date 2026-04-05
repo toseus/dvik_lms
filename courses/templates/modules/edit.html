@@ -145,6 +145,10 @@
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px; align-items:center;">
       <span class="dirty-dot" id="dirtyDot" title="Есть несохранённые изменения"></span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-right:8px;">
+        <input type="checkbox" id="isRequired" checked onchange="markDirty()">
+        Обязательный модуль
+      </label>
       <span id="statsLine" style="font-size:12px; color:var(--text-muted); margin-right:auto;">0 этапов</span>
       <button onclick="saveAll()" style="padding:8px 20px; font-size:13px; font-weight:700; background:var(--accent); color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(15,98,174,0.3);">Сохранить</button>
       <button onclick="openPreview()" style="padding:8px 20px; font-size:13px; font-weight:700; background:var(--status-green); color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(16,124,16,0.3);">Проверить</button>
@@ -268,6 +272,7 @@ async function loadSteps(){
   const r=await fetch(`/api/modules/${MODULE_PK}/steps/`);
   const d=await r.json();
   steps=d.steps;
+  document.getElementById('isRequired').checked = d.is_required !== false;
   renderSteps();
 }
 
@@ -418,6 +423,7 @@ async function saveAll(){
     module_title:document.getElementById('moduleTitle').value,
     module_description:document.getElementById('moduleDesc').value,
     cover_image:document.getElementById('moduleCover').value.trim(),
+    is_required:document.getElementById('isRequired').checked,
     steps:steps.map((s,i)=>({id:s.id,order:i,type:s.type,title:s.title,description:s.description||'',url:s.url||'',slide_content:s.slide_content||'',time_limit_minutes:s.time_limit_minutes,pass_score:s.pass_score,exam_config:s.exam_config,is_active:s.is_active}))
   };
   const r=await fetch(`/api/modules/${MODULE_PK}/steps/save/`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
