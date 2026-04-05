@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission, QuizAnswerRecord
+from .models import Course, CourseStep, Question, Enrollment, StepCompletion, Order, Program, Person, Company, User, Space, TrainingProgram, Message, LearningModule, ModuleStep, QuizQuestion, Signer, Contract, ModuleProgress, StepProgress, QuizAttempt, ModuleResult, ProgramDocument, ProgramDocumentTemplate, Reference, ProgramPlan, Department, WorkRole, PersonWorkRole, PersonDocument, SeaService, ProgramTemplate, ModuleAssignment, MenuPermission, QuizAnswerRecord, RoleIPRestriction, AllowedIP
 from django.utils.html import format_html, mark_safe
 from django.contrib.auth.admin import UserAdmin
 
@@ -470,3 +470,29 @@ class QuizAnswerRecordAdmin(admin.ModelAdmin):
     list_display = ['person', 'step', 'question', 'is_correct', 'score', 'answered_at']
     list_filter = ['is_correct', 'step']
     raw_id_fields = ['person', 'step', 'question']
+
+
+@admin.register(RoleIPRestriction)
+class RoleIPRestrictionAdmin(admin.ModelAdmin):
+    list_display = ['get_role_display_col', 'ip_check_enabled']
+    list_editable = ['ip_check_enabled']
+    list_display_links = None
+
+    def get_role_display_col(self, obj):
+        return obj.get_role_display()
+    get_role_display_col.short_description = 'Роль'
+
+    def has_add_permission(self, request):
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AllowedIP)
+class AllowedIPAdmin(admin.ModelAdmin):
+    list_display = ['ip_address', 'description', 'is_active', 'created_at']
+    list_editable = ['is_active']
+    list_filter = ['is_active']
+    search_fields = ['ip_address', 'description']
+    readonly_fields = ['created_at']

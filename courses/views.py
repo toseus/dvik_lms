@@ -865,12 +865,50 @@ def login_view(request):
         password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            login(request, user)
-            return redirect(request.GET.get('next', 'dashboard'))
+            # Проверка IP по роли
+            ip_error = _check_ip_restriction(request, user)
+            if ip_error:
+                error = ip_error
+            else:
+                login(request, user)
+                return redirect(request.GET.get('next', 'dashboard'))
         else:
             error = 'Неверный логин или пароль'
 
     return render(request, 'auth/login.html', {'error': error})
+
+
+def _check_ip_restriction(request, user):
+    """Проверяет, разрешён ли вход с текущего IP для роли пользователя.
+    Возвращает текст ошибки или None если доступ разрешён."""
+    from .models import RoleIPRestriction, AllowedIP
+
+    role = getattr(user, 'role', 'student')
+
+    # Проверяем, включена ли проверка IP для этой роли
+    try:
+        restriction = RoleIPRestriction.objects.get(role=role)
+        if not restriction.ip_check_enabled:
+            return None
+    except RoleIPRestriction.DoesNotExist:
+        return None
+
+    # Определяем IP клиента
+    client_ip = _get_client_ip(request)
+
+    # Проверяем IP в списке разрешённых
+    if AllowedIP.objects.filter(ip_address=client_ip, is_active=True).exists():
+        return None
+
+    return f'Доступ с вашего IP-адреса ({client_ip}) запрещён. Обратитесь к администратору.'
+
+
+def _get_client_ip(request):
+    """Извлекает реальный IP клиента (с учётом proxy)."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
 
 
 @require_POST

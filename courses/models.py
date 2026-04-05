@@ -1201,6 +1201,69 @@ class MenuPermission(models.Model):
         return f'{self.get_menu_item_display()} — {self.get_role_display()} — {"✓" if self.is_visible else "✗"}'
 
 
+class RoleIPRestriction(models.Model):
+    """Настройка ограничения доступа по IP для роли."""
+    ROLES = [
+        ('student', 'Слушатель'),
+        ('teacher', 'Преподаватель'),
+        ('admin', 'Администратор'),
+        ('superadmin', 'Суперадмин'),
+    ]
+
+    role = models.CharField(
+        max_length=20, choices=ROLES, unique=True,
+        verbose_name='Роль'
+    )
+    ip_check_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Проверять IP при входе',
+        help_text='Если включено — пользователи с этой ролью смогут войти только с разрешённых IP-адресов'
+    )
+
+    class Meta:
+        ordering = ['role']
+        verbose_name = 'Ограничение IP по роли'
+        verbose_name_plural = 'Ограничения IP по ролям'
+
+    def __str__(self):
+        status = '🔒 Проверка IP' if self.ip_check_enabled else '🌐 Без ограничений'
+        return f'{self.get_role_display()} — {status}'
+
+
+class AllowedIP(models.Model):
+    """IP-адрес, с которого разрешён доступ в систему."""
+    ip_address = models.GenericIPAddressField(
+        unique=True,
+        verbose_name='IP-адрес'
+    )
+    description = models.CharField(
+        max_length=200, blank=True,
+        verbose_name='Описание',
+        help_text='Например: Офис Владивосток, VPN-сервер'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Активен'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Добавлен'
+    )
+
+    class Meta:
+        ordering = ['ip_address']
+        verbose_name = 'Разрешённый IP-адрес'
+        verbose_name_plural = 'Разрешённые IP-адреса'
+
+    def __str__(self):
+        label = f'{self.ip_address}'
+        if self.description:
+            label += f' ({self.description})'
+        if not self.is_active:
+            label += ' [отключён]'
+        return label
+
+
 class QuizAnswerRecord(models.Model):
     """Запись ответа слушателя на конкретный вопрос теста."""
     person = models.ForeignKey('Person', on_delete=models.CASCADE,
